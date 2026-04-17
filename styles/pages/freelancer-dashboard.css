@@ -1,0 +1,2078 @@
+
+
+
+
+h1, h2, h3 {
+  color: var(--secondary-color);
+  margin-bottom: 15px;
+}
+
+h2 {
+  font-size: 1.6rem;
+  border-bottom: 2px solid #ddd;
+  padding-bottom: 5px;
+}
+
+small {
+  color: #999;
+  font-weight: 400;
+  margin-left: 5px;
+}
+
+
+
+
+/* Add this to freelancer-dashboard.css if you don't have it */
+.btn-small {
+  padding: 8px 15px;
+  font-size: 0.85rem;
+  display: inline-block;
+  text-decoration: none; /* Removes the underline from the link */
+}
+
+
+
+/* ---------------------------------------------------- */
+/* Dashboard Table Styles (Responsive) - client-dashboard.html and freelancer-dashboard.html*/
+/* ---------------------------------------------------- */
+
+
+.responsive-table-container {
+  overflow-x: auto; /* Allows horizontal scrolling if needed */
+  margin-bottom: 20px;
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-table th {
+  background-color: var(--background-light);
+  color: var(--secondary-color);
+  text-align: left;
+  padding: 12px 15px;
+  font-weight: 700;
+  font-size: 0.9em;
+  text-transform: none;
+}
+
+.dashboard-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  font-size: 0.95em;
+  color: #333;
+}
+
+.dashboard-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9; /* Zebra striping */
+}
+
+.dashboard-table tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+.btn-action {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.8em;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  display: inline-block;
+}
+
+.btn-action:hover {
+  background-color: #0056b3;
+}
+
+/* Status Badges within the table */
+.status-badge.status-overdue {
+  background-color: #D9534F; /* Red */
+  color: white;
+}
+.status-badge.status-completed {
+  background-color: #5CB85C; /* Green */
+  color: white;
+}
+
+/* ---------------------------------------------------- */
+/* Table Responsiveness (Mobile View) */
+/* ---------------------------------------------------- */
+
+
+
+
+
+
+
+/* Dashboard Layout and Components - Main Body */
+
+.dashboard-layout {
+  display: flex;
+  max-width: var(--max-width);
+  margin: 30px auto; /* Center the dashboard area */
+  padding: 0 30px;
+  gap: 30px;
+}
+
+/* Sidebar Styling */
+.dashboard-sidebar {
+  width: 250px;
+  flex-shrink: 0; /* Prevents sidebar from shrinking */
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  align-self: flex-start; /* Keeps the sidebar at the top */
+}
+
+
+.profile-snippet {
+  text-align: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 20px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin-bottom: 10px;
+  background-color: var(--background-light); /* Placeholder background */
+}
+
+
+
+/* Sidebar Navigation */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 10px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  color: var(--secondary-color);
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.nav-item:hover, .nav-item.active {
+  background-color: var(--background-light);
+  color: var(--primary-color);
+}
+
+.nav-item.active {
+  border-left: 3px solid var(--primary-color);
+}
+
+.nav-item .icon {
+  margin-right: 10px;
+  font-size: 1.2em;
+}
+
+
+/* Content Area Styling */
+.dashboard-content {
+  flex-grow: 1; /* Takes up the remaining space */
+}
+
+/* Stats Cards */
+.stats-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  flex: 1;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card h2 {
+  font-size: 2em;
+  color: var(--primary-color);
+  margin-bottom: 5px;
+}
+
+.stat-card p {
+  color: #777;
+}
+
+/* Activity Section */
+.activity-section {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+
+.status-badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: 700;
+}
+
+.status-pending {
+  background-color: #ffc107; /* Yellow */
+  color: #333;
+}
+
+.status-completed {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.add-gig-btn {
+  /* Use existing .btn-primary styling, just adding margin */
+  margin: 10px; 
+  
+  display: inline-block;
+  padding: 5px;
+}
+
+
+
+
+
+
+
+/* NEW: Dashboard Recommended Jobs Styles */ 
+.recommended-jobs-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px; 
+  background-color: #fcfcff;/* Subtle background difference */ 
+} 
+
+.section-subtitle { 
+  color: #777; 
+  margin-bottom: 20px; 
+  font-size: 0.95em; 
+} 
+
+/* Inherit job-card styles from job-browse-page for consistency */ 
+.job-match-card { /* Uses .job-card styles from Section 30 for consistency: (border, padding, box-shadow, etc.) */ 
+  border: 1px solid #ddd; 
+  border-radius: 8px; 
+  padding: 15px; /* Slightly smaller padding for dashboard */ 
+  margin-bottom: 15px; 
+  transition: box-shadow 0.2s;
+} 
+
+
+.job-match-card:hover { 
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); 
+} 
+
+.job-match-card .job-card-header { 
+  margin-bottom: 5px; 
+} 
+
+.job-match-card .job-title-link { 
+  font-size: 1.1em; 
+} 
+
+.job-match-card .job-card-budget { 
+  font-size: 0.95em; 
+} 
+
+.job-match-card .job-card-footer { 
+  padding-top: 5px; 
+} 
+
+.view-all-link { 
+  margin-top: 10px; 
+}
+
+
+
+
+
+
+
+
+
+
+
+/* --- Dashboard Responsiveness --- */
+@media (max-width: 992px) {
+  .dashboard-layout {
+      flex-direction: column; /* Stacks the sidebar and content vertically */
+  }
+
+  .dashboard-sidebar {
+      width: 100%; /* Sidebar takes full width */
+  }
+
+  .sidebar-nav {
+      flex-direction: row; /* Nav items become horizontal tabs */
+      overflow-x: auto;
+      white-space: nowrap;
+  }
+
+  .nav-item {
+      flex-shrink: 0;
+      margin-right: 10px;
+      border-left: none !important; 
+      border-bottom: 3px solid transparent;
+  }
+  .nav-item.active {
+      border-bottom: 3px solid var(--primary-color);
+  }
+  .nav-item .icon {
+      display: none; /* Hide icons on mobile tabs for space */
+  }
+
+  .stats-row {
+      flex-direction: column; /* Stats cards stack vertically */
+  }
+}
+
+
+
+
+
+
+
+
+
+38. /* My Gigs/Service Dashboard - service-dashboard.html - Freelancer Dashboard - Snippet */
+
+
+
+/* Essential CSS for Panel Switching (Should ideally be in style.css) */
+      .content-panel.hidden {
+          display: none;
+      }
+
+
+.content-panel {
+  background-color: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.content-panel h2 {
+  font-size: 1.8em;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+
+
+      
+      /* Dashboard Layout & Card Styles */
+
+
+
+.content-card {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 25px;
+  border-top: 5px solid var(--secondary-color); /* Highlight for sections */
+}
+
+
+
+
+      .dashboard-content-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 30px;
+      }
+
+
+.content-card p {
+  margin-bottom: 10px;
+}
+
+
+
+.content-card h2 i {
+  color: var(--primary-color); 
+  margin-right: 10px;
+  font-size: 0.9em; /* Slightly smaller than the text */
+}
+
+/* Ensure the heading elements can be vertically aligned */
+
+content-card {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 25px;
+  border-top: 5px solid var(--secondary-color); /* Highlight for sections */
+}
+
+
+
+
+.content-card h2 {
+  display: flex;
+  align-items: center;
+  color: var(--primary-color); 
+}
+
+
+
+/* --- Content Area Styling --- Tab Switching and Mobile Horizontal Sidebar */ 
+.dashboard-content { flex-grow: 1; } 
+.content-panel { display: none; /* Panels hidden by default */ } 
+.content-panel.active { display: block; /* Show active panel */ }
+
+
+
+      /* NEW STYLES FOR OVERVIEW INFOGRAPHICS */
+      .greeting-text {
+          color: #555;
+          font-size: 1.1em;
+          margin-bottom: 25px;
+      }
+
+      
+
+
+/* KPI Grid - 4 in a row on desktop */
+.kpi-grid-styled {
+  display: grid;
+  /* Forces 4 equal columns on desktop */
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+/* Mobile View - 2 in a row */
+@media screen and (max-width: 768px) {
+  .kpi-grid-styled {
+      /* Adjusts to 2 columns for mobile devices */
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+  }
+  
+  /* Optional: Slight height adjustment for mobile if needed */
+  .kpi-card-styled {
+      height: auto;
+      padding: 15px;
+  }
+}
+
+
+
+
+
+
+
+
+
+      .kpi-card-styled {
+          background-color: white;
+          padding: 20px;
+          border-radius: 6px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          color: white; 
+          position: relative;
+          overflow: hidden;
+          height: 100px;
+      }
+
+      .kpi-card-styled h2 {
+          font-size: 2.5em;
+          margin: 0;
+          line-height: 1;
+          color: white;
+      }
+
+      .kpi-card-styled p {
+          font-size: 1em;
+          margin: 0;
+          opacity: 0.8;
+          font-weight: 500;
+      }
+      
+      /* Specific KPI Colors (Mimicking uploaded image) */
+      .kpi-clients { background-color: #e53935; } 
+      .kpi-services { background-color: #1976d2; }
+      .kpi-earned { background-color: #616161; }
+      .kpi-score { background-color: #416161; }
+
+      .kpi-inner-content {
+          position: relative;
+          z-index: 2;
+          padding-top: 5px;
+      }
+      .kpi-inner-content i {
+          margin-right: 10px;
+      }
+      
+      .kpi-graph-bg {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 50px; 
+          opacity: 0.5;
+      }
+
+      /* --- Main Graph Area --- */
+      .main-graph-container {
+          background-color: white;
+          padding: 20px;
+          border-radius: 6px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+          margin-bottom: 30px;
+      }
+      .graph-keys {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 20px;
+      }
+      .graph-key-item {
+          display: flex;
+          align-items: center;
+          font-size: 0.9em;
+          color: #555;
+      }
+      .graph-key-color {
+          width: 15px;
+          height: 15px;
+          border-radius: 3px;
+          margin-right: 8px;
+      }
+      .key-clients { background-color: #e53935; }
+      .key-services { background-color: #1976d2; }
+      .key-earned { background-color: #616161; }
+      .key-score { background-color: #416161; }
+  
+  
+      .main-chart-placeholder {
+          min-height: 300px;
+          border: 1px solid #eee;
+          background-color: #fafafa;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          color: #aaa;
+          font-style: italic;
+          border-radius: 4px;
+      }
+      
+      /* Recent Activity */
+      
+
+/* Recent Activity Container */
+.recent-activity-feed {
+  list-style: none;
+  padding: 10px 0;
+  margin: 0;
+  position: relative;
+}
+
+/* Vertical Line for Timeline Effect */
+.recent-activity-feed::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 20px;
+  bottom: 20px;
+  width: 2px;
+  background: #f0f0f0;
+}
+
+.activity-item {
+  display: flex;
+  gap: 15px;
+  padding: 15px 0;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.activity-item:hover {
+  transform: translateX(5px);
+}
+
+/* Icon Styles */
+.activity-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  font-size: 0.9em;
+}
+
+/* Status Specific Colors */
+.icon-success { color: #28a745; border-color: #d4edda; background-color: #f8fff9; }
+.icon-rating  { color: #ffc107; border-color: #fff3cd; background-color: #fffdf5; }
+.icon-message { color: #17a2b8; border-color: #d1ecf1; background-color: #f4fbfc; }
+.icon-danger  { color: #dc3545; border-color: #f8d7da; background-color: #fff5f6; }
+
+/* Content Typography */
+.activity-content {
+  flex: 1;
+}
+
+.activity-title {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95em;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.activity-text {
+  font-size: 0.9em;
+  color: #666;
+  margin: 0 !important;
+}
+
+.activity-time {
+  font-size: 0.75em;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+
+
+
+
+      /* Sidebar Icons and Active Status */
+      .sidebar-nav .nav-item .icon {
+          display: inline-block;
+          width: 20px;
+          text-align: center;
+      }
+      .sidebar-nav .nav-item.active {
+          background-color: var(--light-gray, #f0f0f0);
+          color: var(--primary-color, #007bff);
+      }
+      .sidebar-nav .nav-item.active .icon i {
+           color: var(--primary-color, #007bff);
+      }
+      .sidebar-nav .nav-item .icon i {
+          color: #888;
+      }
+      .content-panel h2 i {
+          margin-right: 10px;
+          color: var(--primary-color, #007bff);
+      }
+
+      
+  
+  
+  
+  
+  
+       /* --- JOBS FOR YOU SNIPPET STYLES --- */
+      
+/* NEW: Dashboard Recommended Jobs Styles */ 
+.recommended-jobs-section {
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px; 
+  background-color: #fcfcff;/* Subtle background difference */ 
+} 
+
+.section-subtitle { 
+  color: #777; 
+  margin-bottom: 20px; 
+  font-size: 0.95em; 
+} 
+
+/* Inherit job-card styles from job-browse-page for consistency */ 
+.job-match-card { /* Uses .job-card styles from Section 30 for consistency: (border, padding, box-shadow, etc.) */ 
+  border: 1px solid #ddd; 
+  border-radius: 8px; 
+  padding: 15px; /* Slightly smaller padding for dashboard */ 
+  margin-bottom: 15px; 
+  transition: box-shadow 0.2s;
+} 
+
+
+.job-match-card:hover { 
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); 
+} 
+
+.job-match-card .job-card-header { 
+  margin-bottom: 5px; 
+} 
+
+.job-match-card .job-title-link { 
+  font-size: 1.1em; 
+} 
+
+.job-match-card .job-card-budget { 
+  font-size: 0.95em; 
+} 
+
+.job-match-card .job-card-footer { 
+  padding-top: 5px; 
+} 
+
+.view-all-link { 
+  margin-top: 10px; 
+}
+
+
+.job-card-info {
+  font-size: 0.9em;
+  color: #888;
+  margin-right: 15px;
+}
+
+.job-card-info i {
+  margin-right: 5px;
+}
+
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 992px) {
+  .job-browse-layout {
+      flex-direction: column;
+  }
+  
+  .job-filter-sidebar {
+      width: 100%; /* Sidebar takes full width on smaller screens */
+      order: 1; /* Move sidebar above the listings */
+  }
+  
+  .job-listings-main {
+      order: 2;
+  }
+}
+
+
+
+      /* --- END JOBS FOR YOU SNIPPET STYLES --- */
+  
+
+  
+  
+  
+  
+  
+  
+
+      /* Other Snippet Styles - Status Scale */
+      /* Container styling */
+.level-showcase {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  margin-top: 20px;
+}
+
+/* Level Header Card (The Path) */
+.level-header-card {
+  background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+  padding: 30px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: white;
+  box-shadow: 0 10px 30px rgba(108, 92, 231, 0.3);
+}
+
+.current-level-orb, .next-level-orb {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.next-level-orb.locked {
+  background: rgba(0, 0, 0, 0.1);
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.orb-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px; }
+.level-number { font-size: 1.8rem; font-weight: 800; }
+
+.level-path-info { text-align: center; flex: 1; padding: 0 20px; }
+.level-path-info h2 .highlight { color: #feca57; }
+.level-path-info p { opacity: 0.9; font-size: 0.9rem; margin-top: 5px; }
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.metric-card {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #f0f0f0;
+  display: flex;
+  gap: 15px;
+  transition: 0.3s;
+}
+
+.metric-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.05); }
+
+.metric-icon {
+  width: 45px;
+  height: 45px;
+  background: #f8f9ff;
+  color: #6c5ce7;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.metric-details { flex: 1; }
+
+.metric-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.metric-title { font-weight: 600; color: #2d3436; font-size: 0.95rem; }
+.metric-stat { font-weight: 700; color: #6c5ce7; font-size: 0.9rem; }
+
+/* Modern Progress Bars */
+.modern-progress-track {
+  height: 8px;
+  background: #eee;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.modern-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6c5ce7, #a29bfe);
+  border-radius: 10px;
+  transition: width 1s ease-in-out;
+}
+
+.modern-progress-track.warning .modern-progress-fill {
+  background: linear-gradient(90deg, #fdcb6e, #feca57);
+}
+
+.metric-hint {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #b2bec3;
+  font-style: italic;
+}
+
+
+
+
+
+
+/* Modern Action Grid - Quick Actiion */
+
+/* Ensure the grid handles 8 items cleanly */
+.action-grid-modern {
+  display: grid;
+  /* This will automatically wrap items into rows of 4 on desktop, 2 on tablet, and 1 on mobile */
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+  padding-top: 20px;
+}
+
+.quick-card {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+.quick-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  border-color: var(--primary-color);
+}
+
+/* Icon Container */
+.card-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  background: #f4f7fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+/* Primary Card Styling */
+.quick-card.primary {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.quick-card.primary .card-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.quick-card.primary h3, 
+.quick-card.primary p {
+  color: white;
+}
+
+/* Text Styling within Cards */
+.card-info h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #333;
+  font-weight: 700;
+}
+
+.card-info p {
+  margin: 2px 0 0 0;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+/* Specific Icon Colors for better recognition */
+.message-icon { color: #17a2b8; background: #e7f6f8; }
+.payout-icon { color: #28a745; background: #e9f7ef; }
+.delivery-icon { color: #fd7e14; background: #fff5eb; }
+
+
+
+/* Color accents for the new Quick Actions */
+.profile-icon { 
+  color: #6f42c1; 
+  background: #f3effb; 
+}
+
+.history-icon { 
+  color: #6c757d; 
+  background: #f8f9fa; 
+}
+
+.portfolio-icon { 
+  color: #e83e8c; 
+  background: #fef2f7; 
+}
+
+.settings-icon { 
+  color: #20c997; 
+  background: #e9fbf6; 
+}
+
+/* Ensure the grid handles 8 items cleanly */
+.action-grid-modern {
+  display: grid;
+  /* This will automatically wrap items into rows of 4 on desktop, 2 on tablet, and 1 on mobile */
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+/* --- EARNINGS & PAYMENTS PANEL STYLES --- */
+
+/* Dashboard layout utility */
+.dashboard-row {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  flex-wrap: wrap; /* Allows wrapping on smaller screens */
+}
+
+/* 1. Earnings Overview KPI Grid */
+
+/* 1. Earnings Overview KPI Grid - Desktop: 4 in a row */
+.kpi-row {
+  display: grid;
+  /* Forces exactly 4 equal columns */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+/* Individual Card Styling (Ensuring they stretch to fill grid) */
+.kpi-card {
+  background: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 2. Mobile View - 2 in a row */
+@media screen and (max-width: 768px) {
+  .kpi-row {
+      /* Adjusts to 2 columns on mobile devices */
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+  }
+  
+  .kpi-value {
+      font-size: 1.2em; /* Slightly smaller text for mobile fit */
+  }
+}
+
+
+
+
+
+      .kpi-label {
+          font-size: 0.9em;
+          color: #6b7280;
+          margin-bottom: 5px;
+      }
+
+      .kpi-value {
+          font-size: 1.4em;
+          font-weight: 700;
+          color: #1f2937;
+      }
+      
+      /* Mini Graph/Sparkline Placeholder */
+      .kpi-graph {
+          height: 30px;
+          margin-top: 10px;
+          background: #eef2ff;
+          border-radius: 4px;
+          display: flex; /* Used to simulate a bar/progress */
+          align-items: center;
+      }
+      .graph-fill {
+          height: 100%;
+          border-radius: 4px;
+          opacity: 0.7;
+          /* width will be set dynamically (or here for static example) */
+      }
+      .kpi-card.available .graph-fill { background-color: #10b981; width: 60%; }
+      .kpi-card.pending .graph-fill { background-color: #f59e0b; width: 30%; }
+      .kpi-card.total .graph-fill { background-color: #3b82f6; width: 100%; }
+      .kpi-card.withdrawn .graph-fill { background-color: #9ca3af; width: 85%; }
+      /* --- END UPDATED KPI STYLES --- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* 2. Financial Insights (Chart Placeholder) */
+.financial-insights {
+  margin-top: 25px;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.chart-container {
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-placeholder {
+  height: 150px;
+  background: linear-gradient(to right, #eef 0%, #ccf 100%); /* Blue gradient placeholder */
+  color: #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+.insight-summary p {
+  font-size: 0.9em;
+  margin: 5px 0;
+}
+
+/* 3. Recent Transactions Table */
+.transaction-controls {
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.transaction-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.transaction-table th, .transaction-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.transaction-table th {
+  background-color: #f1f3f5;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Status and Type Colors */
+.type-earning { color: #28a745; font-weight: 500; }
+.type-withdrawal { color: #dc3545; }
+.type-fee, .type-refund { color: #dc3545; }
+
+.amount-credit { color: #28a745; font-weight: 700; }
+.amount-debit { color: #dc3545; }
+
+.status-completed { color: #28a745; }
+.status-pending { color: #f7ff69; }
+.status-failed { color: #dc3545; }
+
+
+
+
+
+
+
+
+/* REPLACE the Table Responsiveness (Mobile View) section in freelancer-dashboard.css */
+
+.responsive-table-container {
+  width: 100%;
+  overflow-x: auto; /* Enables horizontal scroll for the table only */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling for iOS */
+  margin-bottom: 20px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+/* Specific styling for the earnings table to make it smaller on mobile */
+@media screen and (max-width: 768px) {
+  .earnings-table-mobile {
+      min-width: 600px; /* Forces table to be wider than screen to trigger scroll */
+      font-size: 0.8rem; /* Makes the table content appear smaller */
+  }
+
+  .earnings-table-mobile th, 
+  .earnings-table-mobile td {
+      padding: 8px 10px; /* Reduces padding to fit more content */
+      white-space: nowrap; /* Prevents text from wrapping to keep table rows slim */
+  }
+
+  /* Override the existing mobile "card-view" styles for this specific table */
+  .earnings-table-mobile thead {
+      position: static !important;
+      width: auto !important;
+      height: auto !important;
+      clip: auto !important;
+      overflow: visible !important;
+      display: table-header-group !important;
+  }
+
+  .earnings-table-mobile tbody tr {
+      display: table-row !important;
+      border: none !important;
+  }
+
+  .earnings-table-mobile td {
+      display: table-cell !important;
+      text-align: left !important;
+      border-bottom: 1px solid #eee !important;
+  }
+
+  .earnings-table-mobile td::before {
+      display: none !important; /* Hide the data-label headers for scroll view */
+  }
+}
+
+
+
+
+
+
+/* 4. Withdrawal & Fees */
+/* Financial Sidebar Container */
+.financial-sidebar-card {
+  padding: 24px !important;
+  background: #ffffff;
+  border-radius: 12px;
+}
+
+.financial-section h3 {
+  font-size: 1.1rem;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #2d3436;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+/* Badges and Labels */
+.limit-badge {
+  background: #f1f2f6;
+  color: #57606f;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.label-text {
+  display: block;
+  font-size: 0.75rem;
+  color: #a4b0be;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.value-text {
+  margin: 0;
+  font-weight: 600;
+  color: #2f3542;
+  font-size: 0.95rem;
+}
+
+/* Payment Method Box */
+.payment-method-box {
+  background: #f8f9fa;
+  border: 1px solid #edf2f7;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.method-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.method-info i {
+  font-size: 1.5rem;
+  color: #003087; /* PayPal Blue */
+}
+
+.btn-manage {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+/* List Items */
+.info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-list li, .info-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  text-decoration: none;
+  color: #2f3542;
+  transition: 0.2s;
+}
+
+.info-link:hover {
+  color: var(--primary-color);
+}
+
+.list-icon {
+  width: 32px;
+  height: 32px;
+  background: #f1f2f6;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  color: #57606f;
+}
+
+/* Verification Banner */
+.verification-banner {
+  margin-top: 20px;
+  background: #e9f7ef;
+  color: #27ae60;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modern-divider {
+  border: 0;
+  border-top: 1px solid #eee;
+  margin: 20px 0;
+}
+
+
+
+
+
+
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-row {
+      flex-direction: column;
+  }
+  .kpi-card {
+      flex: 1 1 100%;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+/* Card Background Colors */
+         :root {
+             --card-bg-1: #004d99; 
+          --card-bg-2: #006400; 
+          --card-bg-3: #8B8000; 
+          --card-bg-4: #8B0000; 
+
+          --rating-gray: #999; 
+          --tooltip-bg: #444; 
+
+          /* New Variables for Table Aesthetics */
+          --sea-blue: #1abc9c; /* Sea-Blue for Service Title */
+          --row-shade-odd: white; 
+          --row-shade-even: #fafafa; 
+      } 
+
+
+
+
+/* ---------------------------------------------------- */ 
+      /* Dashboard & Summary Cards Styles (Maintained) */
+      /* ---------------------------------------------------- */
+      .dashboard-container { max-width: var(--max-width); margin: 40px auto; padding: 0 20px; }
+      .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid var(--border-color); }
+      .dashboard-header h1 { color: var(--primary-color); font-size: 2.2em; }
+      
+      
+      .summary-card { padding: 20px; border-radius: var(--border-radius); box-shadow: var(--box-shadow); overflow: hidden; position: relative; z-index: 1; color: white; border: 1px solid #3333331a; }
+      .summary-card .value { font-size: 2em; font-weight: bold; position: relative; z-index: 2; }
+      .summary-card .label { font-size: 0.9em; color: rgba(255, 255, 255, 0.8); position: relative; z-index: 2; }
+      .card-1 { background-color: var(--card-bg-1); }
+      .card-2 { background-color: var(--card-bg-2); }
+      .card-3 { background-color: var(--card-bg-3); }
+      .card-4 { background-color: var(--card-bg-4); }
+      .summary-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.15; z-index: 0; background: repeating-linear-gradient(-45deg, white, white 8px, transparent 8px, transparent 16px); }
+      .gig-table-wrapper { background-color: white; padding: 20px; border-radius: var(--border-radius); box-shadow: var(--box-shadow); overflow-x: auto; margin-bottom: 15px; }
+      .gig-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; }
+
+
+/* Summary Cards - 4 in a row on desktop */
+.summary-cards {
+  display: grid;
+  /* Forces 4 equal columns on desktop */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+/* Specific styling for the summary card items to ensure they look good in a grid */
+
+
+/* Mobile View - 2 in a row */
+@media screen and (max-width: 768px) {
+  .summary-cards {
+      /* Adjusts to 2 columns for mobile devices */
+      grid-template-columns: repeat(1, 1fr);
+      gap: 15px;
+  }
+}
+
+
+
+
+      
+      /* ---------------------------------------------------- */ 
+      /* Table Row Aesthetics & Headers (New/Updated) */
+      /* ---------------------------------------------------- */
+      .gig-table th {
+          text-align: left;
+          padding: 15px 10px;
+          background-color: var(--background-light);
+          border-bottom: 2px solid var(--border-color);
+          color: var(--secondary-color);
+          font-weight: 600;
+          cursor: pointer;
+      }
+
+      /* RESETTING DATE POSTED HEADER STYLE */
+      .header-date-posted {
+          color: var(--secondary-color) !important; /* Reset to standard text color */
+          font-weight: 600 !important; /* Reset to standard header weight */
+      }
+      /* END RESET */
+      
+      .gig-table td {
+          padding: 15px 10px;
+          border-bottom: 1px solid var(--border-color);
+          vertical-align: middle;
+      }
+
+      /* Service Title Color Correction */
+      .gig-title-link { 
+          font-weight: 500; 
+          color: var(--sea-blue); /* Applied sea-blue color here */
+      }
+      
+      /* Zebra Striping */
+      .gig-table tbody tr:nth-child(odd) {
+          background-color: var(--row-shade-odd); 
+      }
+      .gig-table tbody tr:nth-child(even) {
+          background-color: var(--row-shade-even); 
+      }
+      .gig-table tbody tr:hover {
+          background-color: #e9e9e9; 
+      }
+
+      /* Rating Star Color */
+      .rating-star { color: var(--rating-gray); }
+
+      /* Toggle & Action Button Styles (Maintained) */
+      .btn-toggle-switch { width: 44px; height: 24px; border-radius: 12px; background-color: var(--border-color); position: relative; cursor: pointer; display: inline-block; transition: background-color 0.3s; }
+      .btn-toggle-switch.active { background-color: var(--online-color); }
+      .btn-toggle-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background-color: white; border-radius: 50%; transition: transform 0.3s; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+      .btn-toggle-switch.active::before { transform: translateX(20px); }
+      .action-group { display: flex; gap: 0; height: 34px; }
+      .action-group .action-btn { border: 1px solid var(--border-color); background-color: white; cursor: pointer; font-size: 1.1em; transition: background-color 0.2s; padding: 0 10px; height: 100%; display: flex; align-items: center; justify-content: center; line-height: 1; position: relative; }
+      .action-group .action-btn:hover { background-color: var(--background-light); z-index: 10; }
+      .action-group .action-btn::after { content: attr(data-tooltip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%); background-color: var(--tooltip-bg); color: white; padding: 6px 12px; border-radius: 4px; font-size: 0.85em; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity 0.2s; }
+      .action-group .action-btn:hover::after { opacity: 1; visibility: visible; }
+      .btn-edit { color: var(--secondary-color); border-right: none; border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+      .btn-delete { color: var(--danger-color); border-right: none; }
+      .btn-manage { color: var(--primary-color); border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+  
+
+
+
+
+/* --- STATS AND INSIGHTS PANEL STYLES --- */
+
+/* 1. Stat Summary Grid */
+.stat-kpi-grid {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  flex: 1 1 200px; /* Flexible and responsive card size */
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px 20px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.stat-card .stat-value {
+  font-size: 2.2em;
+  font-weight: 700;
+  color: var(--primary-color, #007bff);
+}
+
+.stat-card .stat-label {
+  font-size: 0.9em;
+  color: #6c757d;
+  margin-top: 5px;
+}
+
+.stat-card .stat-trend {
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-top: 5px;
+}
+
+.trend-up {
+  color: #28a745; /* Green for positive trend */
+}
+
+.trend-down {
+  color: #dc3545; /* Red for negative trend */
+}
+
+/* 2. Charts and Insight Columns */
+.insights-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.chart-area {
+  flex: 2;
+  min-width: 450px; /* Chart dominates space */
+}
+
+.insights-breakdown {
+  flex: 1;
+  min-width: 300px; /* Dedicated sidebar for lists */
+}
+
+.chart-placeholder-large {
+  height: 300px;
+  background: linear-gradient(to right, #e8f0ff 0%, #c4d7f5 100%); /* Blue gradient placeholder */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+  border-radius: 6px;
+  font-weight: 500;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+/* Insight Lists */
+.insight-list {
+  list-style: none;
+  padding: 0;
+}
+
+.insight-list li {
+  padding: 10px 0;
+  border-bottom: 1px dashed #eee;
+  font-size: 0.95em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.insight-list li:last-child {
+  border-bottom: none;
+}
+
+.insight-list .icon-label {
+  font-weight: 500;
+}
+
+.insight-list .score {
+  font-weight: 700;
+  color: #007bff;
+}
+
+@media (max-width: 768px) {
+  .chart-area, .insights-breakdown {
+      min-width: 100%;
+  }
+}
+
+
+
+
+
+/* --- Global Styles for Order Page - client-order-history.html --- */
+.order-management-page-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-title {
+  color: #333;
+  margin-bottom: 25px;
+  font-size: 2em;
+}
+
+/* --- 1. SUMMARY CARDS (KPIs with Graph Trend Effect) --- */
+.order-summary-overview {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.summary-card {
+  flex: 1 1 200px;
+  padding: 15px;
+  border-radius: 8px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  height: 120px; /* Standardized height */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Base colors for the cards - Inside Tables */
+.total-orders-card { background-color: #dc3545; } /* Red */
+.in-progress-card { background-color: #ffc107; } /* Yellow/Amber */
+.completed-card { background-color: #28a745; } /* Green */
+.canceled-card { background-color: #6c757d; } /* Grey */
+
+.summary-card .card-icon {
+  font-size: 1.5em;
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  opacity: 0.3;
+}
+
+.summary-card .card-value {
+  font-size: 2.5em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.summary-card .card-label {
+  font-size: 0.9em;
+  font-weight: 500;
+  margin-top: 5px;
+  z-index: 2;
+}
+
+/* NEW: Graph Trend Visual (The bottom blue line/graph) - deleted: JS will be used for live graph */
+
+
+/* --- 2. ORDER FILTER BAR (Responsive Fix) --- */
+.order-filter-bar {
+  display: flex;
+  flex-wrap: wrap; /* Allows wrapping on small screens */
+  gap: 15px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.filter-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 250px; /* Allows search bar to take more width */
+}
+
+#order-search {
+  width: 100%;
+  padding: 8px 35px 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.search-icon-order {
+  position: absolute;
+  right: 10px;
+  color: #6c757d;
+}
+
+.order-select-filter, .order-input-filter {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  min-width: 150px; /* Ensure filters are readable */
+}
+
+.filter-group-date {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 200px; /* Allows date pickers to stack if needed */
+}
+
+/* Hide label on small screens for better space management */
+@media (max-width: 768px) {
+  .filter-group-date label {
+      display: none;
+  }
+}
+
+/* Ensure sort bar aligns */
+.order-sort-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  padding: 10px 0;
+}
+
+/* --- 3. ORDER TABLE (Stripped, Hover & Actions) --- */
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.order-table thead th {
+  background-color: #f8f9fa;
+  color: #333;
+  text-align: left;
+  padding: 12px;
+  font-size: 0.9em;
+}
+
+.order-table tbody td {
+  padding: 12px;
+  vertical-align: middle;
+  font-size: 0.9em;
+}
+
+/* Stripped Table Rows */
+.order-table tbody tr:nth-child(even) {
+  background-color: #f4f4f4; /* Light gray background for even rows */
+}
+.order-table tbody tr:hover {
+  background-color: #e9ecef; /* Subtle hover effect for the entire row */
+}
+
+/* Hover effect for clickable links (Service Name & Freelancer) */
+.order-table tbody tr:hover td:nth-child(2), /* Service Name Column */
+.order-table tbody tr:hover .freelancer-info span {
+  color: #007bff; /* Highlight blue */
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.freelancer-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.freelancer-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ddd;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.status-in-progress { background-color: #ffc107; color: #333; }
+.status-completed { background-color: #28a745; color: #fff; }
+.status-delivered { background-color: #007bff; color: #fff; }
+.status-canceled { background-color: #dc3545; color: #fff; }
+
+.payment-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: 500;
+}
+.payment-paid { background-color: #d4edda; color: #155724; }
+
+
+/* --- 4. ACTION BUTTONS (Standardized Gray) --- */
+.btn-action, .btn-secondary {
+  background-color: #343a40 !important; /* Dark Gray */
+  color: #fff !important;
+  border: 1px solid #343a40 !important;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.85em;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  min-width: 80px; /* Standardized width */
+}
+
+.btn-action:hover, .btn-secondary:hover {
+  background-color: #495057 !important;
+  border-color: #495057 !important;
+}
+
+/* Mobile Table Responsiveness */
+@media (max-width: 768px) {
+  .order-table thead {
+      display: none; /* Hide header on mobile */
+  }
+  .order-table, .order-table tbody, .order-table tr, .order-table td {
+      display: block;
+      width: 100%;
+  }
+  .order-table tr {
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+  }
+  .order-table td {
+      text-align: right;
+      padding-left: 50%;
+      position: relative;
+  }
+  .order-table td::before {
+      content: attr(data-label);
+      position: absolute;
+      left: 10px;
+      width: calc(50% - 20px);
+      padding-right: 10px;
+      white-space: nowrap;
+      text-align: left;
+      font-weight: 700;
+      color: #555;
+  }
+  
+  /* Adjust Actions Column for centered buttons */
+  .order-table td[data-label="Actions"] {
+      text-align: center;
+      padding-left: 10px;
+  }
+  .order-table td[data-label="Actions"]::before {
+      content: "";
+  }
+}
+
+
+/* --- Modal Tracker Specific Styles --- */
+.detailed-order-modal-content {
+  max-width: 900px;
+}
+
+.modal-header {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.5em;
+}
+
+.modal-header .due-date-info {
+  font-size: 0.9em;
+  color: #6c757d;
+  margin-right: 15px;
+}
+
+.modal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 2px solid #eee;
+  margin-bottom: 20px;
+}
+
+.modal-tabs .tab-button {
+  background: none;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #6c757d;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.modal-tabs .tab-button.active {
+  color: #007bff;
+  border-bottom: 2px solid #007bff;
+}
+
+.tab-pane {
+  display: none;
+  padding: 10px 0;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+/* Adjusting modal action buttons to be consistent */
+.tracker-action-area button {
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+
+/* Analytics Container */
+.analytics-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.insight-card {
+  flex: 1 1 200px;
+  background-color: #f8f8f8;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.insight-card .insight-value {
+  font-size: 2em;
+  font-weight: 700;
+  color: #007bff;
+}
+
+.insight-card h4 {
+  margin-top: 0;
+  font-size: 1.1em;
+  color: #333;
+}
+
+
+
+
+
+
+
+
+
+
+/* Tab Navigation Styles - Joibs For You */
+.section-header-tabs {
+  margin-bottom: 25px;
+  border-bottom: 1px solid #ddd;
+  margin-top: 10px;
+}
+
+.tab-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 12px 25px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: #777;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  color: var(--primary-color);
+}
+
+.tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  font-weight: 700;
+}
+
+/* Tab Content Logic */
+.tab-content {
+  display: none; 
+}
+
+.tab-content.active {
+  display: block; 
+}
+
+.no-jobs-msg {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 50px;
+  color: #999;
+  font-style: italic;
+}
+
+
+
+
+
+

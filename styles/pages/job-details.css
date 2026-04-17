@@ -1,0 +1,487 @@
+/* ---------------------------------------------------- */
+/* 32. Job Details Page Styles - job-details.html */
+/* ---------------------------------------------------- */
+
+.job-details-page {
+  padding: 100px;
+  padding-bottom: 60px;
+}
+
+.job-details-layout {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start; /* Ensures columns don't stretch vertically */
+}
+
+/* --- Left Column: Description --- */
+.job-description-column {
+  flex-basis: 70%;
+  flex-grow: 1;
+}
+
+.job-title-header {
+  margin-bottom: 25px;
+}
+
+.job-title {
+  font-size: 2em;
+  font-weight: 700;
+  color: var(--secondary-color);
+  margin-bottom: 10px;
+}
+
+.job-meta {
+  font-size: 0.9em;
+  color: #888;
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 10px; 
+  line-height: 1.6; 
+}
+
+
+
+.meta-item {
+  margin-right: 15px;
+}
+
+.meta-item i {
+  color: var(--primary-color);
+  margin-right: 5px;
+}
+
+/* --- General Card Styling for the page --- */
+.card {
+  background-color: white;
+  padding: 25px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.card h2 {
+  font-size: 1.3em;
+  font-weight: 600;
+  color: var(--secondary-color);
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+/* Project Scope */
+.scope-description {
+  line-height: 1.6;
+  margin-bottom: 20px;
+  color: #555;
+}
+
+.deliverables-list {
+  list-style: disc;
+  margin-left: 20px;
+  padding-left: 0;
+  margin-bottom: 20px;
+}
+
+.deliverables-list li {
+  margin-bottom: 8px;
+  color: #333;
+}
+
+/* Skills Tags */
+.skills-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.skill-tag {
+  display: inline-block;
+  background-color: var(--light-gray);
+  color: #555;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+/* Client Info Card */
+.client-profile {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.client-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-color);
+  flex-shrink: 0;
+}
+
+.client-name {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin-bottom: 5px;
+  color: var(--secondary-color);
+}
+
+.client-stats {
+  font-size: 0.9em;
+  color: #777;
+  margin-bottom: 3px;
+}
+
+.client-stats i {
+  margin-right: 5px;
+  color: var(--success-color);
+}
+
+
+/* --- Right Column: Proposal and Budget --- */
+.proposal-column {
+  flex-basis: 30%;
+  flex-shrink: 0;
+}
+
+/* Budget Card */
+.budget-card {
+  border-top: 5px solid var(--primary-color); /* Stronger indicator */
+  padding: 20px;
+}
+
+.card-budget-title {
+  color: var(--primary-color);
+  border-bottom: none;
+  margin-bottom: 10px;
+  padding-bottom: 0;
+}
+
+.budget-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed #eee;
+}
+
+.budget-label {
+  font-weight: 500;
+  color: #555;
+}
+
+.budget-label i {
+  margin-right: 8px;
+  color: var(--primary-color);
+}
+
+.budget-value {
+  font-weight: 700;
+  color: var(--success-color); 
+  font-size: 1.1em;
+}
+
+/* Proposal Form */
+.proposal-form-card label {
+  display: block;
+  font-weight: 600;
+  margin-top: 15px;
+  margin-bottom: 5px;
+  color: var(--secondary-color);
+}
+
+.proposal-form input[type="number"], 
+.proposal-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 1em;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.proposal-form input:focus, 
+.proposal-form textarea:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+.proposal-form .btn-block {
+  margin-top: 25px;
+}
+
+/* Action Buttons */
+.job-action-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.job-action-buttons .btn {
+  flex-grow: 1;
+  font-size: 0.9em;
+  padding: 10px 15px;
+  border-radius: 6px;
+}
+
+.job-action-buttons .btn i {
+  margin-right: 5px;
+}
+
+
+
+
+
+/* --- Responsive Adjustments (FIXED) --- */
+@media (max-width: 992px) {
+  .job-details-layout {
+      flex-direction: column;
+  }
+  
+  .job-description-column,
+  .proposal-column {
+      flex-basis: 100%; /* Ensures columns take full width */
+      flex-grow: 1;    /* Allows it to use all available height if needed */
+  }
+  
+  /* FIX 1: Ensure the Job Description (main content) is always first */
+  .job-description-column {
+      order: 0; 
+  }
+
+  /* FIX 2: Ensure the Proposal Column (sidebar content) is always last */
+  .proposal-column {
+      order: 1; 
+  }
+}
+
+
+
+
+
+
+
+.btn-primary { background-color: var(--primary-color); color: white; padding: 10px 20px; border: none; border-radius: var(--border-radius); cursor: pointer; font-weight: 500; 
+  transition: background-color 0.3s ease;
+}
+
+        
+
+.btn-primary {
+  box-shadow: 0 4px 6px rgba(161, 4, 25, 0.3);
+}
+
+
+
+
+
+
+.btn-primary:hover {
+  background-color: #7a0313;
+  transform: translateY(-2px);
+}
+
+
+
+
+
+
+
+/* Global Button Styles (Assuming you have these, if not, add them!) */
+.btn-secondary {
+  background-color: #ccc;
+  color: #333;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+
+/* Ensure buttons have hover effects */
+.btn-secondary:hover {
+  background-color: #bbb;
+  color: white;
+}
+
+
+
+
+
+
+.attachments-section {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #f5f5f5;
+}
+
+.attachment-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.attachment-list li a {
+  display: flex;
+  align-items: center;
+  background: #f9f9f9;
+  padding: 10px 15px;
+  border-radius: 6px;
+  border: 1px solid #eee;
+  text-decoration: none;
+  color: var(--secondary-color);
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+
+.attachment-list li a:hover {
+  border-color: var(--primary-color);
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.attachment-list i {
+  margin-right: 10px;
+  color: var(--primary-color);
+  font-size: 1.2em;
+}
+
+.no-attachments {
+  color: #888;
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+
+
+
+
+/* --- Report Modal System --- */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: none; /* Hidden by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.active { display: flex; }
+
+.report-modal {
+  background: white;
+  width: 90%;
+  max-width: 450px;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  animation: modalPop 0.3s ease-out;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.close-btn {
+  background: none; border: none;
+  font-size: 1.5rem; cursor: pointer; color: #666;
+}
+
+.report-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 15px 0;
+}
+
+.report-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+#report-details {
+  width: 100%;
+  height: 80px;
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  resize: none;
+  font-family: inherit;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-cancel { background: #eee; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+.btn-submit { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+
+@keyframes modalPop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+
+
+
+
+
+
+/* --- Notification Toast System --- */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toast {
+  background: #1f1f1f;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  animation: slideIn 0.35s ease, fadeOut 0.4s ease 2.8s forwards;
+}
+
+.toast i { color: #34c759; font-size: 1.3rem; }
+.toast.removed i { color: #ff9500; }
+
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; }
+}
+

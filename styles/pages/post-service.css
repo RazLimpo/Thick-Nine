@@ -1,0 +1,1241 @@
+/* ---------------------------------------------------- */
+/* 16. Post Service Page Styles (New Packages Design) */
+/* ---------------------------------------------------- */
+.form-layout {
+  max-width: var(--max-width);
+  margin: 30px auto;
+  padding: 0 30px;
+}
+
+
+.form-container {
+  max-width: 800px; /* Center the form content */
+  margin: 0 auto;
+  background: white;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.form-container h1 {
+  font-size: 2em;
+  color: var(--primary-color);
+  margin-bottom: 5px;
+}
+
+.form-instruction {
+  color: #777;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Form Groups and Inputs */
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #444;
+}
+
+
+
+
+.form-group small {
+  display: block;
+  margin-top: 2px;
+}
+
+
+
+
+
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+  box-sizing: border-box; /* Crucial for padding to be inside width */
+  transition: border-color 0.2s;
+}
+
+
+
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--secondary-color);
+  outline: none;
+}
+
+
+
+
+
+
+
+/* --- A. Package Selector Cards (Top Row: Basic, Standard, Premium) --- */
+.package-selection-cards {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
+  margin-top: 15px;
+  margin-bottom: 40px;
+}
+
+.package-selector-card {
+  flex: 1;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.package-selector-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.package-selector-card.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-5px);
+}
+
+.package-selector-card i {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+  color: var(--secondary-color); /* Default icon color */
+}
+
+.package-selector-card.active i {
+  color: white; /* Active icon color */
+}
+
+.package-selector-card h4 {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin: 0;
+}
+
+.package-selector-card.active h4 {
+  color: white; /* Active text color */
+}
+
+/* --- B. Package Details Block (Below the selector cards) --- */
+.package-details-block {
+  background-color: #fcfcfc;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 40px;
+}
+
+/* Inline groups for Price/Completion time, mimicking image */
+.form-group.inline-group.price-delivery-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 25px; /* Spacing between inline rows */
+}
+
+.form-group-item {
+  flex: 1; /* Distributes space evenly */
+}
+
+.form-group-item.full-width-item {
+  flex: 2; /* Make description wider */
+}
+
+.form-group-item.price-input {
+  flex: 1; /* Make price input slightly narrower */
+}
+.form-group-item.select-input {
+  flex: 1; /* Make select input standard */
+}
+
+
+
+/* Post Service - Price To Charge
+* 1. Style the Container (.input-with-icon)
+* - Use Flexbox to align the span and input horizontally.
+* - Add border-radius to the whole group and a light border.
+*/
+.input-with-icon {
+  display: flex; /* Make children line up horizontally */
+  width: 100%; /* Take full width of parent */
+  border: 1px solid #ccc; /* Light gray border */
+  border-radius: 4px; /* Slightly rounded corners */
+  overflow: hidden; /* Important to ensure border-radius works on children borders/backgrounds */
+  background-color: #fff; /* White background for the whole container */
+  height: 48px; /* Set a standard height */
+}
+
+/*
+* 2. Style the Prepend Text (span)
+* - Give it a slightly darker background to separate it visually.
+* - Add a right border to distinguish it from the input field.
+* - Center the text vertically and horizontally.
+*/
+.input-with-icon span {
+  /* Style for the $ sign area */
+  display: flex; /* Use flex to center the content inside the span */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  padding: 0 10px; /* Padding for spacing */
+  background-color: #eee; /* Light gray background color */
+  color: #555; /* Darker text color */
+  border-right: 1px solid #ccc; /* Separator line */
+  font-weight: bold;
+  flex-shrink: 0; /* Prevents it from shrinking */
+  line-height: 1; /* Ensure text sits correctly */
+}
+
+/*
+* 3. Style the Input Field (input)
+* - Remove its default border, as the container now has the border.
+* - Use flex-grow: 1 so it takes up all remaining space.
+*/
+.input-with-icon input[type="number"] {
+  /* Style for the text input field */
+  flex-grow: 1; /* Important: Make the input take up the remaining space */
+  border: none; /* Remove the default border of the input field */
+  padding: 0 12px; /* Add padding inside the input */
+  outline: none; /* Remove focus outline, or style it yourself if you need one */
+  font-size: 16px;
+  color: #555;
+  /* To handle the placeholder text color */
+  /*
+  &::placeholder {
+      color: #999;
+  }
+  */
+}
+
+/* Optional: Improve focus state for accessibility and visual feedback */
+.input-with-icon:focus-within {
+  border-color: #007bff; /* Example: A common blue focus color */
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Subtle glow */
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Specific styling for the select input to align */
+.form-group-item select {
+  padding: 12px 15px; /* Adjust padding for visual match */
+  height: 48px; /* Ensure uniform height */
+}
+
+
+/* --- C. Responsiveness for Packages --- */
+@media (max-width: 768px) {
+  .package-selection-cards {
+      flex-direction: column;
+  }
+  .form-group.inline-group {
+      flex-direction: column;
+  }
+}
+
+
+/* ---------------------------------------------------- */ 
+/* 17. Post Service Page Styles (Media Upload) */ 
+/* ---------------------------------------------------- */ 
+.media-upload-group input[type="file"] { /* Style the file input to look clean and structured */ 
+  padding: 15px; 
+  border: 1px dashed #ccc; /* Use a dashed border to imply a drop zone */ 
+  background-color: #f7f7f7; 
+  border-radius: 4px; 
+} 
+
+.media-upload-group small { 
+  display: block; 
+  margin-top: 5px; 
+  color: #777; 
+  font-size: 0.85em; 
+}
+
+
+/* --- Form Responsiveness --- */
+@media (max-width: 600px) {
+  .form-container {
+      padding: 20px;
+  }
+  
+  .inline-inputs {
+      flex-direction: column;
+      gap: 15px;
+  }
+  
+  .inline-inputs span {
+      display: none; /* Hide 'to' text on very small screens */
+  }
+}
+
+
+
+
+
+
+/* ---------------------------------------------------- */
+/* 18. Post Service Page Styles (Stacked Feature Containers) */
+/* ---------------------------------------------------- */
+
+/* --- A. Universal Section Heading & Subheading --- */
+.section-heading {
+  font-size: 1.5em;
+  color: var(--primary-color);
+  margin-top: 40px; 
+  margin-bottom: 5px; 
+  padding-top: 0;
+  border-top: 1px solid #eee; /* Separator line above each major section */
+}
+
+/* For the very first heading in the form, remove top border/margin */
+.service-post-form .section-heading:first-of-type {
+  margin-top: 0;
+  border-top: none;
+}
+
+.section-subheading {
+  color: #777;
+  margin-bottom: 25px; /* Space before the feature content container starts */
+  margin-top: 0; 
+  font-size: 0.95em;
+  padding-left: 0; 
+  text-align: left;
+}
+
+/* --- B. Feature Section Container (The Main Box for each feature) --- */
+.feature-section-container {
+  padding: 30px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 40px; /* Space between each full-width feature block */
+  background-color: #fcfcfc;
+  width: 100%;
+  box-sizing: border-box; /* Crucial for maintaining width with padding */
+}
+
+
+/* Why Choose Me - Checkbox and text spacing */
+.attribute-list input[type="checkbox"] {
+  margin-right: 10px; /* Space between checkbox and text */
+}
+
+
+
+/* --- C. Add-Ons Styling --- */
+.add-on-item-new {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.add-on-item-new:last-of-type {
+  border-bottom: none;
+}
+
+.add-on-details {
+  flex-grow: 1;
+  display: flex;
+  align-items: center; /* Align checkbox with text */
+}
+
+.add-on-details label {
+  font-weight: 600;
+  margin-bottom: 0; /* Override default label margin */
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.add-on-details input[type="checkbox"] {
+  margin-right: 10px; /* Space between checkbox and text */
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0; /* Prevent checkbox from shrinking */
+}
+
+.add-on-details small {
+  color: #999;
+  font-size: 0.85em;
+  display: block; /* Make it stack under the label */
+  margin-left: 28px; /* Indent to align with text */
+  margin-top: 2px;
+}
+
+.add-on-price {
+  display: flex;
+  align-items: center;
+}
+
+.add-on-price .price-prefix {
+  font-weight: 600;
+  color: #666;
+  margin-right: 5px;
+}
+
+.add-on-price input[type="number"] {
+  width: 80px;
+  padding: 8px;
+  text-align: right;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* --- D. FAQ Styling --- */
+.faq-item-new {
+  padding: 10px 0;
+  margin-bottom: 15px;
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.faq-item-new:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.faq-item-new .form-group {
+  margin-bottom: 15px; 
+}
+
+
+/* --- E. Package Plan Upgrade Styling (from original Section 20) --- */
+.package-plan-selection-container {
+  /* Uses .feature-section-container for overall styling */
+}
+
+.plan-options {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.plan-card {
+  flex: 1; 
+  min-width: 200px;
+}
+
+.plan-card input[type="radio"] {
+  display: none;
+}
+
+.plan-card label {
+  display: block;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #fff;
+  height: 100%; 
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.plan-card label:hover {
+  border-color: var(--secondary-color);
+}
+
+.plan-card input[type="radio"]:checked + label {
+  border-color: var(--primary-color);
+  background-color: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02);
+}
+
+.plan-card h4 {
+  font-size: 1.2em;
+  margin: 0 0 10px 0;
+  font-weight: 700;
+}
+
+.plan-limit {
+  font-size: 0.9em;
+  font-weight: 600;
+  margin: 5px 0;
+}
+
+.plan-duration {
+  font-size: 0.85em;
+  font-style: italic;
+  margin: 5px 0;
+}
+
+.plan-price {
+  font-size: 1.3em;
+  font-weight: 800;
+  margin-top: 15px;
+}
+
+.plan-card input[type="radio"]:checked + label p,
+.plan-card input[type="radio"]:checked + label h4 {
+  color: white;
+}
+
+.plan-note {
+  font-size: 0.85em;
+  color: #999;
+}
+
+/* --- F. Add More Button Styling --- */
+.btn-add-more {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 20px; 
+  width: 100%;
+  text-align: center;
+}
+
+.btn-add-more:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* --- G. Responsiveness --- */
+@media (max-width: 768px) {
+  .plan-options {
+      flex-direction: column; /* Stack package plan cards on small screens */
+  }
+}
+
+
+
+
+
+
+
+/* ---------------------------------------------------- */
+/* 19. Job Availability & Summary Styles - Post Service */
+/* ---------------------------------------------------- */
+
+/* --- A. Job Availability (Simple Select Box) --- */
+.job-availability-section .status-select-group select {
+  max-width: 300px; /* Limit width of the select box */
+}
+
+
+/* --- B. Job Summary Grid --- */
+.job-summary-section {
+  /* Inherits general section styling */
+}
+
+.summary-grid {
+  display: grid;
+  /* Two columns: 1fr for labels (narrower), 1.5fr for values (wider) */
+  grid-template-columns: repeat(2, 1fr); 
+  gap: 20px 30px; /* Vertical and horizontal spacing */
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.summary-item:nth-child(2n), .summary-item:last-child {
+  border-bottom: ; /* set to "none" to remove border on last row items */
+}
+
+.summary-label {
+  font-weight: 500;
+  color: #666;
+  margin-right: 15px;
+}
+
+.summary-value {
+  font-weight: 700;
+  color: #333;
+}
+
+/* Specific colors for status and plan */
+.summary-value.status-active {
+  color: green;
+}
+.summary-value.metric-views {
+  color: var(--primary-color);
+}
+.summary-value.plan-silver {
+  color: var(--secondary-color);
+}
+.summary-value.plan-gold {
+  color: gold;
+}
+
+/* Responsiveness: Stack on Mobile */
+@media (max-width: 768px) {
+  .summary-grid {
+      grid-template-columns: 1fr; /* Stack into a single column */
+  }
+  .summary-item {
+      flex-direction: column; /* Stack label and value vertically */
+      align-items: flex-start;
+  }
+  .summary-label {
+      margin-bottom: 5px;
+      font-size: 0.9em;
+  }
+}
+
+
+
+
+
+
+/* ---------------------------------------------------- */
+/* 20. Save & Publish Button Group - Post A Service Page*/
+/* ---------------------------------------------------- */
+
+.form-button-group {
+  display: flex;
+  gap: 20px; /* Space between the two buttons */
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #eee; /* Separator line above the buttons */
+}
+
+.form-button-group button {
+  flex: 1; /* Both buttons take equal width */
+  font-size: 1.1em;
+  padding: 15px 20px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* Styling for the Primary Submit Button */
+.btn-primary.publish-button {
+  /* Inherits main btn-primary styles but ensures sizing is correct */
+}
+
+/* Styling for the Secondary Draft Button */
+.btn-secondary.draft-button {
+  background-color: #e0e0e0; /* Light gray background */
+  color: #444;
+  border: 1px solid #ccc;
+  transition: all 0.2s;
+}
+
+.btn-secondary.draft-button:hover {
+  background-color: #d0d0d0;
+  color: #333;
+}
+
+/* Ensure the full-width class is overridden for the button group */
+.full-width-btn {
+  width: auto !important;
+}
+
+
+
+
+
+
+
+/* Add More - Add-Ons and FAQs removal popup */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: none; /* Hidden by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  animation: modalSlideUp 0.3s ease-out;
+}
+
+.modal-header i {
+  font-size: 3rem;
+  color: var(--primary-color);
+  margin-bottom: 15px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+@keyframes modalSlideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+
+
+
+
+
+
+
+
+.earnings-breakdown {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #fdfdfd;
+  border: 1px dashed #d1d1d1;
+  border-radius: 6px;
+}
+
+.earnings-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9em;
+  margin-bottom: 6px;
+  color: #666;
+}
+
+.earnings-row.fee-row {
+  color: #d9534f; /* Soft red for deductions */
+}
+
+.earnings-row.total-row {
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+  margin-top: 8px;
+  font-weight: 700;
+  font-size: 1.05em;
+  color: #28a745; /* Success green for earnings */
+}
+
+
+
+
+
+
+/* Styling the Brief Builder in the Form */
+.brief-builder {
+  background: #f8f9ff;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e0e7ff;
+  margin-bottom: 20px;
+}
+
+
+.section-help {
+  margin-bottom: 5px;
+}
+
+
+
+
+.requirement-input-item {
+  margin-bottom: 20px;
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.requirement-input-item label {
+  display: block;
+  font-weight: 600;
+  color: #1e40af;
+  margin-bottom: 8px;
+}
+
+.requirement-input-item textarea {
+  width: 100%;
+  min-height: 80px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: inherit;
+}
+
+
+
+
+
+.brief-intro-textarea {
+  width: 100%;
+  min-height: 100px; /* Provides ample vertical space */
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: vertical; /* Allows the freelancer to expand it if needed */
+  background-color: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.brief-intro-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(217, 100, 100, 0.1); /* Matches your indigo/red primary color */
+}
+
+.input-help {
+  display: block;
+  margin-top: px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+
+
+
+
+
+
+.view-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+  position: sticky;
+  top: 10px;
+  z-index: 100;
+}
+
+.toggle-group {
+  background: #f1f5f9;
+  padding: 5px;
+  border-radius: 9999px;
+  display: flex;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.toggle-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+  background: transparent;
+  color: #64748b;
+}
+
+.toggle-btn.active {
+  background: white;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+
+
+
+
+
+/* Container for all media types */
+.media-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+  margin-bottom: 20px;
+}
+
+/* The individual box for each file */
+.preview-item {
+  position: relative;
+  aspect-ratio: 1 / 1; /* Makes every box a perfect square */
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Ensures images don't look squashed */
+}
+
+
+/* Specific styling for Video/Audio placeholders */
+.preview-item .file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 10px;
+  text-align: center;
+}
+
+.preview-item .file-info i {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+}
+
+.preview-item .file-info span {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Truncates long filenames after 2 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
+}
+
+
+.remove-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(239, 68, 68, 0.9); /* Red background */
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: transform 0.2s;
+}
+
+.remove-btn:hover {
+  transform: scale(1.1);
+  background: #dc2626;
+}
+
+
+
+.file-info {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+
+
+
+
+
+/* Spinner Animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 8px;
+}
+
+.loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+
+
+
+
+
+
+/* --- Final Live Preview Gallery Styles --- */
+.preview-gallery-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Big Hero Image */
+#main-preview-img {
+  width: 100%;
+  height: 450px; /* Increased height for a better 'Hero' feel */
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f8f9fa;
+  transition: opacity 0.3s ease-in-out; /* Adds a smooth feel when swapping */
+}
+
+/* Scrollable Thumbnail Row */
+.thumbnail-grid {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 5px 0;
+}
+
+.thumb-item {
+  width: 100px;
+  height: 70px;
+  flex-shrink: 0; /* Prevents thumbnails from squishing */
+  cursor: pointer;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+/* Highlights the currently selected image */
+.thumb-item.active {
+  border-color: #4a90e2; /* Replace with your primary brand color */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb-item:hover {
+  opacity: 0.8;
+}
+
+/* Video & Audio Blocks */
+.video-block video, 
+.audio-block audio {
+  width: 100%;
+  margin-top: 15px;
+  border-radius: 8px;
+}
+
+
+
+
+
+
+/* Styling for the stacked delivery/revision items in preview */
+/* --- ENHANCED UNIFIED ORDER CARD --- */
+/* 1. Main Card Container */
+.order-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  position: sticky;
+  top: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+/* 2. SHARED TEXT WRAPPING LOGIC (Title & Description) */
+.order-card strong, 
+.order-desc {
+  display: block;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+/* 3. Package Title (The 'strong' tag) */
+.order-card strong {
+  font-size: 1rem;
+  margin-bottom: 5px;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+/* 4. Package Description */
+.order-desc {
+  font-size: 0.95rem;
+  color: #62646a;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+/* 5. Header Alignment & Badge Groups */
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.pkg-badge-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pkg-header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+/* 6. Labels, Links, and Prices */
+.package-name-label {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--primary, #d96464);
+  text-transform: uppercase;
+}
+
+.select-package-link {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.select-package-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.package-price-large {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--primary, #d96464);
+}
+
+/* Alignment Fix */
+.order-delivery {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px 0;
+  border-top: 1px solid #f1f5f9;
+  margin-bottom: 20px;
+}
+
+.delivery-item {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #404145;
+}
+
+.icon-container {
+  width: 28px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.icon-container i {
+  color: var(--primary);
+}
+
+
+
+
+/* Ensure the preview columns sit side-by-side */
+.preview-row {
+  display: flex !important;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+.main-column {
+  flex: 2;
+}
+
+.sidebar-column {
+  flex: 1;
+  min-width: 320px;
+}
+
+/* Ensure the order card looks like a card */
+.order-card.sticky {
+  position: sticky;
+  top: 20px;
+  background: #fff;
+  border: 1px solid #eee;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+
+
+
+
+
+/* Styling for the Service Title and Description within Preview Cards */
+.package-service-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 10px 0 5px 0;
+  color: #1e293b;
+  display: block;
+}
+
+.package-service-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.4;
+  margin-bottom: 15px;
+}
+
+/* Ensure the Order Card Link is visible */
+
+
+
+
+/* Ensure the active card in preview stands out */
+.package-card.active {
+  border: 2px solid var(--primary-color) !important;
+  background-color: #fffafb !important; /* Very light tint of your primary color */
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}

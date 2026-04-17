@@ -1,0 +1,559 @@
+/*
+ * NOTE: The :root block has been removed as requested.
+ * This file relies on CSS variables being defined in the linked 'global.css'.
+ */
+
+
+/* === MAIN HEADER STYLES (Desktop Layout) === */
+.main-header {
+  position: fixed; top: 0; left: 0; width: 100%;
+  background-color: var(--f-text-light, #fff); 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex; 
+  align-items: center;
+  padding: 10px 30px; 
+  z-index: 1000;
+  gap: 20px; /* Space between main blocks: Logo, Search, Nav, Actions */
+  min-height: 40px;
+}
+
+/* 1. Logo */
+/* 1. Logo Container Alignment */
+.logo { 
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Space between the cog and text */
+  text-decoration: none;
+}
+
+/* 2. The Cog Icon */
+.logo-icon { 
+  color: #d96464; /* Brand Red */
+  font-size: 1.5rem; 
+}
+
+/* 3. Text Grouping */
+.logo-text-group {
+  display: flex;
+  align-items: baseline; /* Ensures 'Thick' and '9' sit on the same line */
+}
+
+/* 4. The word 'Thick' */
+.logo-main {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400; /* Normal weight */
+  font-size: 1.5rem;
+  color: #222222; /* Your secondary text color */
+}
+
+/* 5. The '9' - Larger and Thicker */
+.logo-nine {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 900; /* Extra bold/thick */
+  font-size: 1.9rem; /* Bigger than 'Thick' */
+  color: #d96464; /* Brand Red */
+  margin-left: 1px;
+  line-height: 1;
+}
+
+
+
+
+/* 2. Search Bar */
+.header-search-container {
+  flex-grow: 1; /* Allows search bar to take up available space */
+  max-width: 450px;
+  position: relative;
+}
+.header-search-input {
+  width: 100%;
+  padding: 8px 15px 8px 40px; /* Space for icon */
+  border: 1px solid #ddd;
+  border-radius: 20px; /* Pill shape */
+  font-size: 0.95em;
+  transition: border-color 0.2s;
+}
+.header-search-input:focus {
+  border-color: var(--primary-color, #730e0e);
+  outline: none;
+}
+.search-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+  font-size: 0.9em;
+}
+
+/* 3. Navigation Links (Desktop) */
+.top-nav { 
+  display: flex; 
+  gap: 20px; /* Using hardcoded value or var(--nav-gap) if defined in global */
+  align-items: center;
+  margin-left: auto; /* Pushes the nav to the left of user-actions */
+}
+.nav-link {
+  text-decoration: none; 
+  color: var(--secondary-color, #222); 
+  padding: 0;
+  font-weight: 500;
+  position: relative;
+  white-space: nowrap;
+}
+.nav-link:hover, .nav-link.active {
+  color: var(--primary-color, #730e0e);
+}
+
+/* Separator [ | ] using ::after */
+.nav-link:not(:last-child)::after {
+  content: '|';
+  color: var(--separator-color, #ccc);
+  margin-left: 20px; 
+  font-weight: normal;
+}
+
+/* 4. User Actions */
+.user-actions { 
+  display: flex; 
+  align-items: center; 
+  gap: 15px; 
+  margin-left: 20px;
+}
+.icon-btn {
+  background: none; border: none; padding: 5px; 
+  font-size: 1.25em; color: var(--secondary-color, #222);
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-btn:hover { color: var(--primary-color, #730e0e); }
+
+.badge {
+  position: absolute; top: 0; right: 0;
+  background-color: #e74c3c; /* Red notification color */
+  color: white;
+  font-size: 0.6em;
+  padding: 2px 5px;
+  border-radius: 50%;
+  line-height: 1;
+}
+.hidden { display: none !important; }
+
+/* Desktop: Mobile toggle should be hidden */
+.menu-toggle { 
+  display: none; 
+} 
+
+/* --- New Dropdown Styles --- */
+.account-dropdown-container {
+  position: relative;
+  /* Hiding the entire container on mobile is handled in the media query */
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%; 
+  right: 0;
+  min-width: 250px;
+  background-color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 10px 0;
+  margin-top: 10px;
+  list-style: none;
+  z-index: 100;
+  transform-origin: top right;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-menu.is-active {
+  display: block;
+}
+
+.dropdown-menu li a {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  font-size: 0.95em;
+  color: var(--secondary-color, #222);
+  width: 100%;
+}
+
+.dropdown-menu li a:hover {
+  background-color: #f7f7f7;
+  color: var(--primary-color, #730e0e);
+}
+
+.dropdown-menu li a i {
+  width: 20px;
+  margin-right: 10px;
+  color: var(--primary-color, #730e0e);
+}
+
+.dropdown-menu li.separator {
+  height: 1px;
+  background-color: var(--separator-color, #eee); 
+  margin: 5px 0;
+  padding: 0;
+}
+
+.dropdown-menu .sign-out-link {
+  color: #e74c3c; /* Red color for sign-out button */
+}
+
+
+/* === MOBILE MENU PANEL (Off-canvas) - No Changes === */
+.mobile-menu-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  background-color: var(--f-text-light, #fff);
+  box-shadow: -4px 0 15px rgba(0,0,0,0.2);
+  z-index: 2000;
+  transform: translateX(100%); 
+  transition: transform 0.3s ease-out;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.mobile-menu-panel.is-open {
+  transform: translateX(0); 
+}
+
+.mobile-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+.menu-title {
+  color: var(--primary-color, #730e0e);
+  margin: 0;
+}
+.close-menu-btn {
+  font-size: 1.5em;
+  cursor: pointer;
+  color: #888;
+}
+
+.mobile-search-container {
+  margin: 15px 0;
+  position: relative;
+}
+.mobile-search-container .header-search-input {
+  padding-left: 15px; 
+  padding-right: 40px; 
+}
+.mobile-search-container .search-icon {
+  left: auto;
+  right: 15px;
+}
+
+.mobile-main-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.mobile-main-nav li {
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+.mobile-main-nav li:last-child {
+  border-bottom: none;
+}
+.mobile-main-nav a {
+  text-decoration: none;
+  color: var(--secondary-color, #222);
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mobile-main-nav a i {
+  color: var(--primary-color, #730e0e);
+  width: 20px;
+}
+.sign-out-link {
+  color: #e74c3c;
+}
+
+/* === MOBILE RESPONSIVENESS (BREAKPOINT) === */
+@media (max-width: 992px) {
+  
+  .main-header {
+      padding: 10px 15px;
+      gap: 10px;
+  }
+  
+  /* Hide the desktop navigation */
+  .top-nav {
+      display: none;
+  }
+  
+  /* 1. HIDE search bar and account dropdown on mobile */
+  .header-search-container,
+  .account-dropdown-container {
+      display: none;
+  }
+  
+  /* Adjust order of elements */
+  .logo-container { order: 1; }
+  .user-actions { 
+      order: 4; 
+      gap: 10px; 
+      margin-left: auto; /* FIX: Pushes user-actions to the far right on mobile */
+  }
+  
+  /* 2. Show menu toggle button and notification/message icons */
+  .menu-toggle { 
+      display: block; /* Show the mobile toggle button */
+      font-size: 1.5em; 
+  }
+  
+  /* Small screen adjustments for mobile menu width */
+  .mobile-menu-panel {
+      width: 250px;
+  }
+}
+
+
+
+
+
+/* === Account Role Badge Styles === */
+
+/* 1. Ensure the container is positioned for the badge */
+.account-dropdown-container {
+  position: relative;
+}
+
+/* 2. Create the Badge on the Account Icon */
+#account-icon-btn::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff; /* White ring to make the badge pop */
+  display: block;
+  transition: background-color 0.3s ease;
+}
+
+/* 3. Role-Based Colors (Variations of #d96464) */
+
+/* Buyer: Your Primary Color */
+body[data-user-role="buyer"] #account-icon-btn::after {
+  background-color: #d96464; 
+}
+
+/* Freelancer: Darker Professional Red */
+body[data-user-role="freelancer"] #account-icon-btn::after {
+  background-color: #730e0e; 
+}
+
+/* Affiliate: Lighter/Softer Variation */
+body[data-user-role="affiliate"] #account-icon-btn::after {
+  background-color: #e8a5a5;
+}
+
+
+body[data-user-role="guest"] #account-icon-btn::after {
+  background-color: #d91464; 
+}
+
+
+
+/* 4. Switcher Link Styling */
+#account-switcher {
+  font-weight: 700;
+  background-color: #f9f9f9;
+  color: #d96464; /* Matching your primary color */
+}
+
+
+
+/* Hide all restricted items by default; JS will reveal the correct ones */
+[data-role] {
+  display: none;
+}
+
+
+
+/* Ensure the notification group matches the rest of the header spacing */
+.header-notifications {
+  display: flex; /* This aligns envelope and bell horizontally */
+  gap: 15px;     /* This creates equal spacing between the envelope and bell */
+  align-items: center;
+}
+
+/* Optional: If you want these hidden for guests (as discussed before) */
+.header-notifications[data-role="member"] {
+  /* Your JS toggles display: flex or display: none */
+}
+
+
+
+
+
+/* --- Login and Registration Modal - REDESIGNED AUTH MODAL --- */
+
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.7); /* Slightly darker for better focus */
+  display: none; 
+  justify-content: center; align-items: center;
+  z-index: 3000;
+}
+
+.modal-overlay.is-active { display: flex; }
+
+.modal-container {
+  background: #fff;
+  width: 95%;
+  max-width: 850px; /* Wider for the split view */
+  border-radius: 16px;
+  position: relative;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+  overflow: hidden; /* Clips the image corners to the container radius */
+  display: flex;
+}
+
+.modal-content-wrapper {
+  display: flex;
+  width: 100%;
+  min-height: 500px;
+}
+
+/* 1. Left Side: Image & Branding */
+.modal-image-side {
+  flex: 1;
+  background: linear-gradient(rgba(115, 14, 14, 0.85), rgba(217, 100, 100, 0.85)), 
+              url('https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=1000') center/cover;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px;
+  color: white;
+}
+
+.modal-image-side h2 { font-size: 2.2rem; margin-bottom: 10px; }
+.modal-image-side h2 span { color: rgba(255,255,255,0.7); }
+.modal-image-side p { font-size: 1.1rem; opacity: 0.9; line-height: 1.4; }
+
+/* 2. Right Side: Forms */
+.modal-form-side {
+  flex: 1.2;
+  padding: 40px;
+  background: white;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute; top: 15px; right: 20px;
+  background: none; border: none; font-size: 28px; 
+  cursor: pointer; color: #999; z-index: 10;
+}
+
+/* Tabs */
+.modal-tabs { display: flex; margin-bottom: 25px; border-bottom: 1px solid #eee; }
+.tab-btn {
+  flex: 1; padding: 12px; border: none; background: none;
+  font-weight: 700; cursor: pointer; color: #aaa; transition: 0.3s;
+}
+.tab-btn.active { color: var(--primary-color); border-bottom: 3px solid var(--primary-color); }
+
+/* Form Views */
+.auth-view { display: none; }
+.auth-view.active { display: block; }
+.auth-view h3 { margin-bottom: 20px; font-size: 1.5rem; color: #333; }
+
+/* 3. Brand Colors for Icons */
+.btn-social {
+  width: 100%; padding: 12px; margin-bottom: 12px;
+  border: 1px solid #ddd; border-radius: 8px; background: white;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  cursor: pointer; font-weight: 600; font-family: inherit;
+}
+.color-google { color: #DB4437; font-size: 18px; }
+.color-facebook { color: #4267B2; font-size: 18px; }
+
+.divider {
+  text-align: center; margin: 25px 0; border-bottom: 1px solid #eee; line-height: 0.1em;
+}
+.divider span { background:#fff; padding:0 15px; color: #bbb; font-size: 12px; font-weight: 600; }
+
+/* 4. Nicely Shaped Inputs & Buttons */
+.input-group {
+  display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 14px 18px;
+  border: 2px solid #f2f2f2;
+  border-radius: 10px; /* Soft, modern shape */
+  font-size: 15px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.input-group input:focus {
+  border-color: var(--primary-color);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(217, 100, 100, 0.1);
+}
+
+.full-width-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .modal-image-side { display: none; }
+  .modal-container { max-width: 450px; }
+  .modal-form-side { padding: 30px 20px; }
+}
+
+
+
+
+
+
+
+.header-logo-img {
+  height: 60px; /* Adjust this height to fit your header bar */
+  width: auto;  /* Maintains aspect ratio so it doesn't look stretched */
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.header-logo-img:hover {
+  transform: scale(1.05); /* Optional: slight pop on hover */
+}
+
+
+
+
+
+
+
+

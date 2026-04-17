@@ -1,0 +1,1511 @@
+/* ============================================= */
+/* CLIENT PROFILE CSS - COMPLETE & FIXED         */
+/* Hero section fully defined + no stretching    */
+/* ============================================= */
+
+:root {
+  --glass-bg: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  --primary-red: #d96464;
+  --text-muted: #94a3b8;
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ================== GLOBAL LAYOUT - NO STRETCHING ================== */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0a0a0a;
+}
+
+.profile-container {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  
+  /* Prevents stretching edge-to-edge */
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 40px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.profile-main-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-sidebar {
+  width: 380px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 40px;
+}
+
+/* ================== HERO CARD (Your Original + Missing Classes Fixed) ================== */
+.hero-card {
+  position: relative;
+  width: 100%;
+  height: 45vh; 
+  min-height: 380px; 
+  margin-bottom: 25px; 
+  background-color: #0a0a0a;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.hero-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%; 
+  filter: brightness(0.6) contrast(1.05);
+}
+
+.dark-gradient-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(to right, rgba(10, 10, 15, 0.85) 0%, rgba(10, 10, 15, 0.2) 100%);
+}
+
+.glass-top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 25px;
+}
+
+.rank-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #e4e1eb;
+}
+
+.rank-badge i {
+  color: #a78bfa;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.online-status-glow {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  background: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2),
+              0 0 12px rgba(34, 197, 94, 0.1),
+              0 0 20px rgba(34, 197, 94, 0.5);
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(34,197,94,0.2), 0 0 15px rgba(34,197,94,0.5); }
+  50%      { box-shadow: 0 0 0 5px rgba(34,197,94,0.3), 0 0 25px rgba(34,197,94,0.7); }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 10;
+  height: 100%;
+  padding: 0 8%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.text-wrapper {
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.text-line {
+  line-height: 1.05;
+  margin: 0;
+}
+
+.faint-line {
+  font-size: clamp(1.65rem, 4.6vw, 1.9rem);
+  color: rgba(255, 255, 255, 0.18);
+  font-weight: 700;
+}
+
+.designation {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 800;
+  background: linear-gradient(90deg, #ffffff, #cbd5e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.client-bio-snippet {
+  font-size: clamp(1.05rem, 2.8vw, 1.10rem);
+  color: #d1d5db;
+  line-height: 1.45;
+  max-width: 470px;
+  margin-top: 4px;
+}
+
+.client-action-buttons {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  position: relative;
+  z-index: 25;
+}
+
+.action-icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(5px);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.action-icon-btn:hover {
+  background: var(--primary-red);
+  border-color: var(--primary-red);
+  transform: translateY(-2px);
+}
+
+/* ================== ACTIVITY BAR (Your Original Style) ================== */
+.client-activity-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-bottom: 40px;
+}
+
+.stat-node {
+  display: flex;
+  align-items: center; 
+  gap: 12px;
+  padding: 12px 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  transition: transform 0.3s ease;
+}
+
+.stat-node:hover {
+  transform: translateY(-3px);
+}
+
+.stat-node:nth-child(1) { background: rgba(59, 130, 246, 0.1); }
+.stat-node:nth-child(1) .stat-icon-box { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+
+.stat-node:nth-child(2) { background: rgba(245, 158, 11, 0.1); }
+.stat-node:nth-child(2) .stat-icon-box { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+
+.stat-node:nth-child(3) { background: rgba(16, 185, 129, 0.1); }
+.stat-node:nth-child(3) .stat-icon-box { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+
+.stat-node:nth-child(4) { background: rgba(217, 100, 100, 0.1); }
+.stat-node:nth-child(4) .stat-icon-box { background: rgba(217, 100, 100, 0.2); color: var(--primary-red); }
+
+.stat-icon-box {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* ================== HERO BOTTOM META ================== */
+.hero-bottom-meta {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(10px);
+  padding: 12px 8%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #e2e8f0;
+  border-top: 1px solid var(--glass-border);
+  z-index: 15;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.meta-item i {
+  color: var(--primary-red);
+}
+
+/* ================== MAIN CONTENT CARDS ================== */
+.aff-card-island {
+  background: silver;
+  color: black;
+  border-radius: 24px;
+  padding: 35px;
+  margin-bottom: 30px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.island-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.island-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: white;
+  position: relative;
+  padding-left: 18px;
+}
+
+.island-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 22px;
+  background: var(--primary-red);
+  border-radius: 10px;
+}
+
+.order-item, .client-review-given {
+  padding: 15px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.order-status {
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.in-progress { background: #fef3c7; color: #d97706; }
+.pending-milestone { background: #dbeafe; color: #2563eb; }
+
+/* ================== SIDEBAR & OTHER STYLES ================== */
+.glass-sidebar-widget {
+  background: var(--glass-bg);
+  border-radius: 24px;
+  padding: 32px 28px;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  margin-bottom: 25px;
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.widget-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.widget-title i {
+  color: var(--primary-red);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  font-size: 0.9rem;
+}
+
+.info-label { color: var(--text-muted); }
+.info-value { font-weight: 600; }
+
+.status-good { color: #4ade80; }
+.status-alert { color: #f87171; }
+
+/* Saved Freelancers */
+.saved-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.freelancer-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.08);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+}
+
+.chip-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.chip-msg-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chip-msg-btn:hover { color: white; }
+
+.drop-zone {
+  border: 2px dashed rgba(255,255,255,0.3);
+  border-radius: 16px;
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 20px;
+}
+
+.preference-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.p-tag {
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(8px);
+  color: #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-report {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-report:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* ================== MODALS ================== */
+/* ================== MODALS - FIXED & IMPROVED ================== */
+
+/* Overlay - Dark backdrop */
+.modal-overlay,
+.social-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  overflow-y: auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Modal Content - Light background with proper contrast */
+.modal-content {
+  background: #ffffff !important;
+  color: #1e2937 !important;           /* Dark text for readability */
+  width: 100%;
+  max-width: 500px;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Modal Header */
+.modal-header {
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #111827;
+  font-weight: 700;
+  flex: 1;
+}
+
+/* Close button */
+.close-modal,
+.social-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.close-modal:hover,
+.social-modal-close:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 24px;
+  color: #374151;
+}
+
+.modal-body label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.modal-body textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: 14px;
+  border: 2px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 1rem;
+  resize: vertical;
+  color: #1f2937;
+  background: #fff;
+}
+
+.modal-body textarea:focus {
+  outline: none;
+  border-color: #d96464;
+  box-shadow: 0 0 0 3px rgba(217, 100, 100, 0.15);
+}
+
+/* Attachment row */
+.modal-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.attachment-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  color: #4b5563;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.attachment-btn:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+/* Character counter */
+.char-count-wrapper {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.limit-reached {
+  color: #ef4444 !important;
+}
+
+/* Modal Footer */
+.modal-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  background: #f9fafb;
+}
+
+/* Buttons inside modal */
+.btn {
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+}
+
+.btn-secondary {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.btn-secondary:hover {
+  background: #d1d5db;
+}
+
+.btn-primary {
+  background: #d96464;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #c2413a;
+}
+
+/* Social Mutual Modal */
+.social-modal-overlay {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.social-modal-container {
+  background: #ffffff;
+  color: #1e2937;
+  width: 100%;
+  max-width: 460px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
+.social-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.social-modal-header h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.social-mutual-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.social-mutual-item:last-child {
+  border-bottom: none;
+}
+
+.social-item-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.social-item-info {
+  flex: 1;
+}
+
+.social-item-name {
+  font-weight: 600;
+  display: block;
+}
+
+.social-item-title {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.social-item-link {
+  color: #d96464;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.social-item-link:hover {
+  text-decoration: underline;
+}
+
+/* Report modal specific tweaks */
+#reportModal .modal-body label {
+  margin-top: 20px;
+}
+
+
+
+
+/* --- A. Report Modal Refinements --- */
+.modal-select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: #fff;
+  color: #222;
+}
+
+.modal-select:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+
+
+
+
+
+/* Styling the "Evidence" upload area */ 
+.file-upload-wrapper { 
+  position: relative; 
+  border: 2px dashed rgba(255, 255, 255, 0.1); 
+  padding: 20px; 
+  border-radius: 8px; 
+  text-align: center; 
+  transition: all 0.3s ease; 
+}
+
+
+.file-upload-wrapper:hover { 
+  background: rgba(255, 255, 255, 0.03); 
+  border-color: var(--primary-red); 
+}
+
+
+.file-name-display { 
+  display: block; 
+  margin-top: 8px; 
+  font-size: 0.85rem; 
+  color: var(--text-muted); 
+}
+
+
+
+
+
+
+
+
+
+/* --- Reviews Given Section (The actual structure) --- */
+
+.review-list-given {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.client-review-given {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.review-header-given {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* The "5.0" star rating */
+.review-rating {
+  color: #ffb400; /* Gold for the star */
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.review-rating i {
+  margin-right: 4px;
+}
+
+/* The "to: John Smith" text */
+.freelancer-target {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* The actual feedback text */
+.review-text {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+/* The completion date at the bottom */
+.review-date {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Styling the "Read All Feedback" button below the list */
+.view-more-btn {
+  margin-top: 10px;
+}
+
+
+
+
+
+
+
+/* --- Positioning Context for Indicators --- */
+.avatar-wrapper, .avatar-wrapper-mini {
+  position: relative; /* Essential for absolute positioning of the dot */
+  display: inline-block;
+}
+
+/* Base Indicator Style */
+.online-status-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #1a1a1a; /* Creates a gap between the dot and the avatar */
+  z-index: 2;
+}
+
+/* Adjust size for the smaller chips */
+.avatar-wrapper-mini .online-status-indicator {
+  width: 10px;
+  height: 10px;
+  bottom: 0px;
+  right: 0px;
+}
+
+/* --- Status Color Logic --- */
+
+/* Online (Standard) */
+.online-status-indicator.status-online {
+  background-color: #2ecc71; /* Vibrant Green */
+  box-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
+}
+
+/* Away (In your HTML) */
+.online-status-indicator.status-away {
+  background-color: #f1c40f; /* Amber/Yellow */
+  box-shadow: 0 0 8px rgba(241, 196, 15, 0.4);
+}
+
+/* Offline (In your HTML) */
+.online-status-indicator.status-offline {
+  background-color: #95a5a6; /* Muted Gray */
+  border-color: #1a1a1a;
+}
+
+/* Busy (Optional extra) */
+.online-status-indicator.status-busy {
+  background-color: var(--primary-red);
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* The flying heart element - saved to folder */
+.flying-heart {
+  position: fixed;
+  z-index: 10001;
+  color: #ff4d4d;
+  font-size: 1.5rem;
+  pointer-events: none; /* Prevents clicking the ghost icon */
+  transition: all 0.8s cubic-bezier(0.42, 0, 0.58, 1);
+  opacity: 1;
+}
+
+
+
+/* --- Button Loading State - Message Modal After Click Send Button --- */
+.btn-primary.is-loading {
+  opacity: 0.8;
+  cursor: not-allowed;
+  pointer-events: none; /* Prevents double submission */
+}
+
+/* Ensure the spinner color matches the button text */
+#btnSpinner {
+  font-size: 1rem;
+  vertical-align: middle;
+}
+
+
+
+
+
+
+
+
+
+/* Success pulse for the folder when the heart "lands" */
+@keyframes folderPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); color: #ff4d4d; }
+  100% { transform: scale(1); }
+}
+
+.pulse-animation {
+  animation: folderPulse 0.4s ease-out;
+}
+
+
+
+
+
+
+/* --- Utility Spacing --- */
+.mt-20 {
+  margin-top: 20px !important;
+}
+
+
+/* --- Info Row Spacing --- */
+.info-row {
+  margin-bottom: 12px;    /* Adds a slight gap between each info line */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-row:last-of-type {
+  margin-bottom: 0;       /* Removes margin from the last row so mt-20 is precise */
+}
+
+
+
+
+/* Shake animation for error */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.shake-error {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* Loading state */
+.is-loading {
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+
+
+
+
+
+
+
+
+.friends-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.friend-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.friend-item-row:last-child {
+  border-bottom: none;
+}
+
+.friend-avatar-sm {
+  position: relative;
+  width: 38px;
+  height: 38px;
+}
+
+.friend-avatar-sm img, 
+.avatar-initials {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-initials {
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #666;
+}
+
+.status-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.status-dot.online { background-color: var(--online-color); }
+.status-dot.offline { background-color: #ccc; }
+
+.friend-details {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.friend-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--secondary-color);
+}
+
+.friend-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.friend-action-btn {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.friend-action-btn:hover {
+  color: var(--primary-color);
+}
+
+
+
+
+
+
+/* Sidebar Card Styling - Mutual Friend Widget */
+
+
+.mutual-content {
+  margin-top: 15px;
+}
+
+/* Avatar Stack Logic */
+.avatar-stack {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.stack-img, 
+.stack-more {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  /* The white border creates the professional 'overlapping' gap */
+  border: 3px solid #fff; 
+  /* Negative margin pulls the next image over the previous one */
+  margin-right: -12px; 
+  object-fit: cover;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease;
+  position: relative;
+}
+
+/* Hover effect to make it interactive */
+.avatar-stack:hover .stack-img,
+.avatar-stack:hover .stack-more {
+  transform: translateY(-3px);
+}
+
+/* The '+4' circle */
+.stack-more {
+  background: #730e0e; /* Your primary red brand color */
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0;
+  z-index: 1;
+}
+
+/* Description Text */
+.mutual-text {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #555;
+}
+
+.mutual-text strong {
+  color: #333;
+  font-weight: 700;
+}
+
+
+
+
+
+
+
+
+/* Isolated Social Modal Styling - Mutual Friend */
+.social-modal-overlay {
+  display: none; 
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7); /* Slightly darker for focus */
+  z-index: 10000; /* High z-index to stay on top of everything */
+  align-items: center;
+  justify-content: center;
+}
+
+.social-modal-container {
+  background: #ffffff;
+  width: 90%;
+  max-width: 420px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  animation: socialFadeIn 0.3s ease;
+}
+
+@keyframes socialFadeIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.social-modal-header {
+  padding: 18px 25px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.social-modal-header h3 {
+  font-size: 1.1rem;
+  color: var(--secondary-color);
+}
+
+.social-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.social-modal-close:hover {
+  color: var(--primary-color);
+}
+
+/* List Items within Modal */
+.social-modal-body {
+  max-height: 450px;
+  overflow-y: auto;
+  padding: 10px 0;
+}
+
+.social-mutual-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 25px;
+  gap: 15px;
+  transition: background 0.2s;
+}
+
+.social-mutual-item:hover {
+  background: #fcfcfc;
+}
+
+.social-item-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.social-item-info {
+  flex-grow: 1;
+}
+
+.social-item-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--secondary-color);
+}
+
+.social-item-title {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.social-item-link {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary-color) !important;
+  border: 1px solid #eee;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+.social-item-link:hover {
+  background: var(--primary-color);
+  color: #fff !important;
+  border-color: var(--primary-color);
+}
+
+
+
+
+
+
+/* Target the status dot specifically within the Mutual Friends Modal */
+.social-mutual-item .avatar-wrapper .online-status-indicator {
+  width: 12px;  /* Change this value to increase/decrease size */
+  height: 12px; /* Keep height and width equal for a circle */
+  bottom: 2px;  /* Adjust position relative to the avatar edge */
+  right: 2px;   /* Adjust position relative to the avatar edge */
+  border: 2px solid #ffffff; /* Thickness of the white ring around the dot */
+}
+
+
+
+
+
+
+
+
+
+
+
+/* Chip Container - Saved Freelancers List Card */
+.saved-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+/* The Pill/Chip */
+.freelancer-chip {
+  display: flex;
+  align-items: center;
+  background: #f0f2f5;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 5px 12px;
+  cursor: grab; /* Shows user it can be dragged */
+  transition: all 0.2s ease;
+}
+
+.freelancer-chip:active { cursor: grabbing; }
+
+/* Online/Offline Dots */
+
+
+.chip-name { font-size: 14px; font-weight: 500; color: #333; }
+
+/* Quick Message Button inside chip */
+.chip-msg-btn {
+  background: none;
+  border: none;
+  margin-left: 8px;
+  color: #3498db;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* Drag-and-Drop Visuals */
+.drop-zone {
+  border: 2px dashed #3498db;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  color: #3498db;
+  margin-top: 20px;
+  background: #ebf5fb;
+}
+
+.drag-over { background: #d4eaf7; border-color: #2980b9; }
+
+
+
+
+
+
+/* Highlight the box when a chip is hovering over it */
+.drop-zone.drag-active-hover, 
+#chipContainer.drag-active-hover {
+  background-color: rgba(52, 152, 219, 0.2) !important;
+  border: 2px solid #3498db !important;
+  transform: scale(1.02);
+  transition: all 0.2s ease;
+}
+
+/* Make the chip look "picked up" */
+.freelancer-chip {
+  transition: opacity 0.2s ease;
+  touch-action: none; /* Critical for mobile polyfill to work */
+}
+
+
+
+
+/* 2. VISUAL FEEDBACK: The 'Ghost' state for the chip being moved */ 
+.freelancer-chip.dragging { 
+  opacity: 0.5; 
+  background: #d1d1d1; 
+}
+
+
+
+
+
+
+/* --- Global Status Colors --- */
+/* These target any element with the indicator class AND a status modifier */
+
+.online-status-indicator.status-online,
+.status-dot.online { 
+  background-color: #1dbf73 !important; 
+} 
+
+.online-status-indicator.status-away { 
+  background-color: #ffb33e !important; 
+}   
+
+.online-status-indicator.status-offline,
+.status-dot.offline { 
+  background-color: #b5b6ba !important; 
+}
+
+
+
+
+
+
+/* ================== MODAL PROFILE PICTURE - FIXED ================== */
+
+.modal-avatar-wrapper {
+  position: relative;
+  width: 58px;                    /* Nice visible size */
+  height: 58px;
+  flex-shrink: 0;
+}
+
+.modal-profile-picture {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;              /* Prevents stretching/distortion */
+  border: 3px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Online status dot inside modal */
+.modal-avatar-wrapper .online-status-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2.5px solid #ffffff;     /* White border so it stands out on light modal */
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+
+/* Status colors (reuse your existing ones or add these) */
+.status-online  { background: #22c55e; }
+.status-away    { background: #eab308; }
+.status-offline { background: #6b7280; }
+
+/* Make sure the modal header layout is clean */
+.modal-header {
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #111827;
+  font-weight: 700;
+  flex: 1;
+  line-height: 1.3;
+}
+
+
+
+/* ================== RESPONSIVENESS ================== */
+@media (max-width: 1024px) {
+  .profile-container {
+      padding: 0 25px;
+      flex-direction: column;
+  }
+  .profile-sidebar {
+      width: 100%;
+      position: static;
+  }
+  .client-activity-bar { 
+      grid-template-columns: repeat(2, 1fr); 
+  }
+}
+
+@media (max-width: 600px) {
+  .profile-container {
+      padding: 0 15px;
+  }
+  .client-activity-bar { 
+      grid-template-columns: 1fr; 
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-card {
+      height: 70vh;
+  }
+}

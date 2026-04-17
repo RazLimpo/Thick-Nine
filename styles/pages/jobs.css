@@ -1,0 +1,805 @@
+
+/* ---------------------------------------------------- */
+/* 31. Job Browse and Listing Styles - jobs.html */
+/* ---------------------------------------------------- */
+
+.job-browse-page {
+  padding: 30px;
+}
+
+.page-title-header {
+  margin-bottom: 25px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.job-browse-layout {
+  display: flex;
+  gap: 30px;
+}
+
+/* --- Sidebar Styles --- */
+.job-filter-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fcfcfc;
+}
+
+/* --- Job Type Pill Filter Styles --- */
+
+.job-type-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.job-type-pill {
+  /* Style the label to look like a button/pill */
+  padding: 8px 15px;
+  border: 2px solid #ccc;
+  border-radius: 10px; /* Makes it pill-shaped */
+  font-size: 0.9em;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  background-color: #fff;
+  transition: all 0.2s ease-in-out;
+  user-select: none; /* Prevents text selection on click */
+}
+
+/* Visually hide the radio button, but keep it for functionality */
+.job-type-pill input[type="radio"] {
+  display: none;
+}
+
+/* Style for the SELECTED/ACTIVE state */
+.job-type-pill.active {
+  border-color: var(--primary-color);
+  background-color: var(--primary-color);
+  color: white;
+  box-shadow: 0 2px 4px rgba(var(--primary-color-rgb), 0.3);
+}
+
+/* Optional: Subtle hover effect */
+.job-type-pill:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filter-group {
+  margin-bottom: 25px;
+}
+
+.job-filter-sidebar h2 {
+  font-size: 1.2em;
+  font-weight: 700;
+  margin-bottom: 15px;
+  color: var(--secondary-color);
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.filter-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.filter-list li {
+  margin-bottom: 10px;
+  font-size: 0.95em;
+}
+
+.filter-list label {
+  cursor: pointer;
+  display: block;
+}
+
+
+
+
+
+/* --- Custom Budget Slider with Progress Fill --- */
+
+.budget-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 5px;
+  outline: none;
+  margin: 20px 0;
+  /* This creates the two-tone track effect */
+  background: linear-gradient(to right, 
+      var(--primary-color) 0%, 
+      var(--primary-color) var(--progress, 100%), 
+      #e0e0e0 var(--progress, 100%), 
+      #e0e0e0 100%);
+}
+
+/* Chrome, Safari, Edge handle (thumb) */
+.budget-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #fff; /* White handle looks cleaner with a colored track */
+  border: 2px solid var(--primary-color);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: transform 0.1s ease;
+}
+
+/* Firefox handle (thumb) */
+.budget-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border: 2px solid var(--primary-color);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.budget-slider::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+
+
+
+/* --- Premium Glow Button Style (New Look for Apply Filters) --- */
+
+.apply-filters-btn {
+  /* 1. Ensure the button is fully opaque and use a large border radius */
+  border-radius: 5px; 
+  font-weight: 700;
+  
+  /* 2. Add the initial, subtle glow effect */
+  box-shadow: 0 5px 15px rgba(var(--primary-color-rgb), 0.4); 
+  
+  /* 3. Smooth transition for all effects */
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  
+  /* 4. Increase padding slightly for a larger, bolder target */
+  padding: 12px 20px; 
+}
+
+/* --- Hover Effect: Enhance the Glow and Lift --- */
+.apply-filters-btn:hover {
+  /* 1. Increase the shadow intensity and spread (The "Glow" effect) */
+  box-shadow: 0 8px 25px rgba(var(--primary-color-rgb), 0.65); 
+  
+  /* 2. Gently lift the button */
+  transform: translateY(-2px); 
+  
+  /* 3. Optional: Subtle shift in color or brightness */
+  filter: saturate(1.1); 
+}
+
+/* --- Active/Click Effect: Confirmation of press --- */
+.apply-filters-btn:active {
+  /* 1. Press the button down */
+  transform: translateY(0); 
+  /* 2. Reduce shadow to show interaction */
+  box-shadow: 0 2px 10px rgba(var(--primary-color-rgb), 0.3);
+  filter: brightness(0.9);
+}
+
+
+
+
+
+
+/* --- Sort Bar & Category Dropdown --- */
+
+
+
+.sort-bar label {
+  font-weight: 500;
+  margin-right: 10px;
+}
+
+.sort-bar select {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+
+
+
+
+/* --- Sort Bar Layout --- */
+
+/* --- Optimized Equal-Width Filter Bar --- */
+.sort-bar {
+  background: #f9f9f9;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  overflow: hidden; /* Prevents children from spilling out */
+}
+
+.filter-controls {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.flex-select {
+  flex: 1; /* Forces both to be equal width */
+  min-width: 0; /* Critical: allows flex items to shrink below their content size */
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: white;
+  font-size: 0.85rem;
+}
+
+/* On very narrow mobile screens, stack them so they don't overflow */
+@media (max-width: 380px) {
+  .filter-controls {
+      flex-direction: column;
+  }
+}
+
+/* --- Compact Budget Type & Reset Row --- */
+.budget-type-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
+
+.budget-controls {
+  display: flex;
+  align-items: center; /* Vertically centers the pill and icon */
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  
+}
+
+.icon-reset-btn {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s;
+  flex-shrink: 0; /* Prevents the icon from squishing on small screens */
+}
+
+
+.icon-reset-btn:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: rotate(-90deg); /* Visual feedback for 'Reset' */
+}
+
+
+
+
+
+/* Tooltip Base Style */
+.icon-reset-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%; /* Position above the button */
+  right: 0;
+  background-color: #333;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 100;
+  pointer-events: none; /* Prevents the tooltip from flickering */
+}
+
+/* Small Arrow for Tooltip */
+.icon-reset-btn::before {
+  content: '';
+  position: absolute;
+  bottom: 110%;
+  right: 12px;
+  border: 6px solid transparent;
+  border-top-color: #333;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 100;
+}
+
+/* Show Tooltip on Hover */
+.icon-reset-btn:hover::after,
+.icon-reset-btn:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+
+
+
+/* Tooltip style (Native browser tooltip used via 'title' attribute) */
+
+
+
+
+
+
+
+
+
+
+.control-group {
+  flex: 1; /* This forces both groups to be exactly equal in width */
+  display: flex;
+}
+
+.control-group select {
+  width: 100%; /* Ensures the select element fills the equal-width group */
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #fcfcfc;
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+  appearance: none; /* Optional: clears default browser styling */
+}
+
+/* Ensure Category and Budget Type Heading are on the same line in sidebar */
+.job-type-filter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.job-type-filter h2 {
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+  white-space: nowrap;
+}
+
+
+
+
+
+
+
+.control-group label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #555;
+  text-transform: uppercase;
+}
+
+.control-group select {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 600px) {
+  
+  .control-group {
+      justify-content: space-between;
+  }
+}
+
+
+
+
+
+
+/* --- Main Job Listings Area --- */
+.job-listings-main {
+  flex-grow: 1;
+}
+
+
+
+
+
+
+/* --- Individual Job Card Styles --- */
+.job-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 40px;
+  transition: box-shadow 0.2s;
+}
+
+.job-card:last-of-type {
+  margin-bottom: 0;
+}
+
+
+
+.job-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.job-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.job-card-header h2 {
+  font-size: 1.35em;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-top: 0;
+}
+
+.job-card-budget { 
+  font-weight: 700; color: 
+  var(--primary-color); 
+  background: rgba(115, 14, 14, 0.1); 
+  padding: 5px 12px; 
+  border-radius: 20px; 
+  font-size: 0.9rem; 
+}
+
+.job-card-snippet {
+  color: #555;
+  margin-bottom: 15px;
+  line-height: 1.4;
+}
+
+
+
+
+
+.job-card-footer {
+  display: flex;
+  justify-content: space-between; /* Pushes meta left and actions right */
+  align-items: center;
+  padding-top: 15px;
+  border-top: 1px solid #f5f5f5;
+}
+
+.footer-meta {
+  display: flex;
+  gap: 15px;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Space between bookmark and the View Details button */
+}
+
+
+
+
+
+
+.job-card-info {
+  font-size: 0.9em;
+  color: #888;
+  margin-right: 15px;
+}
+
+.job-card-info i {
+  margin-right: 5px;
+}
+
+
+
+.btn-secondary {
+  background-color: black;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px; 
+}
+
+
+
+
+.btn-secondary:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+
+
+
+
+
+
+/* --- Responsive Adjustments --- */
+
+@media (max-width: 768px) {
+  /* Stack Sidebar and Job Listings */
+  .job-browse-layout {
+      flex-direction: column;
+  }
+
+  .job-filter-sidebar {
+      width: 100%; /* Take full width on mobile */
+      margin-bottom: 20px;
+  }
+
+  .job-listings-main {
+      width: 100%;
+  }
+
+  .job-browse-page {
+      padding: 15px; /* Reduce padding on mobile */
+  }
+}
+
+
+
+@media (max-width: 768px) {
+  .job-type-pills {
+      justify-content: flex-start;
+  }
+
+  .filter-group h2 {
+      font-size: 1rem;
+      margin-bottom: 10px;
+  }
+  
+  /* Make checkboxes easier to tap on mobile */
+  .filter-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+  }
+}
+
+
+
+
+
+
+@media (max-width: 480px) {
+  /* 1. Stack Title and Budget */
+  .job-card-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+  }
+
+  .job-card-budget {
+      align-self: flex-start;
+      font-size: 0.85rem;
+  }
+
+  /* 2. Stack Footer Elements */
+  .job-card-footer {
+      flex-direction: column; 
+      align-items: flex-start;
+      gap: 15px;
+  }
+
+  .footer-meta {
+      flex-direction: column; /* Stack "Posted" and "Skills" */
+      gap: 5px;
+  }
+
+  .footer-actions {
+      width: 100%;
+      justify-content: space-between; /* Put Bookmark and Button on one line */
+  }
+
+  .btn-secondary {
+      flex-grow: 1; /* Make the button wider and easier to tap */
+      text-align: center;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+@media (max-width: 992px) {
+  .job-browse-layout {
+      flex-direction: column;
+  }
+  
+  .job-filter-sidebar {
+      width: 100%; /* Sidebar takes full width on smaller screens */
+      order: 1; /* Move sidebar above the listings */
+  }
+  
+  .job-listings-main {
+      order: 2;
+  }
+}
+
+
+
+
+
+
+
+/* --- Clear Filters Button --- */
+.btn-clear-filters {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #ddd;
+  color: #666;
+  padding: 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  /* This creates the space between the button and the elements below */
+  margin-top: 25px; 
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-clear-filters:hover {
+  background-color: #f8f8f8;
+  color: var(--primary-color, #730e0e);
+  border-color: #bbb;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.btn-clear-filters i {
+  font-size: 0.8rem;
+}
+
+/* --- No Results Message Styles --- */
+#no-results-message {
+  text-align: center;
+  padding: 60px 20px;
+  background: #fdfdfd;
+  border-radius: 12px;
+  border: 2px dashed #eee;
+  margin: 20px 0;
+}
+
+#no-results-message i {
+  font-size: 3.5rem;
+  color: #ddd;
+  margin-bottom: 15px;
+}
+
+#no-results-message p {
+  color: #888;
+  font-size: 1.1rem;
+}
+
+
+
+
+
+
+/* Container for Budget + Bookmark */
+
+
+/* Style the bookmark icon to be a bit more subtle in the footer */
+.bookmark-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #999;
+  transition: all 0.2s;
+  padding: 0;
+  margin: 0;
+}
+
+.bookmark-btn:hover, .bookmark-btn.saved {
+  color: var(--primary-color, #730e0e);
+}
+
+.bookmark-btn.saved i {
+  font-weight: 900; /* Makes icon solid */
+}
+
+
+
+
+
+
+
+
+/* --- Toast Notifications --- */
+#toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  background-color: #333;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Animation */
+  animation: slideIn 0.3s ease forwards, fadeOut 0.3s ease 2.7s forwards;
+  min-width: 200px;
+}
+
+.toast i {
+  color: #4BB543; /* Success green */
+}
+
+.toast.removed i {
+  color: #ffcc00; /* Warning yellow */
+}
+
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+
+
+
+
+
+
+
+
+/* --- Budget Type Alignment (Sidebar) --- */
+.filter-group.budget-type-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Pushes text left and pills right */
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.filter-group.budget-type-section h2 {
+  margin-bottom: 0; /* Removes bottom margin so it stays centered with pills */
+  border-bottom: none;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+

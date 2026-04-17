@@ -1,0 +1,171 @@
+.friends-page-container {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+/* Tabs */
+.friends-tabs {
+  display: flex; gap: 25px; border-bottom: 2px solid #eee; margin-bottom: 20px;
+}
+.tab-item {
+  background: none; border: none; padding: 12px 5px; font-weight: 600; color: #d96464; cursor: pointer; font-size: 0.9rem;
+}
+.tab-item.active { color: #1dbf73; border-bottom: 2px solid #1dbf73; margin-bottom: -2px; }
+.tab-count { font-size: 0.7rem; background: #eee; padding: 2px 7px; border-radius: 10px; margin-left: 5px; }
+
+/* Controls */
+.friends-controls { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 15px; }
+.search-box { position: relative; flex-grow: 1; max-width: 350px; }
+.search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999; }
+.search-box input { width: 100%; padding: 8px 10px 8px 30px; border: 1px solid #ddd; border-radius: 4px; outline: none; }
+.filter-dropdown { padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; font-size: 0.85rem; }
+
+/* Grid Layout Desktop - Tightened Column 1 */
+.friends-list-container { border: 1px solid #eee; border-radius: 8px; overflow: hidden; background: #fff; }
+
+.list-header-row, .friend-card-row {
+  display: grid;
+  /* Reduced first column to 20% to pull everything closer to the name */
+  grid-template-columns: 20% 16% 14% 10% 10% 14% 16%;
+  align-items: center;
+  padding: 12px 10px;
+  /* Small gap prevents elements from touching if names are long */
+  gap: 0px;
+}
+
+.list-header-row {
+  background-color: #f1f1f1; border-bottom: 2px solid #ddd;
+  font-weight: 700; font-size: 0.7rem; text-transform: uppercase; color: #555;
+}
+
+/* Ensure header text starts exactly where the row icons start */
+.list-header-row > div {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.friend-card-row { border-bottom: 1px solid #f1f1f1; }
+.friend-card-row:nth-child(even) { background-color: #fafafa; }
+
+/* Identity & Online Status */
+.clickable-identity { text-decoration: none; display: flex; align-items: center; gap: 12px; color: inherit; overflow: hidden; }
+.avatar-container { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+.avatar-container img, .initials-avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.initials-avatar { background: #eee; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #888; font-size: 0.8rem; }
+
+.status-indicator {
+  position: absolute; bottom: 1px; right: 1px; width: 11px; height: 11px;
+  border-radius: 50%; border: 2px solid #fff; z-index: 10; background-color: #bbb;
+}
+.status-indicator.online { background-color: #1dbf73; }
+
+.name-box { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+.f-name { font-weight: 700; color: #333; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f-profession { font-size: 0.75rem; color: #ff3b30; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Content Cells Alignment */
+.col-loc, .col-mutual, .col-serv, .col-rate { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  font-size: 0.85rem; 
+  color: #666; 
+}
+
+/* Standardized icon widths to anchor the start of the column text */
+.col-loc i, .col-mutual i, .col-serv i, .col-rate i { 
+  color: #aaa; 
+  width: 18px; 
+  text-align: left; 
+  flex-shrink: 0;
+}
+
+.col-rate i { color: #ffb33e; }
+
+/* Status Dropdown Alignment */
+.status-tag-select { 
+  width: 75%; 
+  padding: 4px 6px; 
+  border: 1px solid #ddd; 
+  border-radius: 4px; 
+  font-size: 0.7rem; 
+  font-weight: 600; 
+  cursor: pointer; 
+  background-color: #fff;
+}
+
+/* Actions Column Alignment */
+.col-act { display: flex; gap: 6px; justify-content: flex-end; }
+.icon-btn { 
+  width: 32px; height: 32px; border-radius: 6px; display: flex; 
+  align-items: center; justify-content: center; color: #777; 
+  background: #f9f9f9; border: 1px solid #eee; cursor: pointer; 
+}
+
+/* Active Feature States */
+.icon-btn.fav-btn.active i { color: #ffb33e; font-weight: 900; }
+.icon-btn.block-btn.active { background-color: #fff1f0; border-color: #ffccc7; }
+.icon-btn.block-btn.active i { color: #ff3b30; }
+.friend-card-row.blocked { opacity: 0.4; filter: grayscale(1); transition: opacity 0.3s; }
+
+/* Mobile Logic */
+.mobile-meta-row { display: none; }
+
+@media (max-width: 768px) {
+  .list-header-row, .desktop-only { display: none !important; }
+  .friend-card-row { grid-template-columns: 1fr; padding: 15px; }
+  .mobile-meta-row { display: flex; gap: 10px; margin-top: 5px; }
+  .meta-item.loc { width: 140px; flex-shrink: 0; }
+  .meta-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #999; }
+  .avatar-container { width: 48px; height: 48px; }
+}
+
+
+
+
+
+/* --- Notification Toast System --- */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.toast {
+  background: #1f1f1f;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  animation: slideIn 0.35s ease, fadeOut 0.4s ease 2.8s forwards;
+}
+
+.toast i {
+  color: #34c759;
+  font-size: 1.3rem;
+}
+
+.toast.removed i {
+  color: #ff9500;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; }
+}

@@ -1,0 +1,612 @@
+/* --- Hero Section Container --- */
+.hero-section {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 450px; 
+  background-color: #000;
+}
+
+/* --- 1. Hero Image & Text Slider (12s interval) --- */
+.hero-track {
+  display: flex;
+  height: 100%;
+  width: 300%;
+  transition: transform 1.2s cubic-bezier(0.645, 0.045, 0.355, 1); /* Smoother slide */
+}
+
+.hero-slide {
+  flex: 1;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Gradients for text readability while showing the image */
+.slide-1 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('images/hero-2.webp'); }
+.slide-2 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('images/hero-2.webp'); }
+.slide-3 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('images/hero-3.webp'); }
+
+@keyframes heroMasterSlider {
+  0%, 30% { transform: translateX(0); }
+  33.33%, 63.33% { transform: translateX(-33.33%); }
+  66.66%, 96.66% { transform: translateX(-66.66%); }
+  100% { transform: translateX(0); }
+}
+
+/* --- 2. Content Overlay (Aligned Left) --- */
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 8%;
+  pointer-events: none; 
+}
+
+.hero-main-title {
+  font-size: clamp(2.5rem, 5vw, 4rem); /* Fluid sizing */
+  font-weight: 900;
+  color: #ffffff;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: -1px;
+}
+
+.hero-dynamic-text {
+  font-size: clamp(1rem, 2vw, 1.5rem); /* Fluid sizing */
+  color: #f0f0f0;
+  margin-bottom: 40px;
+  max-width: 500px;
+  line-height: 1.4;
+  transition: opacity 0.5s ease-in-out; /* For JS sync */
+}
+
+/* --- 3. Aesthetic Hero Buttons (Side-by-Side) --- */
+.hero-buttons {
+  display: flex;
+  gap: 15px;
+  pointer-events: auto; 
+}
+
+.hero-buttons a {
+  width: clamp(130px, 15vw, 180px); /* Responsive width */
+  padding: 15px 0;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: clamp(0.7rem, 1vw, 0.85rem);
+  letter-spacing: 1px;
+  text-decoration: none;
+  color: #ffffff;
+  background: #dc3545;
+  border: 2px solid #dc3545;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+}
+
+.hero-buttons a:hover {
+  background: #c82333;
+  border-color: #c82333;
+  transform: translateY(-2px);
+}
+
+/* --- 4. Category Bar (9s Independent Animation) --- */
+.slide-category-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px 0;
+  z-index: 20;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  animation: categoryPulse 9s infinite ease-in-out;
+}
+
+.slide-category-bar a {
+  color: #ffffff;
+  text-decoration: none;
+  margin: 0 2%;
+  /* DYNAMIC SCALING: Shrinks text to fit on one line */
+  font-size: clamp(0.65rem, 1.2vw, 0.95rem); 
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+
+.slide-category-bar a:hover {
+  color: #dc3545;
+}
+
+@keyframes categoryPulse {
+  0%, 10% { opacity: 0.5; }
+  20%, 80% { opacity: 1; }
+  90%, 100% { opacity: 0.5; }
+}
+
+/* --- 5. Featured Services Section --- */
+.featured-services-section {
+  padding: 60px 5%;
+  background-color: #f9f9f9;
+}
+
+.section-title-homepage {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  text-align: center;
+  color: #222;
+}
+
+.section-subtitle-homepage {
+  text-align: center;
+  color: #666;
+  margin-bottom: 40px;
+}
+
+.view-all-button-wrapper {
+  text-align: center;
+  margin-top: 20px;
+  border-top: 1px solid #eee;
+  padding-top: 30px;
+}
+
+.view-all-btn {
+  display: inline-block;
+  padding: 12px 30px;
+  border: 2px solid #222;
+  color: #222;
+  text-decoration: none;
+  font-weight: 700;
+  transition: 0.3s;
+}
+
+/* --- 6. Value Proposition Section --- */
+.value-prop-section {
+  padding: 80px 8%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  background: #fff;
+  gap: 30px;
+}
+
+.value-prop-section h2 {
+  width: 100%;
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 40px;
+}
+
+.step {
+  flex: 1;
+  min-width: 250px;
+  text-align: center;
+}
+
+.step h3 {
+  color: #dc3545;
+  margin-bottom: 10px;
+}
+
+/* --- 7. Mobile View Fixes --- */
+@media (max-width: 768px) {
+  .hero-section {
+      height: 480px;
+  }
+
+  .hero-overlay {
+      padding-left: 5%;
+      padding-right: 5%;
+  }
+
+  .hero-buttons {
+      flex-direction: row; /* Side-by-side on mobile as requested */
+      gap: 8px;
+  }
+
+  /* Ensures the bar fits all items on mobile */
+  .slide-category-bar {
+      justify-content: space-evenly;
+      padding: 12px 5px;
+      overflow-x: auto;
+      width: 100%;
+  }
+  
+  .slide-category-bar a {
+      margin: 0 5px;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- Pagination Styling --- */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin: 40px 0 20px 0;
+}
+
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: #fff;
+  padding: 10px 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.page-arrow, .page-link {
+  text-decoration: none;
+  color: #444;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  padding: 8px 16px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.page-link {
+  padding: 8px 14px;
+}
+
+.page-link.active {
+  background: #dc3545; /* Your marketplace red */
+  color: #fff;
+  border-color: #dc3545;
+}
+
+.page-arrow:hover, .page-link:hover:not(.active) {
+  background: #f8f9fa;
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+
+
+@media (max-width: 768px) {
+  .pagination-wrapper {
+      gap: 8px;
+      padding: 10px;
+  }
+  .page-arrow {
+      font-size: 0.8rem;
+      padding: 8px 10px;
+  }
+}
+
+
+
+
+
+
+
+/* The wrapper that splits the screen */
+.homepage-flex-wrapper {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+/* The left side takes all available space */
+.services-main-col {
+  flex: 1;
+  min-width: 0; /* Prevents layout breaking */
+}
+
+/* The Right Side Sidebar */
+.homepage-sidebar {
+  width: 300px;
+  position: sticky;
+  top: 20px;
+  /* Independent scrolling logic */
+  height: calc(100vh - 40px);
+  flex-shrink: 0; 
+}
+
+.sidebar-sticky-wrapper {
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+/* Force 3-per-row grid only for this specific section */
+#homepage-service-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); 
+  gap: 20px;
+  width: 100%;
+  background: none; /* Keeps it clean */
+}
+
+
+
+#homepage-service-grid.mjob-container {
+  gap: 15px; 
+  padding: 0; /* Remove extra padding that might be pushing the cards right */
+}
+
+
+
+/* Tablet: 2 per row */
+@media (max-width: 1024px) {
+  #homepage-service-grid {
+      grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile: Sidebar moves to top, cards to 1 per row */
+@media (max-width: 768px) {
+  .homepage-flex-wrapper {
+      flex-direction: column;
+  }
+  .homepage-sidebar {
+      width: 100%;
+      height: auto;
+      position: relative;
+      order: -1; /* Sidebar on top of services */
+  }
+  #homepage-service-grid {
+      grid-template-columns: 1fr;
+  }
+  
+  
+  .sidebar-sticky-wrapper {
+      display: flex; /* Lines widgets up in a row */
+      overflow-x: auto; /* Allows left-to-right swiping */
+      overflow-y: hidden;
+      gap: 15px;
+      padding: 10px;
+  }
+  
+  .cat-widget {
+      min-width: 250px; /* Ensures they don't shrink too small on mobile */
+      flex-shrink: 0;
+  }
+}
+  
+  
+
+
+
+
+
+
+
+
+
+/* Sidebar Header */
+.sidebar-main-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #333;
+  padding-left: 5px;
+}
+
+/* Base Widget Style */
+.cat-widget {
+  position: relative;
+  width: 100%;
+  height: 100px; /* Matching the height of your images */
+  border-radius: 12px;
+  margin-bottom: 15px;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  overflow: hidden; /* Clips the image edges if needed */
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cat-widget:hover {
+  transform: scale(1.02);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+/* Typography Styles */
+.cat-widget-text {
+  z-index: 2; /* Keeps text above background details */
+  color: #ffffff;
+  max-width: 60%;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.cat-widget-text span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.9;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.cat-widget-text h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Image Positioning */
+.cat-widget img {
+  position: absolute;
+  right: 5px;
+  bottom: 0;
+  height: 90%; /* Scale based on widget height */
+  width: auto;
+  object-fit: contain;
+  z-index: 1;
+}
+
+/* Specific Solid Background Colors (Matching your images) */
+/* Custom Palette for Widgets */
+.bg-business { background-color: #4a90e2; }
+.bg-data { background-color: #34c759; }
+.bg-marketing { background-color: #ff9500; }
+.bg-lifestyle { background-color: #ff2d55; }
+.bg-graphics { background-color: #5856d6; }
+.bg-music { background-color: #af52de; }
+.bg-programming { background-color: #1d1d1f; }
+.bg-travelling { background-color: #5ac8fa; }
+.bg-video { background-color: #cc0000; }
+.bg-writing { background-color: #007aff; }
+.bg-misc { background-color: #8e8e93; }
+
+
+
+
+
+
+
+/* Reset link styles for the widget wrapper */
+.cat-widget-link {
+  text-decoration: none;
+  display: block; /* Makes the link fill the container width */
+  margin-bottom: 15px; /* Moves the margin from .cat-widget to the link */
+}
+
+.cat-widget {
+  /* Remove margin-bottom from here since it's now on the link */
+  margin-bottom: 0; 
+}
+
+/* Ensure the hover effect works on the link */
+.cat-widget-link:hover .cat-widget {
+  transform: scale(1.02);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+
+
+
+
+
+
+/* Sidebar Widget for Trending Services */
+.trending-widget {
+  /* Merged: Your base color #d96464 with 70% opacity for glass effect */
+  background: #5856d6;
+  
+  /* Glassmorphism blur */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  
+  /* Your original structural styles */
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 25px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  
+  /* Light border for the glass edge */
+  border: 1px solid rgba(255, 255, 255, 0.2); 
+}
+
+.trending-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.trending-list li {
+  /* Updated divider to be semi-transparent for glass look */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.trending-list li:last-child {
+  border-bottom: none;
+}
+
+.trending-list li a {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.trending-list li a:hover {
+  padding-left: 5px;
+  background: rgba(255, 255, 255, 0.1); /* Subtle highlight on hover */
+  border-radius: 8px;
+}
+
+.trend-rank {
+  font-size: 1.1rem;
+  font-weight: 800;
+  /* Adjusted for better contrast on the red glass */
+  color: rgba(255, 255, 255, 0.4); 
+  margin-right: 15px;
+  min-width: 25px;
+}
+
+.trend-info {
+  flex: 1;
+}
+
+.trend-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff; /* White text looks better on colored glass */
+  margin: 0;
+}
+
+.trend-stats {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+}
+
+.trending-list li a i {
+  /* Using a bright color to pop against the red background */
+  color: #b8e986; 
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.trending-list li a:hover i {
+  opacity: 1;
+}
+
+/* Ensure the title inside matches the white theme */
+.trending-widget .sidebar-main-title {
+  color: #ffffff;
+  margin-bottom: 15px;
+}
+
+/* Hide Trending Widget on Mobile */
+@media (max-width: 768px) {
+  .trending-widget,
+  .sidebar-main-title {
+      display: none;
+  }
+}
+
+
+
+
+

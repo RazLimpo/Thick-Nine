@@ -1,0 +1,1846 @@
+/* ============================================================
+   AFFILIATE DASHBOARD - COMPREHENSIVE STYLESET
+   ============================================================ */
+
+   :root {
+    --primary-color: #ff2d55;
+    --bg-light: #f6f8fb;
+    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    --color-dashboard: #3b82f6; /* Blue */
+    --color-links: #10b981;     /* Green */
+    --color-payouts: #f59e0b;   /* Amber */
+    --color-referrals: #8b5cf6; /* Purple */
+    
+    /* Default starting color */
+    --active-tab-color: var(--color-dashboard);
+}
+    
+
+
+
+/* --- 1. Background & Layout Wrapper --- */
+.aff-dash-bg {
+    background-color: var(--bg-light);
+    min-height: 100vh;
+    padding: 40px 0;
+    font-family: 'Roboto', sans-serif;
+}
+
+.aff-dash-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    gap: 30px;
+    padding: 0 20px;
+}
+
+/* --- 2. The "Island" Card Base --- */
+.aff-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    padding: 24px;
+    border: 1px solid #edf2f7;
+    margin-bottom: 25px;
+}
+
+/* --- 3. Sidebar Widgets --- */
+.aff-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+}
+
+.nav-widget nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    color: #4a5568;
+    font-weight: 500;
+    border-radius: 12px;
+    transition: 0.2s;
+    margin-bottom: 5px;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.nav-widget nav a.active, 
+.nav-widget nav a:hover {
+    background-color: var(--primary-color);
+    color: #fff !important;
+}
+
+
+
+
+
+
+/* --- 3. Sidebar Widgets - Partner Growth Overhaul --- */
+
+.glass-promo-widget {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.glass-promo-widget h4 {
+    color: #fff;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}
+
+.glass-promo-widget p {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin-bottom: 20px;
+}
+
+/* --- New Progress Bar Logic --- */
+.progress-container {
+    margin-top: 15px;
+}
+
+.progress-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.progress-track-wrapper {
+    position: relative;
+    height: 8px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1); /* The track marking the full journey */
+    border-radius: 20px;
+    margin-bottom: 12px;
+}
+
+.progress-bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), #ff6b81);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 15px rgba(255, 45, 85, 0.4);
+}
+
+/* The indicator dot at the current position */
+.progress-dot {
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border: 2px solid var(--primary-color);
+    border-radius: 50%;
+    position: absolute;
+    right: -6px; 
+    box-shadow: 0 0 10px rgba(255, 45, 85, 0.8);
+    z-index: 2;
+}
+
+.progress-status {
+    font-size: 11px;
+    color: #cbd5e1;
+    text-align: center;
+    margin-top: 5px;
+}
+
+.progress-status strong {
+    color: #fff;
+    font-weight: 900;
+}
+
+
+
+/* --- 4. Tab Management --- */
+.tab-content {
+    display: none; /* Hidden by default */
+    animation: fadeIn 0.4s ease-out;
+}
+
+.tab-content.active {
+    display: block !important; /* Visible when active */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- 5. Colored Stats Tiles --- */
+.aff-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: none;
+    transition: transform 0.3s ease;
+}
+
+.stat-item:hover { transform: translateY(-5px); }
+.stat-item .s-label { color: rgba(255, 255, 255, 0.85); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
+.stat-item .s-value { color: #fff; font-weight: 800; font-size: 1.6rem; margin: 0; }
+
+.stat-icon-circle {
+    width: 45px;
+    height: 45px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.bg-blue { background-color: #5ac8fa !important; box-shadow: 0 10px 20px rgba(90, 200, 250, 0.2); }
+.bg-red { background-color: #ff2d55 !important; box-shadow: 0 10px 20px rgba(255, 45, 85, 0.2); }
+.bg-green { background-color: #34c759 !important; box-shadow: 0 10px 20px rgba(52, 199, 89, 0.2); }
+
+/* --- 6. Secondary Grid (Charts & Tools) --- */
+
+
+.aff-grid-secondary { 
+    display: block; 
+    width: 100%; 
+    margin-top: 25px; 
+}
+
+
+
+.island-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.date-filter { padding: 5px 10px; border-radius: 8px; border: 1px solid #eee; font-size: 0.8rem; }
+
+.chart-placeholder { height: 180px; display: flex; align-items: flex-end; padding-top: 20px; }
+.mock-chart { display: flex; align-items: flex-end; gap: 8px; width: 100%; height: 100%; justify-content: center }
+.bar {
+    width: 30px;                     /* Gives each bar a consistent thickness */
+    background: #d63031; /* Uses your brand red instead of light gray */
+    border-radius: 4px 4px 0 0;      /* Keeps the rounded tops */
+    transition: height 0.3s ease;    /* Makes the bars animate if data changes */
+    opacity: 0.85; /* Slightly desaturates the color against the background */
+}
+.bar.highlight { /* A slightly brighter version for the 'current' day, but still grounded */ 
+    background: #ff4d4d; 
+    opacity: 1; 
+    box-shadow: 0 4px 12px rgba(214, 48, 49, 0.2); 
+}
+
+
+.bar:hover { opacity: 1; background: #b32d2e; /* Darkens slightly on hover for feedback */ }
+
+
+
+
+.tools-list { list-style: none; margin: 15px 0; padding: 0; }
+.tools-list li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f8f9fa; }
+.tools-list li i { color: var(--primary-color); font-size: 1.1rem; }
+.tools-list li strong { font-size: 0.85rem; display: block; }
+.tools-list li p { font-size: 0.7rem; color: #888; margin: 0; }
+
+/* --- 7. Buttons & Generator --- */
+.gen-flex { display: flex; gap: 10px; margin-top: 15px; }
+.gen-flex input { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #edf2f7; background: #fcfdfe; width: 100%; }
+
+.btn-main-red { background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+.btn-full-red { width: 100%; border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); padding: 8px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.btn-save { background: #1a202c; color: white; border: none; padding: 10px 15px; border-radius: 10px; font-weight: 700; cursor: pointer; }
+.btn-outline { background: transparent; border: 1px solid #eee; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+.btn-outline:hover { background: #f7fafc; }
+.btn-text-only { background: none; border: none; color: #718096; font-size: 0.8rem; cursor: pointer; font-weight: 600; }
+
+/* --- 8. Saved Links List (NO STRETCH FIX) --- */
+.saved-links-island { margin-top: 25px; }
+
+.saved-link-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #edf2f7;
+    width: 100%; 
+    box-sizing: border-box;
+    
+    flex-wrap: wrap;    /* Allows the share sheet to drop to a second line if needed */
+}
+    
+
+
+.saved-link-info {
+    flex: 1; 
+    min-width: 0; /* This is the "unlock" button for truncation */
+    margin-right: 15px;
+    /* Add this to force a boundary */
+    width: 0; 
+}
+
+.saved-link-info strong {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+    color: #2d3748;
+    font-weight: 700;
+    font-size: 0.9rem;
+    /* Instead of 250px, use a percentage of the available space */
+    max-width: 90%; 
+}
+
+.truncated-url {
+    display: block;
+    color: #a0aec0;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%; /* Keeps the URL below the nickname also truncated */
+}
+
+
+
+
+
+
+.saved-link-info small { color: #718096; font-size: 0.75rem; }
+.button-group-flex { display: flex; gap: 8px; }
+
+/* --- 9. Table & Status --- */
+.aff-modern-table { width: 100%; border-collapse: collapse; }
+.aff-modern-table th { text-align: left; color: #a0aec0; font-size: 0.7rem; text-transform: uppercase; padding: 12px; }
+.aff-modern-table td { padding: 15px 12px; border-top: 1px solid #f7fafc; font-size: 0.9rem; }
+.tag-status { padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
+.tag-status.green { background: #f0fff4; color: #38a169; }
+.tag-status.orange { background: #fffaf0; color: #dd6b20; }
+
+/* --- 10. Utils --- */
+.empty-msg { text-align: center; color: #a0aec0; padding: 20px; font-size: 0.9rem; }
+.badge-count { background: #edf2f7; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; color: #4a5568; font-weight: 700; }
+
+
+
+
+
+
+/* --- Earnings Page Specifics --- */
+.bg-dark { background-color: #1a202c !important; }
+/* Specific colors for the Earnings cards */
+
+.bg-total-paid {
+    background-color: #4c51bf !important; /* Professional Indigo */
+    box-shadow: 0 10px 20px rgba(76, 81, 191, 0.15);
+}
+
+.bg-pending {
+    background-color: #f6ad55 !important; /* Soft Amber */
+    box-shadow: 0 10px 20px rgba(246, 173, 85, 0.15);
+}
+
+/* Ensure the text stays white/readable on these dark/vibrant backgrounds */
+.bg-total-paid .s-label, 
+.bg-pending .s-label {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.bg-total-paid .s-value, 
+.bg-pending .s-value {
+    color: #ffffff !important;
+}
+
+.btn-withdraw-small {
+    margin-top: 15px;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-withdraw-small:hover { opacity: 0.9; transform: scale(1.02); }
+
+/* Amount Colors */
+.amt-positive { color: #38a169; font-weight: 700; }
+.amt-negative { color: #e53e3e; font-weight: 700; }
+
+.table-filters select {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid #edf2f7;
+    font-size: 0.85rem;
+    color: #4a5568;
+}
+
+
+
+
+
+
+
+
+.share-sheet {
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #edf2f7;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.share-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: transform 0.2s;
+}
+
+.share-icon:hover { transform: scale(1.1); }
+
+/* Brand Colors */
+.share-icon.wa { background-color: #25D366; } /* WhatsApp */
+.share-icon.tw { background-color: #1DA1F2; } /* Twitter/X */
+.share-icon.fb { background-color: #4267B2; } /* Facebook */
+
+.share-btn:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+
+
+
+
+
+
+/* --- Modal Overlay --- */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 350px;
+    animation: scaleUp 0.2s ease-out;
+}
+
+.modal-icon { font-size: 3rem; color: #ff2d55; margin-bottom: 15px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+.btn-cancel { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #eee; cursor: pointer; }
+.btn-confirm-delete { flex: 1; padding: 12px; border-radius: 10px; background: #ff2d55; color: white; border: none; font-weight: 700; cursor: pointer; }
+
+
+
+
+
+
+
+
+/* --- Team Hero Styling --- */
+.team-hero-header {
+    width: 100%;
+    height: 240px;
+    background: linear-gradient(rgba(26, 32, 44, 0.85), rgba(26, 32, 44, 0.85)), 
+                url('https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80');
+    background-size: cover;
+    background-position: center;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 25px;
+    min-width: 100%;
+    box-sizing: border-box;
+}
+
+.hero-content { text-align: center; color: white; }
+.hero-content h1 { font-size: 2.2rem; font-weight: 900; margin-bottom: 8px; }
+.hero-content p { opacity: 0.7; font-size: 0.95rem; margin-bottom: 25px; }
+
+/* --- Glassmorphism Switcher --- */
+.glass-tab-switcher {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 6px;
+    border-radius: 50px;
+    display: inline-flex;
+    gap: 8px;
+}
+
+.sub-tab-btn {
+    padding: 12px 24px;
+    border-radius: 40px;
+    border: none;
+    background: transparent;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sub-tab-btn.active {
+    background: white;
+    color: #1a202c;
+}
+
+/* --- Horizontal Stretched Cards --- */
+.team-container-wide { 
+    width: 100%; 
+    margin: 0 auto; 
+    max-width: none; /* Matches your sub-affiliate view */
+    display: flex; 
+    flex-direction: column;
+    align-items: stretch; /* This forces all children to be the same width */
+}
+
+
+/* Ensure the list always takes up 100% of its parent's width */ 
+.horizontal-list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 100%;           /* ← prevents collapse when few items */
+    align-items: stretch;      /* children should stretch to full width */
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+}
+
+/* Also make sure empty state doesn't collapse */
+.horizontal-list:empty::before {
+    content: "No customers yet";
+    display: block;
+    text-align: center;
+    color: #94a3b8;
+    padding: 60px 20px;
+    font-size: 1.1rem;
+}
+
+
+
+
+
+
+.team-horizontal-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 25px 35px;
+    border-left: 6px solid #e2e8f0;
+    transition: 0.3s;
+    width: 100%; /* Force full width */
+    box-sizing: border-box; /* Include padding in the width calculation */
+    flex: 0 0 auto;             /* don't grow or shrink unexpectedly */
+}
+
+
+.team-horizontal-card:hover {
+    border-left-color: var(--primary-color);
+    transform: translateX(8px);
+}
+
+
+#referrals {
+    width: 100%;
+    padding: 0;
+}
+
+
+
+
+.card-left { display: flex; align-items: center; gap: 20px; }
+
+.user-avatar-rect {
+    width: 60px; height: 60px;
+    background: #f7fafc;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: var(--primary-color); font-size: 1.3rem;
+}
+
+.user-info-text strong { display: block; font-size: 1.1rem; color: #1a202c; }
+.user-info-text span { font-size: 0.85rem; color: #718096; display: flex; align-items: center; gap: 5px; }
+
+.card-right { display: flex; align-items: center; gap: 50px; }
+
+.v-stat { text-align: right; }
+.v-stat small { display: block; font-size: 0.7rem; color: #a0aec0; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+.v-stat strong { font-size: 1.1rem; color: #2d3748; }
+
+/* --- Source Icon Colors --- */
+.source-icon { font-size: 1.1rem; vertical-align: middle; }
+.source-icon.yt { color: #FF0000; }
+.source-icon.fb { color: #1877F2; }
+
+/* Customer Variant */
+.customer-accent { border-left-color: #4299e1; }
+.cust-bg { color: #4299e1; }
+
+
+/* --- Updated View Container Logic --- */
+/* This ensures the container stays wide even when switching */ 
+.team-views-wrapper { width: 100%; min-height: 300px; /* Optional: prevents height jumping */ display: block; }
+
+
+
+
+.team-view {
+    display: none;
+    width: 100%;
+    /* Prevents the container from collapsing when content changes */
+    min-width: 100%;           
+}
+
+.team-view.active {
+    display: flex !important;
+    flex-direction: column;
+    /* Forces the active view to fill the entire horizontal space of the dashboard */
+    width: 100%;
+    min-width: 100%;
+    align-items: stretch;      
+    gap: 16px;      
+    animation: fadeIn 0.3s ease; /* Smooth transition */
+}
+
+
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+
+
+
+/* --- Former Partner / Deactivated State --- */
+.team-horizontal-card.deactivated {
+    opacity: 0.6; /* Makes the card look "faded" */
+    border-left-color: #cbd5e0; /* Neutral gray border */
+    filter: grayscale(0.8); /* Optional: makes the avatar and icons gray */
+    pointer-events: none; /* Prevents clicking buttons on a deleted account */
+    transform: none !important; /* Disables the hover animation */
+}
+
+.tag-status.deleted {
+    background: #edf2f7;
+    color: #718096;
+    border: 1px solid #cbd5e0;
+}
+
+.deactivated .amt-positive {
+    color: #a0aec0 !important; /* Gray out the earnings text */
+}
+
+
+
+
+
+.deactivated .amt-positive {
+    color: #a0aec0 !important;
+}
+
+.btn-outline-small {
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+
+.btn-outline-small:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+
+
+
+/* --- Main Content Header --- */
+.aff-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.aff-top-bar h1 {
+    font-size: 24px; /* Scaled down for professionalism */
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+
+.aff-user-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    padding: 8px 16px;
+    border-radius: 50px;
+    border: 1px solid #e2e8f0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+
+
+
+
+/* 1. Ensure the Main content area doesn't shrink when tabs change */
+.aff-main {
+    flex: 1; /* This forces the main area to take up all remaining space next to the sidebar */
+    min-width: 0; /* Prevents flex-box from bulging or collapsing unexpectedly */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 2. Fix the Referrals Tab container */
+#referrals.tab-content.active {
+    display: block; /* Change from flex to block to stabilize the layout */
+    width: 100%;
+}
+
+
+
+/* 4. Ensure the Team Views and Lists don't collapse */
+.team-container-wide, 
+.team-view, 
+.horizontal-list {
+    width: 100%;
+    min-width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch; /* Forces children (cards) to full width */
+}
+
+
+
+
+
+
+/* 4. Page Title + ID */
+
+.page-title-container {
+    display: flex;
+    align-items: center;
+    height: 40px; /* Ensures consistent alignment in the top bar */
+    min-width: 200px; 
+}
+.glass-id-badge {
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 8px 16px; /* Slightly larger padding */
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+#dynamic-title {
+    color: #f8fafc; /* Brighter white for better readability */
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem; /* Slightly larger font */
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: lowercase; /* Keeps that "system ID" aesthetic */
+    
+    transition: color 0.4s ease;
+}
+
+
+
+.glass-id-badge span#dynamic-id {
+    color: #ffffff; 
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 800; /* Extra bold for a title feel */
+    text-transform: uppercase; /* Keeps it clean and professional */
+    letter-spacing: 1px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* Color Definitions per Tab */
+
+
+/* The Dot and Text Transition */
+.glass-id-badge .dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--active-dot-color);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--active-tab-color);
+    transition: background 0.6s ease, box-shadow 0.6s ease;
+}
+
+
+
+
+
+/* The # symbol specific color shift */
+.hash-symbol {
+    color: #ffffff;
+    transition: color 0.4s ease;
+    margin-right: 2px;
+}
+
+
+
+
+
+
+
+
+/* Mobile Breakpoint - 768px and below - Group 1*/
+@media (max-width: 768px) {
+    .aff-dash-bg {
+        padding: 15px 0; /* Reduce outer padding on mobile */
+    }
+
+    .aff-dash-wrapper {
+        flex-direction: column; /* Stack Sidebar on top of Main content */
+        gap: 15px;
+        padding: 0 15px; /* Tighter side margins for more screen real estate */
+    }
+
+    .aff-sidebar {
+        width: 100%; /* Sidebar takes full width */
+        order: 1;    /* Keeps sidebar at the top (or 2 if you want it below) */
+    }
+
+    .aff-main {
+        width: 100%;
+        order: 2;
+    }
+    
+    /* Optional: Make the sidebar nav scroll horizontally on very small phones */
+    .nav-widget nav {
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 5px;
+        gap: 10px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .nav-widget nav a {
+        white-space: nowrap; /* Prevents menu text from wrapping */
+        padding: 10px 15px;
+    }
+    
+    
+    
+    
+    /* Group 2 - Stacks the Title and the User ID pill */
+   /* --- Group 2: Top Bar (Strict Horizontal Alignment) --- */
+
+    .aff-top-bar {
+        display: flex !important;
+        flex-direction: row !important; /* Force side-by-side */
+        flex-wrap: nowrap;              /* Prevent wrapping to new line */
+        justify-content: space-between; 
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+        width: 100%;
+    }
+
+    .page-title-container {
+        flex: 1;       /* Takes up remaining space */
+        min-width: 0;  /* Allows container to shrink to fit screen */
+    }
+
+    .glass-id-badge {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 6px 10px;
+        gap: 6px;
+        white-space: nowrap; /* Keeps #title on one line */
+    }
+
+    #dynamic-title {
+        font-size: 0.75rem; /* Shrunk for mobile safety */
+        margin: 0;
+    }
+
+    .aff-user-pill {
+        flex-shrink: 0;    /* CRITICAL: Prevents the ID from squishing/wrapping */
+        display: flex;
+        align-items: center;
+        font-size: 11px;
+        padding: 5px 10px;
+        margin-top: 0 !important; /* Removes any top margin that might push it down */
+        white-space: nowrap;
+    }
+
+    
+    
+    
+    
+    /* Group 3 - Stack the 3 Stat Boxes (Clicks, Commission, Pending) */
+    .aff-stats-row {
+        grid-template-columns: 1fr; /* From 3 columns to 1 */
+        gap: 15px;
+    }
+
+    /* Stack the Analytics Chart and the Promotion Tools */
+    
+
+    .stat-item {
+        padding: 20px;
+    }
+
+    .stat-content h2 {
+        font-size: 1.5rem; /* Slightly smaller numbers for mobile */
+    }
+
+    .chart-island, .tools-island {
+        padding: 20px;
+    }
+
+    
+    
+    /* 1. Group 4 - Make Tables Scrollable */
+    /* We target the container to allow the table to slide left/right */
+    .table-island {
+        padding: 15px;
+        overflow-x: auto; /* Enables horizontal scroll for the table only */
+    }
+
+    .aff-modern-table {
+        min-width: 600px; /* Ensures the table doesn't crush its own columns */
+    }
+
+    /* 2. Transform Saved Link Rows into Cards */
+    .saved-link-row {
+        flex-direction: column; /* Stacks link info on top of buttons */
+        align-items: flex-start;
+        gap: 15px;
+        padding: 15px;
+    }
+
+    .saved-link-info {
+        width: 100%;
+    }
+
+    .truncated-url {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Make buttons full-width or centered on mobile */
+    .saved-link-row .button-group-flex {
+        width: 100%;
+        justify-content: flex-start;
+        border-top: 1px solid #edf2f7;
+        padding-top: 12px;
+    }
+    
+    /* 3. Deep Link Generator Mobile Adjustments */
+    .gen-flex {
+        flex-direction: column; /* Inputs and buttons stack */
+        gap: 10px;
+    }
+
+    .gen-flex input, 
+    .gen-flex button {
+        width: 100%; /* Buttons take full width of the card */
+    }
+
+    
+    
+    
+    /* Group 5 - . Team Header Adjustments */
+    .team-hero-header {
+        padding: 20px;
+        text-align: center;
+    }
+
+    /* 2. Make the Sub-Tab Switcher Scrollable */
+    .glass-tab-switcher {
+        display: flex;
+        overflow-x: auto;
+        gap: 8px;
+        padding: 5px;
+        background: rgba(255, 255, 255, 0.5); /* Soften the glass background */
+        border-radius: 12px;
+    }
+
+    .sub-tab-btn {
+        white-space: nowrap; /* Keep "Performance" and "My Partners" on one line */
+        padding: 10px 16px;
+        font-size: 0.8rem;
+        flex: 1; /* Allow them to share width equally */
+        text-align: center;
+    }
+
+    /* 3. Transform the Horizontal Partner Card */
+    .team-horizontal-card {
+        flex-direction: column; /* Stack Avatar/Name on top of Stats */
+        align-items: flex-start;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    /* Top Section of Card (Avatar & Name) */
+    .card-left {
+        width: 100%;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 15px;
+    }
+
+    /* Bottom Section of Card (Stats & Button) */
+    .card-right {
+        width: 100%;
+        flex-direction: row; /* Keep stats side-by-side but allow wrapping */
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .v-stat {
+        flex: 1;
+        min-width: 100px; /* Ensure stats don't get too squished */
+    }
+
+    /* Make the "View Orders" button full width on mobile */
+    .team-horizontal-card .btn-outline-small {
+        width: 100%;
+        text-align: center;
+        margin-top: 10px;
+        padding: 12px;
+    }
+
+    /* 4. Adjust the "Empty State" or "Hero" text */
+    .team-hero-header h2 {
+        font-size: 1.4rem;
+    }
+}
+    
+    
+    
+    
+
+
+
+
+
+/* ============================================================
+   STORE MANAGEMENT - DARK GLASS UI
+   ============================================================ */
+
+/* 1. Island Container Adjustments */
+.management-island {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+}
+
+.section-desc {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+/* 2. Video URL Input Group (Soft Dark Glass) */
+.input-group-glass {
+    display: flex;
+    align-items: center;
+    background: rgba(30, 41, 59, 0.04); /* Very subtle dark tint */
+    border: 1px solid rgba(30, 41, 59, 0.1);
+    border-radius: 14px;
+    padding: 8px 8px 8px 18px;
+    gap: 15px;
+    transition: all 0.3s ease;
+}
+
+.input-group-glass:focus-within {
+    background: #ffffff;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(255, 45, 85, 0.1);
+}
+
+.input-group-glass i.fa-youtube {
+    color: #ff0000;
+    font-size: 1.2rem;
+}
+
+.input-group-glass input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+    font-weight: 500;
+    outline: none;
+}
+
+/* 3. The "Update" & "Delete" Action Buttons */
+.action-buttons-flex {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-action-primary {
+    background: rgba(30, 41, 59, 0.9); /* Dark Glass */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(4px);
+}
+
+.btn-action-primary:hover {
+    background: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 45, 85, 0.3);
+}
+
+.btn-icon-delete {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-icon-delete:hover {
+    background: #ef4444;
+    color: white;
+}
+
+/* 4. Service Search Bar (Deep Dark Glass) */
+.service-search-bar {
+    display: flex;
+    background: rgba(15, 23, 42, 0.85); /* Deep Dark Glass */
+    backdrop-filter: blur(10px);
+    padding: 8px 8px 8px 20px;
+    border-radius: 14px;
+    margin-bottom: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.service-search-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.service-search-bar input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-search-icon {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.btn-search-icon:hover {
+    transform: scale(1.05);
+}
+
+/* 5. Selected Service Item Management */
+.managed-service-item {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    padding: 12px 18px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    gap: 15px;
+    transition: transform 0.2s;
+}
+
+.managed-service-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.managed-service-item img {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    object-fit: cover;
+}
+
+.service-meta {
+    flex: 1;
+}
+
+.service-meta strong {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-dark);
+}
+
+.service-meta span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* 6. Item Action Icons (Grip and Trash) */
+.item-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-move {
+    background: none;
+    border: none;
+    color: #cbd5e1;
+    cursor: grab;
+    font-size: 1.1rem;
+}
+
+.btn-remove-service {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: color 0.2s;
+}
+
+.btn-remove-service:hover {
+    color: #ef4444;
+}
+
+
+
+/* Video Preview Container */
+.video-preview-box {
+    margin-top: 20px;
+    width: 100%;
+    aspect-ratio: 16 / 9; /* Maintains standard video shape */
+    background: rgba(15, 23, 42, 0.9); /* Dark Glass */
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* The actual Iframe (YouTube Player) */
+.video-preview-box iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Placeholder styling */
+.preview-placeholder {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.preview-placeholder i {
+    font-size: 3rem;
+    color: var(--primary-color);
+}
+
+
+
+
+
+
+.separator-text {
+    text-align: center;
+    position: relative;
+    margin: 25px 0;
+}
+
+.separator-text::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.05); /* Very faint line */
+    z-index: 1;
+}
+
+.separator-text span {
+    background: #ffffff; /* Matches your dashboard island background */
+    padding: 0 15px;
+    position: relative;
+    z-index: 2;
+    font-weight: 900;
+    color: #cbd5e1;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+
+
+
+
+
+
+
+/* Affiliate's Shop */
+.search-container-wrapper {
+    position: relative; /* So the dropdown floats correctly */
+}
+
+.glass-results-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: rgba(15, 23, 42, 0.95); /* Deep Dark Glass */
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    margin-top: 10px;
+    z-index: 100;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    gap: 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.search-result-item:hover {
+    background: rgba(255, 45, 85, 0.1);
+}
+
+.search-result-item img {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.result-info {
+    flex: 1;
+}
+
+.result-info strong {
+    display: block;
+    color: white;
+    font-size: 0.85rem;
+}
+
+.result-info span {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.5);
+}
+
+.btn-add-service {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+
+
+
+
+
+/* --- Drag and Drop Styles --- */
+.managed-service-item.dragging {
+    opacity: 0.5;
+    background: #f8fafc;
+    border: 2px dashed var(--primary-color);
+    transform: scale(0.98);
+}
+
+.btn-move {
+    cursor: grab; /* Shows the hand icon */
+    color: #cbd5e1;
+    transition: color 0.2s;
+}
+
+.btn-move:active {
+    cursor: grabbing;
+}
+
+.managed-service-item {
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
+}
+
+
+
+
+
+
+
+.glass-dropdown-select { 
+    background: rgba(255, 255, 255, 0.15); 
+    backdrop-filter: blur(10px); 
+    -webkit-backdrop-filter: blur(10px); 
+    border: 1px solid rgba(255, 255, 255, 0.2); 
+    color: white; 
+    padding: 12px 20px; 
+    border-radius: 12px; 
+    font-size: 0.95rem; 
+    appearance: none; 
+    -webkit-appearance: none; 
+    cursor: pointer; 
+    width: 100%; 
+    outline: none; 
+    text-align: center; /* Centers the text inside the dropdown */ 
+}
+
+.glass-dropdown-select option {
+    background: #1e1e2d; /* Dark background for the dropdown list */
+    color: white;
+    
+}
+
+.custom-select-wrapper {
+    position: relative; 
+    max-width: 280px; 
+    margin: 0 auto; /* This centers the block */ 
+    display: block;
+}
+
+.select-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+    pointer-events: none;
+    font-size: 0.8rem;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- Promotion Tools Widget --- */
+.tools-island { 
+    width: 100%; 
+    margin-bottom: 25px; /* Deleted the flex properties so it also stands alone */ 
+}
+
+.tools-island h3 {
+    margin-bottom: 5px;
+    font-size: 1.1rem;
+    color: #1e293b;
+}
+
+/* The List Container */
+.tools-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+/* Individual Tool Rows */
+.tools-list li {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+    transition: all 0.2s ease;
+}
+
+.tools-list li:last-child {
+    border-bottom: none;
+}
+
+/* Tool Icons (Left side) */
+.tools-list li > i {
+    width: 40px;
+    height: 40px;
+    background: #fff1f2; /* Light red tint */
+    color: #ff2d55;     /* Your primary red */
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    margin-right: 15px;
+}
+
+/* Text Container */
+.tools-list li div {
+    flex: 1;
+}
+
+.tools-list li div strong {
+    display: block;
+    font-size: 0.9rem;
+    color: #334155;
+}
+
+.tools-list li div p {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin: 0;
+}
+
+/* Download Action Button (Right side) */
+.tools-list li a {
+    color: #cbd5e1;
+    font-size: 1rem;
+    transition: color 0.2s, transform 0.2s;
+    padding: 5px;
+}
+
+.tools-list li a:hover {
+    color: #ff2d55;
+    transform: translateY(-2px);
+}
+
+/* Full Width Button at Bottom */
+
+
+.btn-full-red:hover {
+    background: #e0244a;
+}
+
+.btn-full-red:active {
+    transform: scale(0.98);
+}
+
+
+
+
+
+
+
+
+
+/* Media Kit Modal Specifics */
+.glass-gallery {
+    max-width: 900px;
+    width: 95%;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.98);
+    padding: 0; /* Remove padding for header control */
+}
+
+.gallery-filter-bar {
+    padding: 15px 30px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    gap: 10px;
+}
+
+.filter-btn {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* The Grid */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 25px;
+    padding: 30px;
+}
+
+.gallery-item {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.gallery-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
+
+.item-preview {
+    position: relative;
+    height: 150px;
+    background: #f8fafc;
+}
+
+.item-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.item-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.gallery-item:hover .item-overlay { opacity: 1; }
+
+.item-overlay button {
+    background: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #334155;
+}
+
+.item-info {
+    padding: 15px;
+}
+
+.item-info strong { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+.item-info span { font-size: 0.75rem; color: #94a3b8; display: block; margin-bottom: 12px; }
+
+.item-dl-link {
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/* --- Modal Close Button Styling --- */
+.close-btn {
+    background: #f1f5f9;      /* Light gray background */
+    color: #64748b;           /* Slate gray icon color */
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;       /* Perfect circle */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.close-btn:hover {
+    background: #ff2d55;      /* Your primary red on hover */
+    color: white;             /* White icon on hover */
+    transform: rotate(90deg); /* Subtle spin effect */
+    box-shadow: 0 4px 12px rgba(255, 45, 85, 0.2);
+}
+
+/* Ensure the Modal Header aligns the button correctly */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* Specific styling for the header icon/text group in the Gallery */
+.header-main {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.header-main i {
+    font-size: 1.5rem;
+    color: #ff2d55;
+}
+
+.header-main h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #1e293b;
+}
+
+.header-main p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+
+
+
+
+
+
+
+.chart-area-wrapper { 
+    height: 250px; /* Re-establishes the height the bars need */ 
+    width: 100%; 
+    display: flex; /* Uses flex internally just to align bars */ 
+    align-items: flex-end; /* Forces bars to sit on the bottom baseline */ 
+    justify-content: flex-start; 
+    justify-content: space-around; 
+    padding-left: 10px; 
+    background: rgba(0,0,0,0.02); /* Optional: subtle tint to see the area */ 
+    border-radius: 12px; 
+    gap: 15px;
+}
+
+
+
+
+.chart-island { 
+    width: 100%; 
+    display: block; 
+    margin-bottom: 25px; /* This gives you a clean gap between the sections */ 
+}
+
+
+/* Ensure the chart area itself grows to fill the new 450px height */ 
+.chart-container { 
+    flex-grow: 1; 
+    min-height: 300px; /* Ensures the actual graph has room to breathe */ 
+}
+
+
+
+
+
+
+
+
+
+

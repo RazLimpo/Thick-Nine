@@ -1,0 +1,774 @@
+/* ---------------------------------------------------- */
+/* Global Variables and Imports (Assumed from global.css) */
+/* ---------------------------------------------------- */
+/* :root variables from global.css are assumed to be available */
+
+/* --- NOTE: Assuming var(--primary-color) is the dark red/maroon color. --- */
+
+/* ---------------------------------------------------- */
+/* 1. Base Utility Styles (Re-used for clarity) */
+/* ---------------------------------------------------- */
+
+/* FIX: Added a strong, generic hidden utility class for JS to use */
+.hidden {
+  display: none !important; 
+}
+
+
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none; /* Inherits from global, but good to be explicit */
+}
+
+
+
+
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-light);
+  border-color: var(--primary-light);
+  color: white; /* Keep text white on hover */
+}
+
+.btn-secondary {
+  background-color: #ccc;
+  color: #333;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+
+
+.btn-secondary:hover {
+  background-color: var(--background-light);
+  border-color: var(--text-muted);
+}
+
+
+
+
+
+
+
+
+.full-width-btn {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.btn-large {
+  padding: 12px 25px;
+  font-size: 1.1em;
+}
+
+
+
+
+/* Found in Section 6. Payout Panel Specific Styles */
+/* ... */
+
+/* STYLING FOR THE REQUESTED BUTTON */
+.save-payout-btn {
+  margin-top: 25px; /* Increase margin for better separation from form fields */
+  margin-bottom: 15px;
+  padding: 15px 15px; /* Makes it taller and gives more horizontal space */
+  font-size: 1.1em; /* Makes the text slightly larger */
+}
+
+
+
+
+/* ---------------------------------------------------- */
+/* 2. Dashboard Layout and Main Content Area */
+/* ---------------------------------------------------- */
+
+.dashboard-layout {
+  max-width: var(--max-width);
+  margin: 20px auto;
+  padding: 0 20px;
+}
+
+.main-content-padding {
+  padding: 20px 0; /* Add top/bottom padding inside the layout */
+}
+
+/* 3. Settings Master Layout (Sidebar + Content) */
+/* ---------------------------------------------------- */
+.settings-master-layout {
+  display: flex;
+  gap: 40px;
+  margin-top: 30px;
+  background-color: white; /* Give the whole area a clean background */
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+
+
+/* Settings Navigation Sidebar */
+.settings-nav-sidebar {
+  flex-shrink: 0; /* Prevents the sidebar from shrinking */
+  width: 280px;
+  padding: 30px 20px;
+  border-right: 1px solid #eee;
+  background-color: var(--background-light);
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.settings-nav-sidebar h3 {
+  font-size: 1.4em;
+  color: var(--secondary-color);
+  margin-bottom: 25px;
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 5px;
+  display: inline-block;
+}
+
+.settings-nav-sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.settings-nav-sidebar li {
+  margin-bottom: 5px;
+}
+
+.settings-nav-sidebar li a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  text-decoration: none;
+  color: #555;
+  font-weight: 500;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.settings-nav-sidebar li a i {
+  font-size: 1.1em;
+  min-width: 20px;
+}
+
+.settings-nav-sidebar li a:hover,
+.settings-nav-sidebar li.active a {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.settings-nav-sidebar li.active a i {
+  color: white; /* Maintain white color when active */
+}
+
+.settings-nav-sidebar .sign-out-btn {
+  width: 100%;
+  margin-top: 40px;
+  padding: 10px 0;
+  font-weight: 500;
+}
+
+
+
+
+
+
+
+
+
+/* MODIFICATION 1: Styling the Sign Out Button to match the image */
+.sign-out-btn {
+  width: 100%;
+  background-color: #3f4a56; 
+  color: white;
+  border: none; 
+  margin-top: 20px;
+  padding: 12px 20px; 
+  font-size: 1em;
+}
+
+.sign-out-btn:hover {
+  background-color: #2c343b; 
+  color: white;
+  border-color: transparent;
+}
+
+
+.settings-content-area {
+  flex: 1; /* Takes up the remaining space */
+}
+
+/* Content Panels */
+.content-panel {
+  background-color: white;
+  padding: 12px;
+}
+
+/* Utility to control panel visibility via JS */
+.content-panel.hidden {
+  display: none;
+}
+.content-panel.active {
+  display: block;
+}
+
+/* Page Headers */
+.settings-page-container h1 {
+  font-size: 2em;
+  color: var(--secondary-color);
+  margin-bottom: 5px;
+}
+
+.section-subheading {
+  color: var(--text-muted);
+  font-size: 1.1em;
+  margin-bottom: 30px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+/* ---------------------------------------------------- */
+/* 4. General Form and Card Styling */
+/* ---------------------------------------------------- */
+
+.content-card, .form-container-card {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.content-card h2, .form-container-card h2 {
+  font-size: 1.4em;
+  margin-bottom: 15px;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+}
+
+.content-card h2 i, .form-container-card h2 i {
+  margin-right: 10px;
+  font-size: 1.2em;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--secondary-color);
+}
+
+/* MODIFICATION 2 (FINAL FIX): Increased vertical padding to 25px and broadened the selector scope 
+to target all input types and selects within the .settings-content-area. 
+This ensures all form inputs have the spacious appearance. 
+*/
+.settings-content-area input[type="text"],
+.settings-content-area input[type="email"],
+.settings-content-area input[type="password"],
+.settings-content-area textarea,
+.settings-content-area select {
+  width: 100%;
+  padding: 15px 12px; /* Set padding to 25px top/bottom for spacious look */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+  font-family: var(--font-family);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.settings-content-area input:focus,
+.settings-content-area textarea:focus,
+.settings-content-area select:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(115, 14, 14, 0.1); /* Light primary color shadow */
+}
+
+.settings-content-area textarea {
+  resize: vertical;
+}
+
+/* Status Toggle Switch (for checkboxes) */
+.status-toggle-switch {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+  padding: 10px 0;
+}
+
+.status-toggle-switch input[type="checkbox"] {
+  /* Hide the default checkbox */
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.status-toggle-switch label {
+  position: relative;
+  cursor: pointer;
+  padding-left: 50px; /* Space for the custom toggle */
+  font-weight: 400;
+  margin-bottom: 0;
+  user-select: none;
+}
+
+.status-toggle-switch label::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 22px;
+  background-color: #ccc;
+  border-radius: 11px;
+  transition: background-color 0.3s;
+}
+
+.status-toggle-switch label::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s, background-color 0.3s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.status-toggle-switch input[type="checkbox"]:checked + label::before {
+  background-color: var(--online-color);
+}
+
+.status-toggle-switch input[type="checkbox"]:checked + label::after {
+  transform: translate(18px, -50%);
+}
+
+/* General setting block styles */
+.setting-block {
+  padding: 15px 0;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 15px;
+}
+
+.setting-block:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.setting-block h3 {
+  font-size: 1.2em;
+  margin-bottom: 5px;
+}
+
+.setting-block p {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+}
+
+
+/* ---------------------------------------------------- */
+/* 5. Profile Panel Specific Layout (Grid) */
+/* ---------------------------------------------------- */
+
+.profile-edit-layout {
+  display: grid;
+  grid-template-columns: 3fr 1fr; /* Main content area and sidebar */
+  gap: 30px;
+}
+
+.profile-edit-main {
+  grid-column: 1 / 2;
+}
+
+.profile-edit-sidebar {
+  grid-column: 2 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profile-edit-sidebar .sidebar-card {
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.profile-edit-sidebar .sidebar-card h3 {
+  font-size: 1.1em;
+  margin-bottom: 15px;
+  color: var(--secondary-color);
+  display: flex;
+  align-items: center;
+}
+
+.profile-edit-sidebar .sidebar-card h3 i {
+  margin-right: 8px;
+  color: var(--primary-color);
+}
+
+.save-action-bar {
+  grid-column: 1 / -1; /* Span across both columns */
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: 20px 0;
+  margin-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.portfolio-management p {
+  color: var(--text-muted);
+  margin-bottom: 15px;
+}
+
+
+/* ---------------------------------------------------- */
+/* 6. Payout Panel Specific Styles */
+/* ---------------------------------------------------- */
+
+.settings-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.info-text, .note-text {
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+
+.note-text {
+  margin-top: 20px;
+}
+
+.card-header-line h2 {
+  color: var(--secondary-color);
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 5px;
+  margin-bottom: 15px;
+}
+
+.payout-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.payout-option-card {
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  display: block; /* Make the whole label clickable */
+}
+
+.payout-option-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* MODIFICATION 3: Change active payout method background to a very light red/primary-color tint */
+.payout-option-card.active {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color);
+  background-color: #fcebeb; /* Very light red/pink for selected state */
+}
+
+.payout-option-card i {
+  font-size: 2em;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+}
+
+.payout-option-card h4 {
+  margin-top: 5px;
+  margin-bottom: 5px;
+  font-size: 1.2em;
+}
+
+.payout-option-card p {
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.payout-option-card input[type="radio"] {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  /* You can hide the actual radio button and use the border/active class for visual cue */
+  opacity: 0;
+}
+
+.payout-details-form {
+  padding-top: 15px; /* Adjust padding since h2 has more */
+}
+
+.form-group-row {
+  display: flex;
+  gap: 20px;
+}
+
+.form-group-row > .form-group {
+  flex: 1; /* Make inner form groups take equal space */
+}
+
+.schedule-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.schedule-options label {
+  display: flex;
+  align-items: center;
+  font-weight: 400; /* Override default label boldness */
+  cursor: pointer;
+}
+
+.schedule-options input[type="radio"] {
+  margin-right: 10px;
+  accent-color: var(--primary-color);
+}
+
+.save-payout-btn {
+  margin-top: 10px;
+}
+
+/* ---------------------------------------------------- */
+/* 7. Security Panel Specific Styles */
+/* ---------------------------------------------------- */
+
+/* MODIFICATION 4: Style for Security Panel buttons to be equal width and dark color */
+.setting-block > .btn-secondary {
+  width: 200px; 
+  text-align: center;
+  padding: 10px 15px; 
+  background-color: #4a545e; /* Match the dark button background from the image */
+  color: white;
+  border: none;
+  font-weight: 400;
+}
+
+.setting-block > .btn-secondary:hover {
+  background-color: #3b444c; 
+  color: white;
+}
+
+
+/* ---------------------------------------------------- */
+/* 8. Media Queries for Responsiveness */
+/* ---------------------------------------------------- */
+
+@media (max-width: 992px) {
+  .settings-master-layout {
+      flex-direction: column;
+      gap: 20px;
+  }
+
+  .settings-nav-sidebar {
+      flex: 0 0 auto; 
+      width: 100%;
+      padding: 15px;
+      overflow-x: auto; 
+  }
+
+  .settings-nav-sidebar h3 {
+      display: none; 
+  }
+
+  .settings-nav-sidebar ul {
+      display: flex;
+      flex-wrap: nowrap; 
+      margin-bottom: 0;
+  }
+
+  .settings-nav-sidebar li {
+      flex-shrink: 0; 
+  }
+
+  .sign-out-btn {
+      display: none; 
+  }
+
+  .profile-edit-layout {
+      grid-template-columns: 1fr; 
+  }
+
+  .profile-edit-sidebar {
+      grid-column: 1 / -1;
+      flex-direction: row; 
+      flex-wrap: wrap;
+  }
+
+  .profile-edit-sidebar .sidebar-card {
+      flex: 1 1 calc(50% - 10px); 
+      min-width: 250px;
+  }
+
+  .form-group-row {
+      flex-direction: column;
+      gap: 0;
+  }
+  
+  /* MODIFICATION 4: Security buttons need to stack and take full width on smaller screens */
+  .setting-block > .btn-secondary {
+      width: 100%; 
+  }
+}
+
+@media (max-width: 576px) {
+  .dashboard-layout {
+      padding: 0 10px;
+  }
+
+  .settings-nav-sidebar ul {
+      justify-content: space-between;
+  }
+
+  .settings-nav-sidebar li a {
+      padding: 8px 10px;
+      font-size: 0.9em;
+  }
+  
+  .settings-nav-sidebar li a i {
+      display: none;
+  }
+  
+  .profile-edit-sidebar {
+      flex-direction: column;
+  }
+  
+  .profile-edit-sidebar .sidebar-card {
+      width: 100%;
+      flex: auto;
+  }
+}
+
+/* ---------------------------------------------------- */
+/* FOOTER AND HEADER STYLES REMOVED AS REQUESTED */
+/* ---------------------------------------------------- */
+
+
+
+/* --- Branding Editor Styles --- */
+.profile-branding-card {
+  padding: 0; /* Remove padding to let cover photo go edge-to-edge in card */
+  overflow: hidden;
+}
+
+.branding-editor-container {
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.cover-editor {
+  height: 180px;
+  background-color: #f0f0f0;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 15px;
+}
+
+.cover-edit-btn {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.cover-edit-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.avatar-editor-wrapper {
+  display: flex;
+  align-items: flex-end;
+  margin-top: -60px; /* Pulls avatar up over the cover photo */
+  padding: 0 30px;
+  gap: 20px;
+}
+
+.avatar-preview-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.avatar-preview-container img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 5px solid white;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background: var(--primary-color);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 3px solid white;
+}
+
+.branding-text-hint h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.branding-text-hint p {
+  margin: 5px 0 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+

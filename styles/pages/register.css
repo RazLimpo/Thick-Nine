@@ -1,0 +1,416 @@
+/* ---------------------------------------------------- */
+/* 1. Layout & Containers */
+/* ---------------------------------------------------- */
+
+.form-layout {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 20px;
+  background-color: #f4f7f6; 
+  min-height: calc(100vh - 160px); 
+}
+
+.form-container {
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 700px; /* Increased width for 3 cards */
+}
+
+.form-container h1 {
+  margin-bottom: 10px;
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  text-align: center;
+}
+
+.form-instruction {
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+/* ---------------------------------------------------- */
+/* 2. Form Elements */
+/* ---------------------------------------------------- */
+
+.form-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #444;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group select {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color, #007bff);
+}
+
+/* ---------------------------------------------------- */
+/* 3. Role Selection Cards (3-Column Support) */
+/* ---------------------------------------------------- */
+
+.role-selection {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.role-card {
+  flex: 1;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  min-width: 0; /* Prevents overflow in flex containers */
+}
+
+.role-card:hover {
+  border-color: var(--secondary-color, #6c757d);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+.role-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Modern Selection Logic */
+.role-card:has(input[type="radio"]:checked) {
+  border-color: var(--primary-color, #007bff);
+  background-color: #f0f7ff; 
+}
+
+.role-card input[type="radio"]:checked ~ i,
+.role-card input[type="radio"]:checked ~ span {
+  color: var(--primary-color, #007bff);
+}
+
+.role-card i {
+  font-size: 2.2em; /* Slightly smaller to fit 3 cards better */
+  color: #ccc;
+  margin-bottom: 10px;
+  transition: color 0.2s;
+}
+
+.role-card span {
+  font-weight: 700;
+  font-size: 1em;
+  display: block;
+}
+
+.role-card small {
+  color: #777;
+  margin-top: 5px;
+  font-size: 0.8em;
+  line-height: 1.2;
+}
+
+/* ---------------------------------------------------- */
+/* 4. Buttons & Links */
+/* ---------------------------------------------------- */
+
+.post-button {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 10px;
+  cursor: pointer;
+  background-color: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  border-radius: 6px;
+}
+
+.terms-check {
+  margin-top: 20px;
+  font-size: 0.9em;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-link {
+  text-align: center;
+  margin-top: 25px;
+  color: #666;
+}
+
+.login-link a {
+  color: var(--primary-color, #007bff);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+
+
+
+/* ---------------------------------------------------- */
+/* 5. Dynamic Fields */
+/* ---------------------------------------------------- */
+
+.hidden-field {
+  display: none; /* Default state */
+  animation: fadeIn 0.4s ease;
+}
+
+.hidden-field.show {
+  display: flex; /* Shown when 'show' class is added via JS */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+
+
+
+/* ---------------------------------------------------- */
+/* 6. Responsiveness */
+/* ---------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .role-selection {
+      flex-direction: column; 
+  }
+  
+  .form-container {
+      padding: 25px;
+      margin: 20px;
+  }
+}
+
+
+
+
+/* ---------------------------------------------------- */
+/* 7. Password Strength & Validation */
+/* ---------------------------------------------------- */
+
+.strength-meter {
+  height: 6px;
+  background-color: #eee;
+  margin-top: 8px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.strength-bar {
+  height: 100%;
+  width: 0%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+#strength-text {
+  font-size: 0.75em;
+  display: block;
+  margin-top: 4px;
+  color: #777;
+}
+
+/* Strength Colors */
+.strength-weak { width: 33%; background-color: #ff4d4d; }
+.strength-medium { width: 66%; background-color: #ffd11a; }
+.strength-strong { width: 100%; background-color: #27ae60; }
+
+.error-text {
+  color: #ff4d4d;
+  font-size: 0.8em;
+  margin-top: 5px;
+  display: none; /* Hidden until passwords don't match */
+}
+
+.input-error {
+  border-color: #ff4d4d !important;
+}
+
+
+
+/* ---------------------------------------------------- */
+/* 8. Password Toggle Styling */
+/* ---------------------------------------------------- */
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-right: 40px; /* Make space for the icon */
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  color: #999;
+  transition: color 0.2s;
+  z-index: 10;
+}
+
+.toggle-password:hover {
+  color: var(--primary-color, #007bff);
+}
+
+
+
+
+/* ---------------------------------------------------- */
+/* 9. Loading State */
+/* ---------------------------------------------------- */
+
+.post-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.3s, opacity 0.3s;
+}
+
+.post-button:disabled {
+  background-color: #a5caff; /* Faded version of your primary color */
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.loader {
+  font-size: 1.2rem;
+}
+
+
+
+
+
+/* 10. Country Flag Preview & Select Styling */
+.select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Ensure the text doesn't overlap the flag icon */
+.select-wrapper select {
+  width: 100%;
+  padding-left: 45px !important; /* Forces space for the flag on the left */
+}
+
+#flag-preview {
+  position: absolute;
+  left: 12px;
+  width: 24px;
+  height: 16px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 2px;
+  z-index: 5;
+  pointer-events: none; /* Allows clicking "through" the flag to open the menu */
+  display: block;
+}
+
+.flag-placeholder {
+  background-color: #eee; /* Shows a light gray box before a selection is made */
+}
+
+/* Ensure hidden fields (like Affiliate Referral) are actually hidden */
+.hidden-field {
+  display: none;
+}
+
+.hidden-field.show {
+  display: flex;
+}
+
+
+
+
+
+
+/* 11. Success Overlay Styling */
+.overlay {
+  display: none; /* Hidden by default */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+}
+
+.overlay-content {
+  background: #fff;
+  padding: 40px;
+  border-radius: 15px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  transform: scale(0.7);
+  transition: transform 0.3s ease;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.overlay.show {
+  display: flex;
+}
+
+.overlay.show .overlay-content {
+  transform: scale(1);
+}
+
+.success-icon {
+  font-size: 4rem;
+  color: #27ae60;
+  margin-bottom: 20px;
+}
+
+.overlay-content h2 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.overlay-content p {
+  color: #666;
+  margin-bottom: 25px;
+}
+
+

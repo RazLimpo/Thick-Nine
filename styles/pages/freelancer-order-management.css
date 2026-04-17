@@ -1,0 +1,482 @@
+:root {
+  --f-primary: #d96464; 
+  --f-secondary: #008060;
+  --f-glass: rgba(255, 255, 255, 0.7);
+  --f-glass-border: rgba(255, 255, 255, 0.3);
+  --f-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  --text-main: #2d3436;
+  --text-muted: #636e72;
+}
+
+body {
+  background: radial-gradient(circle at top right, #fdfbfb 0%, #ebedee 100%);
+  min-height: 100vh;
+  font-family: 'Roboto', sans-serif;
+}
+
+.mgmt-container {
+  max-width: 1400px; /* Increased for better horizontal spacing */
+  margin: 40px auto;
+  padding: 20px;
+}
+
+/* --- Overview Cards (Small Glassmorphism) --- */
+.overview-cards-container {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 40px;
+}
+
+.f-card {
+  flex: 1;
+  background: var(--f-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--f-glass-border);
+  border-radius: 15px;
+  padding: 15px 20px;
+  box-shadow: var(--f-shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.f-card h3 {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin: 0;
+}
+
+.f-card .large-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 4px 0;
+  color: var(--text-main);
+}
+
+.f-card .sub-text {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.earnings-card { border-left: 4px solid var(--f-secondary); }
+.active-card { border-left: 4px solid #ff9900; }
+.delivery-card { border-left: 4px solid var(--f-primary); }
+
+/* --- Toolbar (Repositioned & Balanced) --- */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.search-bar-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 450px;
+}
+
+.search-bar-wrapper i {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #aaa;
+}
+
+.search-bar-wrapper input {
+  width: 100%;
+  padding: 12px 15px 12px 45px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 0.9rem;
+}
+
+.f-select-filter {
+  padding: 11px 15px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-width: 220px;
+}
+
+/* --- THE ORDER ROW (Modified for Space Availability) --- 
+ 
+/* --- 1. Refined Orders Queue Section --- */
+.orders-table-section {
+  background: var(--f-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--f-glass-border);
+  border-radius: 20px;
+  padding: 25px;
+  margin-top: 30px;
+  box-shadow: var(--f-shadow);
+}
+
+.orders-table-section h2 {
+  font-size: 1.2rem;
+  color: var(--text-main);
+  margin-bottom: 20px;
+}
+
+/* --- 2. Vertical Alignment Engine --- */
+/* We apply the exact same grid to both Header and Row */
+.orders-header, 
+.order-row {
+  display: grid;
+  /* Consistency is key: same fractions and same 25px horizontal padding */
+  grid-template-columns: 40px 2fr 1.8fr 1fr 1fr 0.8fr 1.4fr 1fr;
+  padding: 15px 25px; 
+  align-items: center;
+  gap: 10px;
+}
+
+/* Header Specifics */
+.orders-header {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  margin-bottom: 10px;
+  padding-top: 0;
+}
+
+.orders-header span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Row Specifics (Maintaining your background/radius) */
+.order-row {
+  background: #f8fafc;;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  border: 1px solid #f0f0f0;
+  transition: transform 0.2s ease;
+}
+
+.order-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.04);
+}
+
+/* --- 3. Content Protection (Using pkg-title) --- */
+.pkg-title {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #444;
+  padding-right: 15px;
+  /* Prevents long titles from pushing columns */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; 
+}
+
+/* Ensuring buttons align to the right of their cell */
+.action-cell {
+  display: flex;
+  justify-content: flex-end;
+}
+
+
+
+
+
+
+/* Buyer Styling */
+.buyer-cell { display: flex; align-items: center; gap: 12px; overflow: hidden; }
+.buyer-cell img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
+.buyer-name { display: block; font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.order-id { font-size: 0.75rem; color: var(--f-primary); font-weight: 500; }
+
+
+
+/* Data Points */
+.date-cell, .timer-cell, .amount-cell {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.amount-cell {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.timer-cell i { margin-right: 5px; color: var(--f-primary); }
+
+/* Status Tags */
+.status-tag { 
+  display: inline-block;
+  padding: 6px 14px; 
+  border-radius: 20px; 
+  font-size: 0.72rem; 
+  font-weight: 700; 
+  text-align: center;
+  width: 90%; /* Ensure tags look uniform */
+}
+.status-tag.in-progress { background: #e3f2fd; color: #1976d2; }
+.status-tag.pending { background: #fff8e1; color: #f57f17; }
+.status-tag.revision { background: #f3e5f5; color: #7b1fa2; }
+
+/* Buttons */
+.btn-manage {
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #eee;
+  background: white;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%; /* Fill the action cell */
+}
+
+.btn-manage:hover {
+  border-color: var(--f-primary);
+  color: var(--f-primary);
+  background: #fffafa;
+}
+
+/* --- Shared Action Modal (Glass Style) --- */
+.overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+}
+
+.overlay.show { display: flex; }
+
+/* --- Updated Bulk Bar Logic --- */
+/* --- Corrected Bulk Bar Styling --- */
+.bulk-bar {
+  position: fixed;
+  bottom: -120px; /* Initially hidden below the screen */
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 500px;
+  background: #1e1e1e !important; /* Dark theme to stand out from white rows */
+  color: white;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 50px;
+  z-index: 9999;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Smooth bounce animation */
+}
+
+/* This class is added by JavaScript when checkboxes are checked */
+.bulk-bar.show {
+  bottom: 30px; 
+}
+
+.bulk-bar span {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.bulk-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-bulk {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-bulk:hover {
+  background: var(--f-primary);
+  border-color: var(--f-primary);
+}
+
+/* --- Improved Modal Design --- */
+.glass-card {
+  background: white;
+  border-radius: 24px;
+  padding: 35px;
+  width: 95%;
+  max-width: 500px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+
+.modal-header { margin-bottom: 25px; 
+  position: relative; /* Essential for the X button positioning */ 
+}
+
+
+.modal-header h2 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-section p {
+  color: #636e72;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.modal-textarea {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 15px;
+  font-family: inherit;
+  background: #f8fafc;
+  transition: border 0.3s;
+}
+
+.modal-textarea:focus {
+  outline: none;
+  border-color: var(--f-primary);
+  background: white;
+}
+
+/* --- Modal Footer Actions Fix --- */
+
+/* --- Modern Modal Button Overhaul --- */
+
+/* 1. Universal Modal Button Base Styles (Updated to match image spacing) */
+.modal-actions button,
+.close-modal {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  outline: none;
+}
+
+/* 2. THE TOP-RIGHT "X" CLOSE BUTTON (Perfected Position) */
+.close-modal-x {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 36px;
+  height: 36px;
+  background: #f0f0f0; /* Soft grey from image */
+  color: #555; /* Medium grey icon from image */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none; 
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: 0.2s;
+  opacity: 0.8;
+}
+
+.close-modal-x:hover {
+  opacity: 1;
+  background: #e0e0e0;
+  color: #222;
+}
+
+/* 3. MODAL ACTIONS CONTAINER (Footer) */
+.modal-actions {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end; /* Push buttons to the right */
+  gap: 15px; /* Generous spacing from image */
+}
+
+/* 4. THE "CANCEL" BUTTON (Specific Secondary Style) */
+.btn-outline.close-modal {
+  background: #f0f0f0; /* Exact soft grey from image */
+  color: #444; /* Dark grey text from image */
+  padding: 12px 30px; /* Spacious from image */
+  border-radius: 12px; /* Smooth corner from image */
+  border: 1px solid #ddd;
+  font-weight: 700; 
+  cursor: pointer; 
+  transition: 0.2s;
+}
+
+.btn-outline.close-modal:hover {
+  background: #e0e0e0;
+  border-color: #ccc;
+  color: #222;
+}
+
+/* 5. THE "SUBMIT DELIVERY" BUTTON (Specific Primary Style) */
+.btn-primary#main-action-submit {
+  background: #d86c6c; /* Exact soft red/coral from image */
+  color: white;
+  padding: 12px 35px; /* Spacious from image */
+  border-radius: 12px; /* Smooth corner from image */
+  min-width: 170px; /* Ensures presence like the image */
+  border: none;
+  font-weight: 700; 
+  min-width: 170px; /* Gives it the broad look from the image */ 
+  cursor: pointer; 
+  box-shadow: 0 4px 10px rgba(216, 108, 108, 0.2); 
+  transition: 0.2s;
+}
+
+.btn-primary#main-action-submit:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 15px rgba(216, 108, 108, 0.3);
+}
+
+.btn-primary#main-action-submit:active {
+  transform: translateY(0);
+}
+
+
+
+
+/* Primary Action Button */
+.btn-primary {
+  background: #d96464;
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(161, 4, 25, 0.3);
+}
+
+
+
+
+
+
+
+
+

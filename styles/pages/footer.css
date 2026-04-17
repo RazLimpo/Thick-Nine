@@ -1,0 +1,118 @@
+/* ---------------------------------------------------- */
+/* 12. Footer Styles */
+/* ---------------------------------------------------- */
+.main-footer {
+  background-color: #333; /* Dark background */
+  color: #f4f4f4;
+  padding-top: 40px;
+  font-size: 0.9em;
+  text-align: center;
+  border-top: 5px solid var(--primary-color); /* Highlight color */
+}
+
+.footer-content-wrapper {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 30px 30px 30px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap; /* Allows columns to wrap on smaller screens */
+  gap: 30px;
+}
+
+.footer-column {
+  flex: 1; /* Distribute space evenly */
+  min-width: 150px; /* Minimum width before wrapping */
+}
+
+/* Branding Column (Logo & Social) */
+.branding-column {
+  max-width: 250px;
+  flex-grow: 1.5; /* Give branding a bit more space */
+}
+
+.main-footer .logo {
+  color: white;
+  font-size: 1.5em;
+  font-weight: 700;
+  margin-bottom: 10px;
+  margin-left: auto;
+  margin-right: auto;
+  display: block; /* ensure it's block-level */
+  text-align: center; /* if the logo contains text */
+}
+.tagline {
+  color: #bbb;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+/* Links and Headings */
+.footer-column h3 {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 15px;
+}
+
+.footer-column ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-column ul li {
+  margin-bottom: 8px;
+}
+
+.footer-column a {
+  color: #bbb;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-column a:hover {
+  color: var(--secondary-color);
+}
+
+/* Social Icons */
+.social-icons a {
+  color: white;
+  font-size: 1.2em;
+  margin-right: 15px;
+  transition: color 0.2s;
+}
+
+.social-icons a:hover {
+  color: var(--secondary-color);
+}
+
+/* Bottom Copyright Row */
+.footer-bottom-row {
+  border-top: 1px solid #444;
+  padding: 15px 30px;
+  text-align: center;
+  color: #bbb;
+}
+
+/* --- Footer Responsiveness --- */
+@media (max-width: 768px) {
+  .footer-content-wrapper {
+      flex-direction: column;
+      gap: 20px;
+  }
+  
+  .footer-column {
+      min-width: 100%;
+      max-width: 100%;
+      border-bottom: 1px solid #444;
+      padding-bottom: 15px;
+  }
+  
+  .footer-column:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+  }
+}
+
+
+

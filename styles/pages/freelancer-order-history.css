@@ -1,0 +1,530 @@
+/* Define custom properties if not defined globally */
+:root {
+  --primary-color: #34495e; /* Dark Blue/Gray */
+  --success-color: #27ae60; /* Green */
+  --danger-color: #c0392b; /* Red/Maroon */
+  --teal-color: #16a085;
+  --f-primary: #1dbf73; /* Modern Green */
+  --f-text-dark: #222;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  background-color: #f4f7f9;
+  color: var(--f-text-dark);
+  margin: 0;
+  padding-top: 60px; /* Space for fixed header */
+}
+
+/* === MAIN HEADER AND NAVIGATION STYLES === */
+.main-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 30px;
+  z-index: 1000;
+}
+.logo {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 1.5em;
+  font-weight: 700;
+}
+.top-nav { display: flex; gap: 20px; }
+.nav-link {
+  text-decoration: none;
+  color: var(--primary-color);
+  padding: 5px 0;
+  transition: color 0.2s, border-bottom 0.2s;
+  font-weight: 500;
+}
+.nav-link:hover, .nav-link.active {
+  color: var(--success-color);
+  border-bottom: 2px solid var(--success-color);
+}
+.user-actions { display: flex; align-items: center; gap: 15px; }
+
+/* === BASIC PAGE LAYOUT === */
+.page-container {
+  max-width: 1400px;
+  margin: 20px auto 40px;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.page-title {
+  color: var(--primary-color);
+  margin-bottom: 5px;
+  font-size: 2em;
+}
+.page-subtitle { color: #777; margin-bottom: 20px; }
+hr { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+.section-title { font-size: 1.2em; color: var(--primary-color); margin-bottom: 15px; }
+
+/* --- UPDATED 1. Overview Cards (KPIs) --- */
+
+/* Parent Container for Card Layout */
+.order-summary-overview {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 25px;
+  flex-wrap: wrap; 
+}
+
+/* Card Header (Matches the 'My Performance Overview' look) */
+.overview-header {
+  font-size: 1.5em;
+  color: var(--primary-color);
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+}
+.overview-header i {
+  color: var(--danger-color); /* Red for the 'graph' icon */
+  margin-right: 10px;
+}
+.latest-orders-header {
+  font-size: 1.5em;
+  color: var(--primary-color);
+  margin-top: 25px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+}
+.latest-orders-header i {
+  color: #f39c12; /* Orange/Gold for the 'clipboard' icon */
+  margin-right: 10px;
+}
+
+/* Base Card Styling */
+.summary-card {
+  flex: 1;
+  min-width: 200px;
+  /* Removed padding here, will be added to the inner content */
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Stronger shadow */
+  background-color: #f7f7f7;
+  overflow: hidden; /* Important for containing the background grid */
+  color: white; /* Default text color for the card */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 120px; /* Fixed height for consistent look */
+}
+
+/* Square Net Grid Background for Infographic look */
+.summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  /* Create the graph pattern with repeating background */
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px; /* Size of the grid cells */
+  opacity: 0.5;
+  z-index: 1;
+}
+
+/* Card Colors (Matching the image) */
+.card-jobs-completed { background-color: #c0392b; } /* Red/Maroon */
+.card-total-earned { background-color: #27ae60; } /* Green */
+.card-average-rating { background-color: #34495e; } /* Dark Blue/Gray */
+.card-pending-payouts { background-color: #16a085; } /* Teal */
+
+/* Inner Content Layout */
+.card-value-section {
+  padding: 15px 20px 0;
+  z-index: 2; /* Place content above the grid background */
+  flex-grow: 1;
+}
+.card-value-section .card-value { 
+  font-size: 2.2em; 
+  font-weight: 700; 
+  margin: 0;
+}
+
+/* Card Footer/Label */
+.card-label-section {
+  background-color: rgba(0, 0, 0, 0.15); /* Slightly transparent overlay for the bottom band */
+  padding: 8px 20px;
+  font-size: 0.9em;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+}
+.card-label-section i {
+  margin-right: 8px;
+  font-size: 1.1em;
+}
+
+/* Override existing styles that might conflict */
+.summary-card h3 { display: none; } /* Hide the old H3 tag */
+.summary-card .card-value { color: white !important; } /* Ensure color is white */
+
+/* --- 2. Controls --- */
+.order-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.order-input-filter, .order-select-filter {
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+#order-search { flex-grow: 1; max-width: 400px; }
+
+
+
+
+
+
+/* --- 3. Order Table --- */
+.order-list-wrapper { overflow-x: auto; }
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.order-table th, .order-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+.order-table thead th {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: bold;
+  border-bottom: 3px solid var(--success-color);
+}
+.order-table tbody tr:hover { background-color: #f9f9f9; }
+
+/* Stripped Table Style (for History Table and Modal Summaries) */
+/* Styling for <table> rows (Order History List) */
+.dl-stripped-table tr:nth-child(even) {
+  background-color: #fcfcfc;
+}
+
+/* Styling for <dl> definition terms (Modal Summary/Payout) */
+/* We style the even dt and the dd immediately following it to create a 'stripped row' look */
+#summary-details-table dt:nth-of-type(even),
+#payout-details-table dt:nth-of-type(even) {
+  background-color: #fcfcfc;
+}
+
+#summary-details-table dt:nth-of-type(even) + dd,
+#payout-details-table dt:nth-of-type(even) + dd {
+  background-color: #fcfcfc;
+}
+
+/* Clickable Table Elements */
+.clickable-id, .clickable-service, .clickable-client {
+  cursor: pointer;
+  font-weight: 500;
+}
+.clickable-id { color: var(--primary-color); text-decoration: underline; }
+.clickable-id:hover { color: var(--success-color); }
+.clickable-service { color: var(--teal-color); }
+.clickable-client { color: #555; display: flex; align-items: center; }
+.clickable-client:hover { text-decoration: underline; }
+.client-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  margin-right: 8px;
+  object-fit: cover;
+  border: 1px solid #eee;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75em;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+.status-in-progress { background-color: #f39c12; }
+.status-completed { background-color: #2ecc71; }
+.status-delivered { background-color: #3498db; }
+.status-canceled { background-color: #e74c3c; } 
+.status-disputed { background-color: #c0392b; }
+
+/* Action Button */
+.btn-action {
+  padding: 8px 15px; 
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 0.85em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.btn-primary { background: var(--f-primary); color: white; border-color: var(--f-primary); }
+.btn-primary:hover { background: var(--success-color); }
+.btn-secondary { background: #eee; color: var(--primary-color); border-color: #ddd; }
+.btn-secondary:hover { background: #ddd; }
+.btn-dark-gray { background: #444; color: #fff; border-color: #444; }
+
+/* --- 4. Pagination --- */
+.pagination-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+/* === TOOLTIP STYLES (for Due Date) === */
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%; /* Position above the element */
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 150px;
+  padding: 8px;
+  background-color: var(--primary-color);
+  color: white;
+  text-align: center;
+  border-radius: 4px;
+  font-size: 0.8em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  z-index: 2000;
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+  bottom: calc(100% + 5px); /* Move slightly higher on hover */
+}
+
+/* === MODAL STYLES (Order Tracker) === */
+.f-modal {
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  /* Corrected to display on all views, and center vertically */
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  z-index: 10000;
+  overflow-y: auto; /* Allows scrolling if content is too tall */
+}
+.hidden { display: none !important; }
+.modal-content {
+  background-color: #fff;
+  padding: 0;
+  border-radius: 10px;
+  max-width: 600px;
+  width: 90%;
+  /* max-height: 90vh; Removed to ensure the modal can scroll within the viewport if needed */
+  margin: 20px 0; /* Add margin for mobile view */
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  display: flex; /* Make it a flex container */
+  flex-direction: column; /* Stack header, body, footer */
+}
+.large-modal { max-width: 1000px; } /* Override for the Order Tracker */
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px 25px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0; /* Prevents header from shrinking */
+}
+.modal-title { font-size: 1.5em; color: var(--primary-color); }
+.close-modal-btn {
+  background: none; border: none; font-size: 1.8em;
+  cursor: pointer; color: #aaa;
+}
+.modal-body { 
+  padding: 25px; 
+  overflow-y: auto; /* Make the body content scrollable */
+  flex-grow: 1; /* Allow body to take up available space */
+}
+
+/* Tracker Specific Layout */
+/* Removed tracker-header-actions since they were moved to footer */
+.tracker-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+.tracker-summary-grid .section-title { 
+  margin-top: 0; 
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+}
+.tracker-summary-grid .section-title i {
+  margin-right: 8px;
+  color: var(--teal-color);
+}
+
+
+/* --- MODAL STYLES (Order Tracker) - Focused Changes --- */
+
+/* Tracker Summary Tables (Order Summary and Payout Details) */
+#summary-details-table, #payout-details-table {
+  display: grid; /* Use Grid for the main DL container */
+  grid-template-columns: 1fr max-content; /* Two columns: 1fr for key, max-content for the value */
+  gap: 0 15px; /* Gap between columns */
+}
+
+/* Modal Table Row/Line Styling */
+#summary-details-table dt, #payout-details-table dt,
+#summary-details-table dd, #payout-details-table dd {
+  /* Reset default styling/padding */
+  padding: 10px 15px; /* Add padding to dt/dd items */
+  margin: 0;
+  line-height: 1.4;
+  border-bottom: 1px solid #eee; /* Add separator for clarity */
+}
+
+/* Apply background to odd rows (dt and corresponding dd) */
+#summary-details-table dt:nth-child(4n - 3), /* dt (1st element of pair) for odd rows */
+#summary-details-table dd:nth-child(4n - 2), /* dd (2nd element of pair) for odd rows */
+#payout-details-table dt:nth-child(4n - 3),
+#payout-details-table dd:nth-child(4n - 2) {
+  background-color: #fcfcfc;
+}
+
+/* KEY (dt) is BOLD, VALUE (dd) is REGULAR/SEMI-BOLD (as requested) */
+#summary-details-table dt, #payout-details-table dt {
+  font-weight: bold; /* Make the element (key) bold */
+  color: #555;
+  text-align: left; /* Key is left-aligned */
+}
+
+#summary-details-table dd, #payout-details-table dd {
+  font-weight: 500; /* Use medium weight for value */
+  color: var(--primary-color);
+  text-align: right; /* Value is right-aligned */
+}
+
+
+/* Special Rows - Total and Payout */
+.total-row dt, .total-row dd {
+  font-weight: bold !important;
+  color: var(--danger-color) !important;
+}
+
+.payout-row dt, .payout-row dd {
+  font-weight: bold !important;
+  color: var(--success-color) !important;
+  border-top: 1px solid #eee;
+  padding-top: 10px !important;
+  margin-top: 5px;
+}
+
+
+
+
+
+
+/* Tracker Tabs */
+.tracker-tabs {
+  display: flex;
+  border-bottom: 2px solid #eee;
+  margin-bottom: 20px;
+  flex-wrap: wrap; /* Ensure tabs wrap on small screens */
+  gap: 5px;
+}
+.tracker-tab-btn {
+  background: none; border: none; padding: 10px 15px;
+  font-size: 1em; color: #888; cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.tracker-tab-btn.active {
+  color: var(--f-primary);
+  border-bottom: 3px solid var(--f-primary);
+  font-weight: 700;
+}
+.tracker-tab-pane { padding: 10px 0; }
+.tab-pane-title { color: var(--primary-color); font-size: 1.1em; margin-bottom: 15px; }
+
+
+/* Timeline/Progress Tracker (Vertical Line) */
+#timeline-steps-container {
+  list-style: none;
+  padding-left: 50px; 
+  position: relative;
+}
+#timeline-steps-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0; 
+  left: 20px; 
+  width: 2px;
+  background-color: #ddd; 
+  z-index: 5;
+}
+.timeline-item {
+  margin-bottom: 30px;
+  position: relative;
+}
+.timeline-dot-container {
+  position: absolute;
+  left: -30px; /* Aligns dot to the left of the padding-left */
+  top: 0; 
+  z-index: 10; 
+}
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #ddd;
+  flex-shrink: 0;
+}
+.timeline-item.completed .timeline-dot { background-color: var(--success-color); }
+.timeline-item.active .timeline-dot { background-color: var(--f-primary); box-shadow: 0 0 0 4px #c8e6c9; }
+
+.chat-window {
+  min-height: 200px;
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  padding: 15px;
+  overflow-y: auto;
+  border-radius: 6px;
+  color: #555;
+}
+
+/* New Footer Actions for Modal */
+.tracker-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 25px;
+  border-top: 1px solid #eee;
+  flex-shrink: 0; /* Prevents footer from shrinking */
+}

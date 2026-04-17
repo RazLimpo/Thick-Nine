@@ -1,0 +1,281 @@
+/* --- Project Detail Form Layout --- */
+.form-layout {
+  max-width: var(--max-width);
+  margin: 40px auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.form-container {
+  max-width: 800px;
+  width: 100%;
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eee;
+}
+
+.form-container h1 {
+  font-size: 2.2rem;
+  color: var(--primary-color);
+  margin-bottom: 10px;
+  letter-spacing: -0.5px;
+}
+
+.form-instruction {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* --- Form Elements --- */
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: var(--border-radius);
+  font-family: var(--font-family);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background-color: #fafafa;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--primary-color);
+  background-color: #fff;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(115, 14, 14, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+}
+
+/* --- Small Help Text --- */
+.form-group small {
+  display: block;
+  margin-top: 8px;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* --- Budget Section --- */
+.inline-inputs {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.inline-inputs input {
+  flex: 1;
+}
+
+.inline-inputs span {
+  font-weight: bold;
+  color: #999;
+}
+
+/* --- Action Buttons --- */
+.job-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 40px;
+}
+
+.full-width-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--border-radius);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+.btn-primary.post-button {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary.post-button:hover {
+  background-color: #5a0b0b;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(115, 14, 14, 0.3);
+}
+
+.btn-secondary.save-draft-button {
+  background-color: #fff;
+  color: #555;
+  border: 1.5px solid #ccc;
+}
+
+.btn-secondary.save-draft-button:hover {
+  background-color: #f5f5f5;
+  border-color: #999;
+}
+
+.save-draft-button i {
+  margin-right: 10px;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+  .job-form-actions {
+      flex-direction: row-reverse; /* Put Post Job on the right */
+  }
+  
+  .full-width-btn {
+      flex: 1;
+  }
+}
+
+
+
+
+
+/* Character Counter - Project Title etc */
+.char-counter {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+/* Optional: Turn the counter red when approaching the limit */
+.char-counter.limit-near {
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+
+
+
+/* --- Template Selector Styles --- */
+.template-selector-container {
+  background-color: #fff9f9; /* Subtle tint of your primary color */
+  border: 1.5px dashed var(--primary-light);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+}
+
+.template-selector-container label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+}
+
+.template-selector-container label i {
+  color: var(--primary-color);
+  margin-right: 5px;
+}
+
+.template-dropdown {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: white;
+  cursor: pointer;
+}
+
+.template-dropdown:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.template-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+
+
+
+
+
+
+
+
+/* --- Action Buttons (Updated for 3 Buttons) Draft - Save - Post --- */
+.job-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 40px;
+}
+
+.secondary-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.full-width-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  gap: 10px; /* Space between icon and text */
+}
+
+
+/* Sidebar behavior for secondary buttons */
+.btn-secondary {
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px solid #ccc;
+  background: white;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 600px) {
+  .secondary-actions-row {
+      grid-template-columns: 1fr;
+  }
+}

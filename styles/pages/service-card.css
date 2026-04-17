@@ -1,0 +1,254 @@
+/* --- Thick 9 Service Card --- */
+
+.mjob-container {
+  display: flex; 
+  gap: 25px; 
+  padding: 10px; 
+  justify-content: flex-start; 
+  flex-wrap: wrap; 
+  max-width: 1300px; /* Adjust based on your design */ 
+  margin: 0 auto;
+  background-color: #fcfcfc;
+}
+
+.mjob-card {
+  background: #fff;
+  width: 100%;
+  max-width: 350px; 
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border: 1px solid rgba(0,0,0,0.03);
+  transition: transform 0.3s ease;
+}
+
+.mjob-card:hover { transform: translateY(-5px); }
+
+/* 1. Visual Header & Manual Hover Slider */
+.mjob-visual-header { 
+  height: 180px; 
+  position: relative; 
+  overflow: hidden; 
+}
+
+.mjob-slider-wrapper {
+  width: 300%; /* Holds 3 images side-by-side */
+  height: 100%;
+  display: flex;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mjob-slide {
+  width: 33.33%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+}
+
+/* User-Triggered Manual Slide Animation on Hover */
+.mjob-card:hover .mjob-slider-wrapper {
+  animation: manualSlide 9s infinite alternate; 
+}
+
+@keyframes manualSlide {
+  0%, 30% { transform: translateX(0); }
+  33%, 63% { transform: translateX(-33.33%); }
+  66%, 100% { transform: translateX(-66.66%); }
+}
+
+/* 2. Sliding Dots Indicators */
+.mjob-slider-dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 15;
+}
+
+.mjob-slider-dots .dot {
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+/* Animate dots to match the image being shown */
+.mjob-card:hover .dot:nth-child(1) { animation: activeDot1 9s infinite alternate; }
+.mjob-card:hover .dot:nth-child(2) { animation: activeDot2 9s infinite alternate; }
+.mjob-card:hover .dot:nth-child(3) { animation: activeDot3 9s infinite alternate; }
+
+@keyframes activeDot1 { 0%, 30% { background: #fff; transform: scale(1.3); } 33%, 100% { background: rgba(255, 255, 255, 0.6); transform: scale(1); } }
+@keyframes activeDot2 { 0%, 30% { background: rgba(255, 255, 255, 0.6); } 33%, 63% { background: #fff; transform: scale(1.3); } 66%, 100% { background: rgba(255, 255, 255, 0.6); } }
+@keyframes activeDot3 { 0%, 63% { background: rgba(255, 255, 255, 0.6); } 66%, 100% { background: #fff; transform: scale(1.3); } }
+
+/* 3. Profile Box & Status Badge (Maintained 14px size) */
+.mjob-profile-box { 
+  position: absolute; 
+  top: 12px; 
+  left: 12px; 
+  z-index: 10; 
+  width: 48px;
+  height: 48px;
+}
+
+.mjob-profile-box img { 
+  width: 48px; 
+  height: 48px; 
+  border-radius: 12px; 
+  border: 2px solid #fff; 
+  object-fit: cover; 
+  display: block;
+}
+
+.mjob-status-badge {
+  position: absolute; 
+  bottom: -2px; 
+  right: -2px; 
+  width: 14px; /* Restored to your original size */
+  height: 14px; 
+  border-radius: 50%; 
+  border: 2px solid #fff;
+  z-index: 11;
+}
+
+.status-online .mjob-status-badge { background-color: #28a745; }
+.status-offline .mjob-status-badge { background-color: #ccc; }
+
+/* Maintained your exact category tag style */
+
+
+.mjob-category-tag {
+  position: absolute; top: 12px; right: 12px;
+  background: var(--primary-color); color: #fff; 
+  padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800;
+}
+
+/* 4. Content Area */
+.mjob-content-area { padding-top: 15px; display: flex; flex-direction: column; flex-grow: 1; }
+.mjob-stats-row, .mjob-title, .mjob-user-meta { padding-left: 15px; padding-right: 15px; }
+
+.mjob-stats-row {
+  display: flex; justify-content: space-between;
+  padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0;
+}
+
+.stat-item { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #444; }
+.stat-item i.fa-star { color: #ffc107; }
+
+/* Delivery and Award icons set to #aaa */
+.stat-item i.icon-muted { color: #aaa; }
+
+.mjob-title { 
+  font-size: 14px; font-weight: 600; color: #222; 
+  line-height: 1.5; height: 42px; margin-bottom: 12px; 
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+
+/* 5. Gender Icons & User Meta */
+.mjob-user-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.mjob-username { display: flex; align-items: center; font-weight: 700; font-size: 12px; color: #aaa; }
+.mjob-username i { margin-right: 8px; font-size: 14px; }
+
+.m-icon { color: #007bff; }
+.f-icon { color: #e83e8c; } /* Preferred pink icon */
+
+.mjob-location { font-size: 11px; color: #aaa; }
+.mjob-location i { color: var(--primary-color); margin-right: 4px; }
+
+/* 6. AliceBlue Full-Width Footer */
+.mjob-footer-price {
+  background-color: aliceblue;
+  padding: 12px 15px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: auto; border-top: 1px solid #e0eaf3;
+}
+
+.mjob-level { font-size: 10px; color: #7a8a99; text-transform: uppercase; font-weight: 800; }
+.mjob-level.accent { color: var(--primary-color); }
+.mjob-price { font-size: 1.4rem; font-weight: 900; color: var(--primary-color); }
+
+
+
+
+/* --- Vertical Icon Stack (Favorite at bottom, Status on top) --- */
+
+/* 1. The Favorite Button (Your Original Positioning) */
+.mjob-favorite { 
+  position: absolute; 
+  bottom: 12px; 
+  right: 12px; 
+  background: rgba(255,255,255,0.9); 
+  border: none; 
+  width: 32px; 
+  height: 32px; 
+  border-radius: 50%; 
+  color: #888; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer;
+  z-index: 20;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.03);
+} 
+
+/* 2. The Status Circles (Featured and Sponsored) */
+.m-status-circle {
+  position: absolute;
+  right: 12px; /* Aligned with Favorite */
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  display: none; /* Hidden unless data attribute is true */
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  z-index: 20;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.03);
+}
+
+/* Stacking Logic: Placing icons ABOVE the favorite button */
+.featured-icon { bottom: 88px; color: #ffc107; }  /* 12px + 32px + 6px gap */
+.sponsored-icon { bottom: 50px; color: #6495ED; } /* 50px + 32px + 6px gap */
+
+
+
+/* --- Tooltip Logic for ALL circular buttons --- */
+[data-tooltip] { position: absolute; }
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  right: 42px; /* Pops out to the left */
+  top: 50%;
+  transform: translateY(-50%) scale(0.8);
+  background: #333;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+
+/* --- Visibility Logic --- */
+[data-sponsored="true"] .sponsored-icon { display: flex; }
+[data-featured="true"] .featured-icon { display: flex; }
