@@ -6,7 +6,7 @@
 
 /* === MAIN HEADER STYLES (Desktop Layout) === */
 .main-header {
-  position: fixed; top: 0; left: 0; width: 100%;
+  position: sticky; top: 0; left: 0; width: 100%;
   background-color: var(--f-text-light, #fff); 
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   display: flex; 

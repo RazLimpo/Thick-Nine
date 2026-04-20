@@ -45,7 +45,7 @@ const Header: React.FC = () => {
     {userRole === 'freelancer' && (
       <>
         <li><a href="freelancer-dashboard.html" className="nav-link">Dashboard</a></li>
-        <li><a href="freelancer-orders-history.html" className="nav-link active">Orders</a></li>
+        <li><a href="freelancer-order-history.html" className="nav-link active">Orders</a></li>
         <li><a href="freelancer-client-management.html" className="nav-link">Clients</a></li>
         <li><a href="service-manager.html" className="nav-link">Services</a></li>
       </>
@@ -259,6 +259,7 @@ const Header: React.FC = () => {
       </div>
     </>
   );
-};
+};  
 
 export default Header;
+
