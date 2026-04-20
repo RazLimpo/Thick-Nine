@@ -36,7 +36,7 @@ const Header: React.FC = () => {
         </div>
 
         <div className="header-search-container" id="desktop-search">
-          <input type="search" placeholder="what are you looking for ...." className="header-search-input" />
+          <input type="search" placeholder="what are you looking for now ...." className="header-search-input" />
           <i className="fas fa-search search-icon"></i>
         </div>
 
