@@ -22,7 +22,7 @@
 .logo { 
   display: flex;
   align-items: center;
-  gap: 8px; /* Space between the cog and text */
+  gap: 7px; /* Space between the cog and text */
   text-decoration: none;
 }
 
