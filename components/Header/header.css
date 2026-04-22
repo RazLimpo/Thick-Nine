@@ -402,7 +402,7 @@ body[data-user-role="guest"] #account-icon-btn::after {
 
 /* Optional: If you want these hidden for guests (as discussed before) */
 .header-notifications[data-role="member"] {
-  /* Your JS toggles display: flex or display: none */
+  display: flex;
 }
 
 
