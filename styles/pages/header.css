@@ -6,18 +6,30 @@
 
 /* === MAIN HEADER STYLES (Desktop Layout) === */
 .main-header {
-  position: fixed; top: 0; left: 0; width: 100%;
+  position: sticky; top: 0; left: 0; width: 100%;
   background-color: var(--f-text-light, #fff); 
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   display: flex; 
   align-items: center;
-  padding: 10px 30px; 
+  padding: 7px 30px; 
   z-index: 1000;
   gap: 20px; /* Space between main blocks: Logo, Search, Nav, Actions */
-  min-height: 40px;
+  min-height: 20px;
 }
 
-/* 1. Logo */
+
+
+
+/* REDUCE LOGO SIZE: Adjusting the image height - For Image Form Of Logo */ 
+.header-logo-img { 
+  height: 40px; /* Reduced from 60px */ 
+  width: auto; 
+  display: block; 
+  transition: transform 0.3s ease; 
+}
+
+
+/* 1. Logo - For Logo In Text Format*/
 /* 1. Logo Container Alignment */
 .logo { 
   display: flex;
@@ -67,10 +79,11 @@
 }
 .header-search-input {
   width: 100%;
-  padding: 8px 15px 8px 40px; /* Space for icon */
-  border: 1px solid #ddd;
+  padding: 6px 15px 6px 40px; /* Space for icon */
+  background-color: #f0f2f5; /* A light grey to contrast with the white header */ 
+  border: 1px solid #e4e6eb; /* A slightly darker border for definition */ 
   border-radius: 20px; /* Pill shape */
-  font-size: 0.95em;
+  font-size: 0.85em;
   transition: border-color 0.2s;
 }
 .header-search-input:focus {
@@ -93,6 +106,19 @@
   align-items: center;
   margin-left: auto; /* Pushes the nav to the left of user-actions */
 }
+
+
+.nav-list {
+  display: flex;
+  gap: 20px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+}
+
+
+
 .nav-link {
   text-decoration: none; 
   color: var(--secondary-color, #222); 
@@ -211,19 +237,20 @@
 }
 
 
-/* === MOBILE MENU PANEL (Off-canvas) - No Changes === */
+
+/* === MOBILE MENU PANEL (Off-canvas) === */
 .mobile-menu-panel {
   position: fixed;
   top: 0;
   right: 0;
-  width: 300px;
+  width: 280px; /* Slightly narrower for mobile */
   height: 100%;
   background-color: var(--f-text-light, #fff);
   box-shadow: -4px 0 15px rgba(0,0,0,0.2);
   z-index: 2000;
   transform: translateX(100%); 
   transition: transform 0.3s ease-out;
-  padding: 20px;
+  padding: 15px; /* Reduced padding */
   display: flex;
   flex-direction: column;
 }
@@ -235,31 +262,49 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 15px;
+  padding-bottom: 10px;
   border-bottom: 1px solid #eee;
 }
 .menu-title {
   color: var(--primary-color, #730e0e);
   margin: 0;
+  font-size: 1.1rem; /* Slightly smaller title */
 }
 .close-menu-btn {
-  font-size: 1.5em;
+  font-size: 1.3em; /* Smaller close button */
   cursor: pointer;
   color: #888;
 }
 
 .mobile-search-container {
-  margin: 15px 0;
+  margin: 10px 0;
   position: relative;
+  display: flex; 
+  align-items: center;
 }
-.mobile-search-container .header-search-input {
-  padding-left: 15px; 
-  padding-right: 40px; 
+
+.mobile-search-container .header-search-input { 
+  width: 100%; /* INCREASED padding-right to 45px to clear the icon */ 
+  padding: 8px 45px 8px 15px; 
+  font-size: 0.85rem; 
+  border: 1px solid #ddd; 
+  border-radius: 20px; 
 }
-.mobile-search-container .search-icon {
-  left: auto;
-  right: 15px;
+
+
+.mobile-search-container .search-icon { 
+  position: absolute; 
+  right: 15px; /* Keeps icon on the right */ 
+  left: auto; 
+  top: 50%; 
+  transform: translateY(-50%); 
+  color: #888; 
+  font-size: 0.9rem; 
+  pointer-events: none; /* Ensures clicking the icon focuses the input */ 
 }
+
+
+
 
 .mobile-main-nav {
   list-style: none;
@@ -267,7 +312,7 @@
   margin: 0;
 }
 .mobile-main-nav li {
-  padding: 12px 0;
+  padding: 10px 0; /* Tighter vertical spacing */
   border-bottom: 1px solid #eee;
 }
 .mobile-main-nav li:last-child {
@@ -276,15 +321,19 @@
 .mobile-main-nav a {
   text-decoration: none;
   color: var(--secondary-color, #222);
-  font-size: 1.1em;
+  font-size: 0.95rem; /* REDUCED: Smaller text size */
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px; /* Tighter gap between icon and text */
 }
 .mobile-main-nav a i {
   color: var(--primary-color, #730e0e);
-  width: 20px;
+  width: 18px; /* REDUCED: Smaller icon container */
+  font-size: 0.9rem; /* REDUCED: Smaller icon size */
+  text-align: center;
 }
+
+
 .sign-out-link {
   color: #e74c3c;
 }
@@ -293,9 +342,14 @@
 @media (max-width: 992px) {
   
   .main-header {
-      padding: 10px 15px;
+      padding: 5px 15px;
       gap: 10px;
   }
+  
+  .header-logo-img { 
+      height: 35px; /* Even smaller logo for mobile screens */ 
+  } 
+  
   
   /* Hide the desktop navigation */
   .top-nav {
@@ -319,7 +373,7 @@
   /* 2. Show menu toggle button and notification/message icons */
   .menu-toggle { 
       display: block; /* Show the mobile toggle button */
-      font-size: 1.5em; 
+      font-size: 1.2em; 
   }
   
   /* Small screen adjustments for mobile menu width */
@@ -339,7 +393,8 @@
   position: relative;
 }
 
-/* 2. Create the Badge on the Account Icon */
+/* === Account Role Badge + Dynamic Icon Styles === */
+
 #account-icon-btn::after {
   content: '';
   position: absolute;
@@ -348,33 +403,30 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid #fff; /* White ring to make the badge pop */
+  border: 2px solid #fff;
   display: block;
   transition: background-color 0.3s ease;
 }
 
-/* 3. Role-Based Colors (Variations of #d96464) */
+/* Role colors */
+body[data-user-role="buyer"] #account-icon-btn::after { background-color: #277D79; }
+body[data-user-role="freelancer"] #account-icon-btn::after { background-color: #70A5DB; }
+body[data-user-role="affiliate"] #account-icon-btn::after { background-color: #AB70DB; }
 
-/* Buyer: Your Primary Color */
-body[data-user-role="buyer"] #account-icon-btn::after {
-  background-color: #d96464; 
-}
-
-/* Freelancer: Darker Professional Red */
-body[data-user-role="freelancer"] #account-icon-btn::after {
-  background-color: #730e0e; 
-}
-
-/* Affiliate: Lighter/Softer Variation */
-body[data-user-role="affiliate"] #account-icon-btn::after {
-  background-color: #e8a5a5;
-}
-
-
+/* Guest: no badge + login-style icon */
 body[data-user-role="guest"] #account-icon-btn::after {
-  background-color: #d91464; 
+  display: none;
 }
 
+/* Desktop nav fix */
+.nav-list {
+  display: flex;
+  gap: 20px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+}
 
 
 /* 4. Switcher Link Styling */
@@ -402,7 +454,7 @@ body[data-user-role="guest"] #account-icon-btn::after {
 
 /* Optional: If you want these hidden for guests (as discussed before) */
 .header-notifications[data-role="member"] {
-  /* Your JS toggles display: flex or display: none */
+  display: flex;
 }
 
 
@@ -540,7 +592,7 @@ body[data-user-role="guest"] #account-icon-btn::after {
 
 
 .header-logo-img {
-  height: 60px; /* Adjust this height to fit your header bar */
+  height: 35px; /* Adjust this height to fit your header bar */
   width: auto;  /* Maintains aspect ratio so it doesn't look stretched */
   display: block;
   transition: transform 0.3s ease;

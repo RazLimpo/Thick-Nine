@@ -3,8 +3,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
-// 1. Import the Model (The Rulebook)
+// 1. Import the Models & Routes
 const Service = require('./models/Service'); 
+const authRoutes = require('./routes/authRoutes'); // <--- NEW: Import Auth Routes
 
 const app = express();
 
@@ -20,11 +21,15 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch((err) => console.log('❌ MongoDB Connection Error:', err));
 
 // 4. Routes
+
+// AUTH ROUTES (The new "Brain" connection)
+app.use('/api/auth', authRoutes); // <--- NEW: Tells server to use authRoutes for any /api/auth path
+
 app.get('/', (req, res) => {
   res.send('Thick 9 Backend is Live and Running!');
 });
 
-// Get All Services (The "Get" Route)
+// SERVICE ROUTES
 app.get('/api/services', async (req, res) => {
   try {
     const services = await Service.find();
@@ -34,7 +39,6 @@ app.get('/api/services', async (req, res) => {
   }
 });
 
-// Test Add Service (The "Post" Route)
 app.post('/api/services', async (req, res) => {
   const service = new Service({
     title: "Website Design",
@@ -50,7 +54,7 @@ app.post('/api/services', async (req, res) => {
   }
 });
 
-// 5. Start Server (Always keep this at the very bottom)
+// 5. Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
 });

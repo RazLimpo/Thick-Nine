@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 
-// This matches the "Submit" action on your Registration Modal
+// Route for Registration
 router.post('/register', authController.register);
 
-// We will add the login route next
-// router.post('/login', authController.login);
+// Route for Login (Uncomment this now)
+router.post('/login', authController.login);
 
 module.exports = router;

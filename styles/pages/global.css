@@ -1,53 +1,60 @@
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
+
+
+
+
 
 /* ---------------------------------------------------- */    
 /* 0. Global Reset and Variables */
-/* ---------------------------------------------------- */
 
 :root { 
-  --primary-color: #d96464; /* Dark Red */ 
-  --primary-light: #730e0e; 
-  --secondary-color: #222; /* Black for text */ 
-  --background-light: #f4f4f4; /* Light background for sections */ 
-  --font-family: 'Roboto', sans-serif;
-  --max-width: 1200px;
-  --text-muted: #666;
-  --online-color: #28a745; 
-  --border-radius: 5px;
+    --primary-color: #d96464; 
+    --primary-light: #730e0e; 
+    --secondary-color: #222; 
+    --background-light: #f4f4f4; 
+    --font-family: 'Roboto', sans-serif;
+    --max-width: 1200px;
+    --text-muted: #666;
+    --online-color: #28a745; 
+    --border-radius: 5px;
 } 
+
+
 
 * { 
-  margin: 0; 
-  padding: 0; 
-  box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
 } 
 
+
 body { 
-  font-family: var(--font-family); 
-  line-height: 1.6; 
-  background-color: #f7fafc;
-  color: var(--secondary-color); 
-  font-size: 16px; 
-} 
+    font-family: var(--font-family); 
+    line-height: 1.5; /* Reduced from 1.6 for tighter text blocks */
+    background-color: #f7fafc;
+    color: var(--secondary-color); 
+    font-size: 15px; /* REDUCED from 16px for a more compact UI */
+}
 
 
 html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow-x: hidden;          /* Prevent unwanted horizontal scroll */
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;          /* Prevent unwanted horizontal scroll */
 }
 
 
 
 
 a { text-decoration: none; 
-  color: var(--primary-color); 
-  transition: color 0.3s ease; 
+    color: var(--primary-color); 
+    transition: color 0.3s ease; 
 } 
 
 a:hover { 
-  color: var(--primary-light); 
+    color: var(--primary-light); 
 } 
 
 
@@ -55,33 +62,46 @@ a:hover {
 
 
 /* Global Button Styles (Assuming you have these, if not, add them!) */
+/* Global Button Styles */
 .btn {
-  padding: 12px 25px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: 700;
-  text-align: center;
-  transition: all 0.3s ease;
-  border: none;
-  line-height: 1; 
+    padding: 10px 20px; /* Reduced vertical padding */
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600; /* Slightly lighter weight for smaller text */
+    text-align: center;
+    transition: all 0.3s ease;
+    border: none;
+    line-height: 1; 
+    font-size: 0.9rem; /* Scales with smaller body font */
 }
-
-
 
 .btn-primary { 
-  background-color: var(--primary-color); 
-  color: white; 
-  padding: 10px 20px; 
-  border: none; 
-  border-radius: var(--border-radius); 
-  cursor: pointer; font-weight: 500; 
-  transition: background-color 0.3s ease; 
+    background-color: var(--primary-color); 
+    color: white; 
+    padding: 8px 18px; /* Compact padding */
+    border: none; 
+    border-radius: var(--border-radius); 
+    cursor: pointer; 
+    font-weight: 500; 
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease; 
 }
 
+/* Auth Modal Full-Width Buttons */
+.btn-full-width, .full-width-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 12px 18px; /* Slightly reduced height */
+    box-sizing: border-box;
+    text-decoration: none;
+    font-size: 0.95rem; /* Balanced for prominence but not bulky */
+}
 
 
 .btn-primary:hover { 
-  background-color: var(--primary-light); 
+    background-color: var(--primary-light); 
 }
 
 
@@ -89,17 +109,32 @@ a:hover {
 
 
 .btn-secondary {
-  background-color: #ccc;
-  color: #333;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 6px;
-  cursor: pointer;
+    background-color: #ccc;
+    color: #333;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
 }
 
 .btn-secondary:hover {
-  background-color: var(--primary-color);
-  color: white;
+    background-color: var(--primary-color);
+    color: white;
+}
+
+
+
+/* Specific 'View More' refinements */ 
+.view-more-btn { 
+    margin-top: 15px; 
+    letter-spacing: 0.3px; 
+    text-transform: none; /* Keeps it professional, not shouting */ 
+} 
+
+
+.view-more-btn:active { 
+    transform: translateY(0); 
+    filter: brightness(0.95); 
 }
 
 
@@ -107,10 +142,10 @@ a:hover {
 
 /* Add this to freelancer-dashboard.css if you don't have it */
 .btn-small {
-  padding: 8px 15px;
-  font-size: 0.85rem;
-  display: inline-block;
-  text-decoration: none; /* Removes the underline from the link */
+    padding: 8px 15px;
+    font-size: 0.85rem;
+    display: inline-block;
+    text-decoration: none; /* Removes the underline from the link */
 }
 
 
@@ -118,64 +153,71 @@ a:hover {
 
 
 .btn-icon i {
-  margin-right: 8px;
-  font-size: 1.1em;
+    margin-right: 8px;
+    font-size: 1.1em;
 }
 
 .btn-large {
-  padding: 15px 30px;
-  font-size: 1.1rem;
+    padding: 15px 30px;
+    font-size: 1.1rem;
 }
 
 
-.full-width-btn {
-  display: block;
-  width: 100%;
-  margin-top: 15px;
-  text-align: center;
+/* --- Full Width Button Logic --- */
+.btn-full-width {
+    display: flex;          /* Use flex to center text/icons easily */
+    justify-content: center;
+    align-items: center;
+    width: 100%;            /* Forces button to take full width of container */
+    padding: 12px 20px;     /* Standardizes the height */
+    box-sizing: border-box; /* Ensures padding doesn't break the 100% width */
+    text-decoration: none;  /* Removes underline from the <a> tag */
 }
 
 
 
+/* Smaller icon adjustments for links */
 .btn-link {
-  color: var(--primary-color);
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  margin-top: 10px;
-  gap: 16px;
+    color: var(--primary-color);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    gap: 12px; /* Tighter gap */
+    font-size: 0.9rem;
 }
 
 .btn-link i {
-  transition: margin-left 0.3s ease;
+    font-size: 0.85rem; /* Smaller icons in text links */
 }
+
 
 
 
 .btn-danger {
-  background-color: #D9534F; /* Red color */
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
+    background-color: #D9534F; /* Red color */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
 }
 
 
 /* Ensure buttons have hover effects */
 
 .btn-danger:hover {
-  background-color: #C9302C; /* Darker red */
+    background-color: #C9302C; /* Darker red */
 }
 
 
 
 
 .small {
-  color: #999;
-  font-weight: 400;
-  margin-left: 5px;
+    color: #999;
+    font-weight: 400;
+    margin-left: 5px;
 }
 
 
@@ -188,40 +230,40 @@ a:hover {
 
 
 #toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .toast {
-  background: #1f1f1f;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 220px;
-  animation: slideIn 0.35s ease, fadeOut 0.4s ease 2.8s forwards;
+    background: #1f1f1f;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+    animation: slideIn 0.35s ease, fadeOut 0.4s ease 2.8s forwards;
 }
 
-.toast i { color: #34c759; font-size: 1.3rem; }
+.toast i { color: #34c759; font-size: 1.1rem; }
 .toast.removed i { color: #ff9500; }
 
 @keyframes slideIn {
-  from { transform: translateX(120%); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
+    from { transform: translateX(120%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
 }
 
 @keyframes fadeOut {
-  to { opacity: 0; }
+    to { opacity: 0; }
 }
 
 
