@@ -27,6 +27,9 @@ const UserSchema = new mongoose.Schema({
   isEmailVerified: { type: Boolean, default: false },
   isVerified: { type: Boolean, default: false }, 
 
+  // ADD THIS LINE HERE
+  accountStrength: { type: Number, default: 50 },
+
   // 3. PROFILE BRANDING
   avatar: { type: String, default: 'default-avatar.png' },
   coverImage: { type: String, default: 'raz.jpg' }, 
@@ -88,6 +91,19 @@ UserSchema.methods.canUploadMedia = function(mediaType, currentCount) {
   };
   const limits = planLimits[this.planType];
   return currentCount < (limits[mediaType] || 0);
+};
+
+
+
+UserSchema.methods.calculateStrength = function() {
+  let score = 50; // Base score for creating an account
+  if (this.bio) score += 10;
+  if (this.avatar !== 'default-avatar.png') score += 10;
+  if (this.skills && this.skills.length > 0) score += 15;
+  if (this.isEmailVerified) score += 15;
+  
+  this.accountStrength = Math.min(score, 100); // Cap at 100%
+  return this.accountStrength;
 };
 
 module.exports = mongoose.model('User', UserSchema);
