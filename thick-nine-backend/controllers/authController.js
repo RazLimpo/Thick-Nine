@@ -52,18 +52,22 @@ exports.login = async (req, res) => {
         if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
         // 3. Create and send Token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        res.json({
-            token,
-            user: { 
-                id: user._id, 
-                fullName: user.fullName, 
-                role: user.role,
-                planType: user.planType 
-            }
-        });
+// Simple calculation logic: 
+// Give them 50% for having an account, and 50% more if they have a planType.
+const strength = user.planType ? 100 : 50;
 
+res.json({
+    token,
+    user: { 
+        id: user._id, 
+        fullName: user.fullName, 
+        role: user.role,
+        planType: user.planType,
+        accountStrength: strength // <--- ADD THIS LINE
+    }
+});
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server Error during login");
