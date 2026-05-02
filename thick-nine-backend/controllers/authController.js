@@ -2,72 +2,96 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// REGISTER A NEW USER
+// REGISTER A NEW USER (Updated with Unique Username Logic)
 exports.register = async (req, res) => {
     try {
-        const { fullName, username, email, password, role } = req.body;
+        const { fullName, email, password, role } = req.body;
 
-        // 1. Check if user already exists
-        let user = await User.findOne({ email });
-        if (user) return res.status(400).json({ msg: "User already exists" });
+        // 1. Check if email already exists
+        let userExists = await User.findOne({ email });
+        if (userExists) return res.status(400).json({ msg: "User already exists" });
 
-        // 2. Hash the password
+        // 2. Generate and Verify Unique Username
+        // Takes 'razlimpo' from 'razlimpo@gmail.com'
+        let baseUsername = email.split('@')[0].toLowerCase();
+        let finalUsername = baseUsername;
+        let isUnique = false;
+
+        // Loop until we find a name not in the database
+        while (!isUnique) {
+            const existingName = await User.findOne({ username: finalUsername });
+            if (existingName) {
+                // If username is taken, add 4 random digits
+                const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+                finalUsername = `${baseUsername}${randomSuffix}`;
+            } else {
+                isUnique = true;
+            }
+        }
+
+        // 3. Hash the password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 3. Create the user in the database
-        user = new User({
-            fullName,
-            username,
+        // 4. Create the user in the database
+        const newUser = new User({
+            fullName: fullName || finalUsername,
+            username: finalUsername,
             email,
             password: hashedPassword,
-            role 
+            role: role || 'client',
+            accountStrength: 50 // New users start at 50%
         });
 
-        await user.save();
+        await newUser.save();
 
-        // 4. Generate a Token (JWT)
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        // 5. Generate a Token (JWT)
+        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        res.status(201).json({ token, user: { id: user._id, fullName, role } });
+        // Return the full user object so the Header.tsx can save it
+        res.status(201).json({ 
+            token, 
+            user: { 
+                id: newUser._id, 
+                fullName: newUser.fullName, 
+                role: newUser.role,
+                accountStrength: newUser.accountStrength
+            } 
+        });
 
     } catch (err) {
-        console.error(err.message);
+        console.error("Register Error:", err.message);
         res.status(500).send("Server Error during registration");
     }
 };
 
-// LOGIN USER
+// LOGIN USER (Keeping your current working version)
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // 1. Find user and EXPLICITLY ask for the password field (the line you asked about)
         const user = await User.findOne({ email }).select('+password');
         
         if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
 
-        // 2. Compare typed password with the hashed password in DB
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
-        // 3. Create and send Token
-const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-// Simple calculation logic: 
-// Give them 50% for having an account, and 50% more if they have a planType.
-const strength = user.planType ? 100 : 50;
+        // Strength calculation based on your preference
+        const strength = user.planType ? 100 : 50;
 
-res.json({
-    token,
-    user: { 
-        id: user._id, 
-        fullName: user.fullName, 
-        role: user.role,
-        planType: user.planType,
-        accountStrength: strength // <--- ADD THIS LINE
-    }
-});
+        res.json({
+            token,
+            user: { 
+                id: user._id, 
+                fullName: user.fullName, 
+                role: user.role,
+                planType: user.planType,
+                accountStrength: strength 
+            }
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server Error during login");
