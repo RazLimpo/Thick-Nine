@@ -404,7 +404,7 @@ const handleAccountSwitching = () => {
         {/* Logo & Search */}
         <div className="logo-container">
           <Link href="/" className="logo">
-            <img src="/logo-header.png" alt="Thick 9 Logo" className="header-logo-img" />
+            <img src="/images/logos/logo-header.png" alt="Thick 9 Logo" className="header-logo-img" />
           </Link>
         </div>
 
