@@ -16,8 +16,10 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // 3. Database Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ Connected to MongoDB!'))
+mongoose.connect(process.env.MONGODB_URI, {
+  dbName: BRAND.dbName, // Explicitly targets your marketplace database
+})
+  .then(() => console.log('✅ Connected to MongoDB: freelancingDB'))
   .catch((err) => console.log('❌ MongoDB Connection Error:', err));
 
 // 4. Routes
