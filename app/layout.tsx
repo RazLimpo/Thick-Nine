@@ -1,9 +1,10 @@
 import "../styles/pages/global.css";         // 1. Load variables and resets first
 import "../styles/pages/header.css";         // 2. Load header-specific styles
+import { BRAND } from '../lib/constants';
 import Header from "@/components/Header/Header";
 
 export const metadata = {
-  title: "Thick 9 | Freelancing Marketplace",
+  title: `${BRAND.pretty} - Freelancing Marketplace`,
   description: "Unlock your professional potential today.",
 };
 

@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import Link from 'next/link'; // Standard Next.js import
+import { BRAND } from '../../lib/constants'; // Your "Remote Control" file
+
 import { useRouter, usePathname } from 'next/navigation';
 
 const Header = () => {
