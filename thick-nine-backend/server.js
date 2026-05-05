@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const { BRAND } = require('./lib/constants');
 require('dotenv').config();
 
 // 1. Import the Models & Routes
@@ -16,11 +17,25 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // 3. Database Connection
-mongoose.connect(process.env.MONGODB_URI, {
-  dbName: BRAND.dbName, // Explicitly targets your marketplace database
-})
-  .then(() => console.log('✅ Connected to MongoDB: freelancingDB'))
-  .catch((err) => console.log('❌ MongoDB Connection Error:', err));
+console.log("Checking URI:", process.env.MONGODB_URI ? "✅ Found it!" : "❌ Empty!");
+
+const connectionOptions = {
+  dbName: BRAND.dbName,           // THE SMART FIX: Targets your "freelancingDB"
+  serverSelectionTimeoutMS: 5000, // THE SAFETY FIX: Stops 5-minute wait times
+  socketTimeoutMS: 45000,         // THE STABILITY FIX: Keeps connection alive
+};
+
+mongoose.connect(process.env.MONGODB_URI, connectionOptions)
+  .then(() => {
+    console.log(`✅ Connected to MongoDB: ${BRAND.dbName}`);
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB Connection Error:', err.message);
+    // CRITICAL: Stop the server so you can see the error in the terminal
+    process.exit(1); 
+  });
+
+
 
 // 4. Routes
 
