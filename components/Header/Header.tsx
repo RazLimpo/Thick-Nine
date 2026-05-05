@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link'; // Standard Next.js import
-import { BRAND } from '../../lib/constants'; // Your "Remote Control" file
-
+import Link from 'next/link';
+import { BRAND, API_BASE_URL } from '../../lib/constants'; // Your "Remote Control" file
 import { useRouter, usePathname } from 'next/navigation';
 
 const Header = () => {
@@ -300,8 +299,7 @@ const handleAccountSwitching = () => {
   // ====================== AUTH HANDLERS ======================
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
+   
     const email = (document.getElementById('reg-email') as HTMLInputElement)?.value.trim();
     const password = (document.getElementById('reg-password') as HTMLInputElement)?.value.trim();
 
@@ -346,8 +344,7 @@ const handleAccountSwitching = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
+  
     const form = e.currentTarget as HTMLFormElement;
     const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement;
     const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement;
@@ -405,9 +402,13 @@ const handleAccountSwitching = () => {
       <header className="main-header">
         {/* Logo & Search */}
         <div className="logo-container">
-          <Link href="/" className="logo">
-            <img src="/images/logos/logo-header.png" alt="Thick 9 Logo" className="header-logo-img" />
-          </Link>
+         <Link href="/" className="logo">
+    <img 
+      src="/images/logos/logo-header.png" 
+      alt={`${BRAND.pretty} Logo`} 
+      className="header-logo-img" 
+    />
+ </Link>
         </div>
 
         {/* Desktop Search - Restoring ID for CSS/Scripting compatibility */}
@@ -592,8 +593,16 @@ const handleAccountSwitching = () => {
                     <input type="password" placeholder="Password" required />
                   </div>
                   <button type="submit" className="btn-primary full-width-btn" disabled={isLoading}>
-                    {isLoading ? "Logging in..." : "Login"}
-                  </button>
+  {isLoading ? (
+    <div className="dots-spinner">
+      <div className="dot"></div>
+      <div className="dot"></div>
+      <div className="dot"></div>
+    </div>
+  ) : (
+    "Login"
+  )}
+</button>
                 </form>
               </div>
 
@@ -612,8 +621,16 @@ const handleAccountSwitching = () => {
                     <input type="password" id="reg-password" placeholder="Create Password" required />
                   </div>
                   <button type="submit" className="btn-primary full-width-btn" disabled={isLoading}>
-                    {isLoading ? "Creating Account..." : "Continue"}
-                  </button>
+  {isLoading ? (
+    <div className="dots-spinner">
+      <div className="dot"></div>
+      <div className="dot"></div>
+      <div className="dot"></div>
+    </div>
+  ) : (
+    "Continue"
+  )}
+</button>
                   <p className="legal-note">
                     By joining, you agree to our <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.
                   </p>

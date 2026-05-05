@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { BRAND } = require('./lib/constants');
+const { BRAND } = require('../lib/constants');
 require('dotenv').config();
 
 // 1. Import the Models & Routes
@@ -43,8 +43,10 @@ mongoose.connect(process.env.MONGODB_URI, connectionOptions)
 app.use('/api/auth', authRoutes); // <--- NEW: Tells server to use authRoutes for any /api/auth path
 
 app.get('/', (req, res) => {
-  res.send('Thick 9 Backend is Live and Running!');
+  // Uses your "One Source of Truth" for the welcome message
+  res.send(`${BRAND.pretty} Backend is Live and Running!`);
 });
+
 
 // SERVICE ROUTES
 app.get('/api/services', async (req, res) => {
