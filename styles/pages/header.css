@@ -90,16 +90,40 @@
   border-color: var(--primary-color, #730e0e);
   outline: none;
 }
-.search-icon {
+
+
+
+/* The Interactive Wrapper - Anchored to the Left */
+.search-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
   position: absolute;
-  left: 15px;
+  left: 5px;            /* Anchors the button to the left side of the bar */
   top: 50%;
   transform: translateY(-50%);
-  color: #888;
-  font-size: 0.9em;
+  padding: 8px;         /* Creates a good hit-area for clicking */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;           /* Ensures it stays above the input field */
 }
 
-/* 3. Navigation Links (Desktop) */
+/* The Visual Icon - Positioned relatively inside the button */
+.search-icon {
+  color: #888;
+  font-size: 0.9em;
+  transition: color 0.2s ease;
+}
+
+/* Hover Effect */
+.search-icon-btn:hover .search-icon {
+  color: var(--primary-color, #730e0e);
+}
+
+
+
+/* Navigation Links (Desktop) */
 .top-nav { 
   display: flex; 
   gap: 20px; /* Using hardcoded value or var(--nav-gap) if defined in global */
@@ -146,16 +170,55 @@
   gap: 15px; 
   margin-left: 20px;
 }
+
+
+/* Keep general button behavior here */
 .icon-btn {
-  background: none; border: none; padding: 5px; 
-  font-size: 1.25em; color: var(--secondary-color, #222);
+  background: none; 
+  border: none; 
+  padding: 5px; 
+  font-size: 1.25em; 
+  color: var(--secondary-color, #222);
   cursor: pointer;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
 }
-.icon-btn:hover { color: var(--primary-color, #730e0e); }
+
+
+
+/* Combine the hover effects so you get BOTH the background and the red color */
+.icon-btn:hover {
+  color: var(--primary-color, #730e0e);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+
+/* Let the account-trigger ONLY handle the shape and specific size */
+.account-trigger {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  overflow: hidden; /* Important to keep the image inside the circle */
+  padding: 0; /* Override the icon-btn padding for the profile pic */
+}
+
+
+/* Ensure icons inside the account trigger also turn red */
+.account-trigger:hover i {
+  color: var(--primary-color, #730e0e);
+}
+
+
+.account-trigger i {
+  font-size: 1.4rem;
+  color: var(--secondary-color, #222);
+}
+
+
+
 
 .badge {
   position: absolute; top: 0; right: 0;
@@ -232,9 +295,7 @@
   padding: 0;
 }
 
-.dropdown-menu .sign-out-link {
-  color: #e74c3c; /* Red color for sign-out button */
-}
+
 
 
 
@@ -262,19 +323,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 10px;
+  padding: 15px 20px; /* Matching the side padding of the menu items */
   border-bottom: 1px solid #eee;
+  margin-bottom: 10px;
 }
+
+/* Explicitly styling the h4 inside the header */
+.mobile-menu-header h4,
 .menu-title {
-  color: var(--primary-color, #730e0e);
+  color: var(--secondary-color, #222); /* Darker for better readability */
   margin: 0;
-  font-size: 1.1rem; /* Slightly smaller title */
+  font-size: 1.1rem;
+  font-weight: 700; /* Bold like your prototype */
 }
-.close-menu-btn {
-  font-size: 1.3em; /* Smaller close button */
-  cursor: pointer;
-  color: #888;
-}
+
+
+
 
 .mobile-search-container {
   margin: 10px 0;
@@ -334,9 +398,42 @@
 }
 
 
+/* 1. Reset buttons to look like menu links */
+.account-switcher, 
 .sign-out-link {
-  color: #e74c3c;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 15px;
+  font-size: 0.95em;
+  font-family: inherit; /* Fixes font mismatch */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e74c3c; 
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s, color 0.2s;
 }
+
+
+
+/* 4. Hover states to match your other menu items */
+.account-switcher:hover, 
+.sign-out-link:hover {
+  background-color: #f1f1f1;
+}
+
+/* 5. Icon Alignment for Buttons */
+.account-switcher i,
+.sign-out-link i {
+  width: 20px;
+  text-align: center;
+  color: inherit; /* Icons take the color of the text */
+}
+
+
+
 
 /* === MOBILE RESPONSIVENESS (BREAKPOINT) === */
 @media (max-width: 992px) {
@@ -429,36 +526,6 @@ body[data-user-role="guest"] #account-icon-btn::after {
 }
 
 
-/* 4. Switcher Link Styling */
-#account-switcher {
-  font-weight: 700;
-  background-color: #f9f9f9;
-  color: #d96464; /* Matching your primary color */
-}
-
-
-
-/* Hide all restricted items by default; JS will reveal the correct ones */
-[data-role] {
-  display: none;
-}
-
-
-
-/* Ensure the notification group matches the rest of the header spacing */
-.header-notifications {
-  display: flex; /* This aligns envelope and bell horizontally */
-  gap: 15px;     /* This creates equal spacing between the envelope and bell */
-  align-items: center;
-}
-
-/* Optional: If you want these hidden for guests (as discussed before) */
-.header-notifications[data-role="member"] {
-  display: flex;
-}
-
-
-
 
 
 /* --- Login and Registration Modal - REDESIGNED AUTH MODAL --- */
@@ -471,7 +538,7 @@ body[data-user-role="guest"] #account-icon-btn::after {
   z-index: 3000;
 }
 
-.modal-overlay.is-active { display: flex; }
+
 
 .modal-container {
   background: #fff;
@@ -578,28 +645,154 @@ body[data-user-role="guest"] #account-icon-btn::after {
   font-weight: 700;
 }
 
-/* Mobile Responsiveness */
+
+
+
+/* Container for the dots */
+.dots-spinner {
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 4px;
+height: 20px;
+}
+
+/* Individual Dot Styling */
+.dot {
+width: 6px;
+height: 6px;
+background-color: #ffffff; /* White dots to contrast your btn-primary */
+border-radius: 50%;
+animation: dot-pulse 1.2s infinite ease-in-out;
+}
+
+/* Animation Delays for the "Chasing" effect */
+.dot:nth-child(2) {
+animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+animation-delay: 0.4s;
+}
+
+/* The Pulse/Bounce Animation */
+@keyframes dot-pulse {
+0%, 80%, 100% { 
+  transform: scale(0.6);
+  opacity: 0.4;
+} 
+40% { 
+  transform: scale(1.2);
+  opacity: 1;
+}
+}
+
+/* Ensure the button doesn't jump when switching states */
+.btn-primary.full-width-btn {
+min-height: 48px; 
+display: flex;
+align-items: center;
+justify-content: center;
+}
+
+
+
+
+
+/* === UNIFIED MOBILE RESPONSIVENESS (768px) === */
 @media (max-width: 768px) {
-  .modal-image-side { display: none; }
-  .modal-container { max-width: 450px; }
-  .modal-form-side { padding: 30px 20px; }
+  /* 1. Modal Adjustments */
+  .modal-image-side { 
+      display: none; 
+  }
+  .modal-container { 
+      max-width: 450px; 
+  }
+  .modal-form-side { 
+      padding: 30px 20px; 
+  }
+
+  /* 2. Header Layout */
+  .main-header {
+      padding: 5px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+  }
+
+  .header-logo-img {
+      height: 35px;
+      width: auto;
+      display: block;
+      transition: transform 0.3s ease;
+  }
+
+  .header-logo-img:hover {
+      transform: scale(1.05);
+  }
+
+  .menu-toggle { 
+      display: block !important; 
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      order: 3; /* Positions toggle to the right */
+  } 
+  
+  .account-trigger { 
+      order: 2; 
+      margin-left: 10px; 
+  } 
+
+  .header-search-container {
+      display: none; 
+  }
+
+  /* 3. Account Switcher & Sign Out Alignment Fix */
+  .account-switcher, 
+  .sign-out-link {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      /* Match the exact padding and font of your other mobile <li> links */
+      padding: 10px 0 !important; 
+      font-size: 0.95rem;
+      font-family: inherit;
+      background-color: transparent !important; 
+      border: none;
+      margin: 0 !important;
+      cursor: pointer;
+      text-align: left;
+  }
+
+  /* Override for Sign Out specific color */
+  .sign-out-link {
+      border-bottom: none; /* Last item doesn't need a border */
+  }
+
+  /* Sync icon dimensions with .mobile-main-nav a i */
+  .account-switcher i, 
+  .sign-out-link i {
+      color: var(--primary-color, #730e0e);
+      width: 18px !important; 
+      font-size: 0.9rem !important;
+      text-align: center;
+      margin-right: 0; /* Matches the gap in your other nav links */
+      display: flex;
+      justify-content: center;
+  }
 }
 
 
-
-
-
-
-
-.header-logo-img {
-  height: 35px; /* Adjust this height to fit your header bar */
-  width: auto;  /* Maintains aspect ratio so it doesn't look stretched */
+/* --- PROFILE IMAGE REFINEMENT --- */
+.user-profile-pic {
+  width: 100%;         /* Specific size to match prototype height */
+  height: 100%;
+  border-radius: 50%;   /* Makes it a perfect circle */
+  object-fit: cover;    /* Prevents the image from stretching */
+  border: 1px solid #eee;
   display: block;
-  transition: transform 0.3s ease;
-}
-
-.header-logo-img:hover {
-  transform: scale(1.05); /* Optional: slight pop on hover */
 }
 
 
@@ -609,3 +802,88 @@ body[data-user-role="guest"] #account-icon-btn::after {
 
 
 
+
+
+/* --- FIXING THE CSS --- */
+
+/* Container to ensure the logo stays aligned within the flex header */
+.logo-container {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+
+/* Styling for the Register and Login buttons inside the dropdown */
+.register-link, 
+.login-link {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 15px;
+  font-size: 0.95em;
+  font-family: inherit;
+  color: var(--secondary-color, #222);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.register-link:hover, 
+.login-link:hover {
+  background-color: #f7f7f7;
+  color: var(--primary-color, #730e0e);
+}
+
+.register-link i, 
+.login-link i {
+  color: var(--primary-color, #730e0e);
+  width: 20px;
+}
+
+
+
+/* Container for text inside the modal's left side image */
+.image-overlay-text {
+  z-index: 2;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Wrapper for social login buttons */
+.social-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+/* Footer text for the registration form */
+.legal-note {
+  margin-top: 15px;
+  font-size: 0.8rem;
+  color: #777;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.legal-note a {
+  color: var(--primary-color, #730e0e);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.legal-note a:hover {
+  text-decoration: underline;
+}
+
+
+
+
+
+
+/* Hidden Empty Notification Badge */
+.hidden { 
+  display: none !important; 
+}

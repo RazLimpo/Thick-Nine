@@ -1,0 +1,316 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faCheckCircle, 
+  faExclamationTriangle, 
+  faArrowRight, 
+  faPaperPlane,
+  faSpinner
+} from '@fortawesome/free-solid-svg-icons';
+import '@/styles/pages/verify-email.css';
+
+// ============ TYPES & INTERFACES ============
+interface VerifyEmailState {
+  isExpired: boolean;
+  isLoading: boolean;
+  isCooldown: boolean;
+  userName: string;
+  timerSeconds: number;
+}
+
+interface ToastMessage {
+  id: string;
+  message: string;
+  icon: string;
+}
+
+// ============ CONSTANTS ============
+const EXPIRY_LIMIT = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const COOLDOWN_DURATION = 60; // seconds
+const TOAST_DURATION = 4000; // milliseconds
+const TOAST_FADE_OUT = 500; // milliseconds
+const CONFETTI_DURATION = 3000; // milliseconds
+const RESEND_SIMULATE_DELAY = 1300; // milliseconds
+
+// ============ SUB-COMPONENTS ============
+
+interface SuccessCardProps {
+  userName: string;
+  onDashboardClick: () => void;
+}
+
+const SuccessCard: React.FC<SuccessCardProps> = ({ userName, onDashboardClick }) => (
+  <div id="card-success" className="verify-card show">
+    <img src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" />
+    
+    <div className="icon-circle">
+      <FontAwesomeIcon icon={faCheckCircle} className="success-icon" />
+    </div>
+    
+    <h1 id="welcome-title">Account Verified, {userName}!</h1>
+    <p>Your email has been successfully verified. You now have full access to the Thick9 marketplace.</p>
+    
+    <button id="btn-success" className="neumorph-btn" onClick={onDashboardClick}>
+      <FontAwesomeIcon icon={faArrowRight} />
+      Go to Dashboard
+    </button>
+  </div>
+);
+
+interface ExpiredCardProps {
+  isLoading: boolean;
+  isCooldown: boolean;
+  timerSeconds: number;
+  onResendClick: () => void;
+}
+
+const ExpiredCard: React.FC<ExpiredCardProps> = ({ 
+  isLoading, 
+  isCooldown, 
+  timerSeconds, 
+  onResendClick 
+}) => (
+  <div id="card-expired" className="verify-card show">
+    <img src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" />
+    
+    <div className="icon-circle">
+      <FontAwesomeIcon icon={faExclamationTriangle} className="expired-icon" />
+    </div>
+    
+    <h1>Link Expired</h1>
+    <p>For your security, verification links expire after 24 hours. Please request a new link.</p>
+    
+    <button 
+      id="btn-resend" 
+      className="neumorph-btn" 
+      onClick={onResendClick}
+      disabled={isCooldown || isLoading}
+      style={{
+        opacity: isCooldown || isLoading ? '0.7' : '1',
+        pointerEvents: isCooldown || isLoading ? 'none' : 'auto',
+      }}
+    >
+      {isLoading ? (
+        <>
+          <FontAwesomeIcon icon={faSpinner} spin />
+          {' '}Sending...
+        </>
+      ) : (
+        <>
+          <FontAwesomeIcon icon={faPaperPlane} />
+          {' '}Resend Verification Link
+        </>
+      )}
+    </button>
+    
+    {isCooldown && (
+      <p id="resend-timer" style={{ marginTop: '20px', color: '#555', fontSize: '0.98rem' }}>
+        You can resend again in <span id="timer-seconds">{timerSeconds}</span> seconds
+      </p>
+    )}
+  </div>
+);
+
+interface ToastProps {
+  toast: ToastMessage;
+  onRemove: (id: string) => void;
+}
+
+const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => onRemove(toast.id), TOAST_DURATION);
+    return () => clearTimeout(timer);
+  }, [toast.id, onRemove]);
+
+  return (
+    <div className="toast show">
+      <FontAwesomeIcon icon={toast.icon as any} className="toast-icon" />
+      <span>{toast.message}</span>
+    </div>
+  );
+};
+
+// ============ MAIN COMPONENT ============
+const VerifyEmailClient: React.FC = () => {
+  // --- STATE MANAGEMENT ---
+  const [state, setState] = useState<VerifyEmailState>({
+    isExpired: false,
+    isLoading: false,
+    isCooldown: false,
+    userName: 'User',
+    timerSeconds: COOLDOWN_DURATION,
+  });
+
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  
+  // --- REFS ---
+  const cooldownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const confettiFrameRef = useRef<number | null>(null);
+
+    // --- INITIALIZATION EFFECTS ---
+  useEffect(() => {
+    initializeComponent();
+    
+    return () => {
+      // Cleanup on unmount - prevents memory leaks
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+        cooldownIntervalRef.current = null;
+      }
+      if (confettiFrameRef.current) {
+        cancelAnimationFrame(confettiFrameRef.current);
+        confettiFrameRef.current = null;
+      }
+    };
+  }, []);
+
+  const initializeComponent = () => {
+    const registrationTimestamp = localStorage.getItem('registrationTimestamp');
+    const regTime = registrationTimestamp ? parseInt(registrationTimestamp, 10) : null;
+    const userName = localStorage.getItem('userName') || 'User';
+
+    const isExpired = !regTime || Date.now() - regTime > EXPIRY_LIMIT;
+
+    setState(prev => ({
+      ...prev,
+      userName,
+      isExpired,
+    }));
+
+    // Trigger confetti if not expired
+    if (!isExpired) {
+      setTimeout(() => startConfetti(), 100);
+    }
+  };
+
+   // --- TOAST SYSTEM ---
+  const showToast = (message: string, iconClass: string = 'fa-check-circle') => {
+    const id = `${Date.now()}-${Math.random()}`;
+
+    setToasts(prev => [...prev, { id, message, icon: iconClass }]);
+
+    // Auto-remove toast after duration
+    setTimeout(() => {
+      removeToast(id);
+    }, TOAST_DURATION);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  // --- RESEND LOGIC ---
+  const handleResendClick = () => {
+    if (state.isCooldown || state.isLoading) return;
+
+    setState(prev => ({ ...prev, isLoading: true }));
+
+    setTimeout(() => {
+      showToast('New verification link sent!', 'fa-paper-plane');
+      localStorage.setItem('registrationTimestamp', Date.now().toString());
+
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        isCooldown: true,
+        timerSeconds: COOLDOWN_DURATION,
+      }));
+
+      // Cooldown countdown
+      cooldownIntervalRef.current = setInterval(() => {
+        setState(prev => {
+          const newSeconds = prev.timerSeconds - 1;
+          
+          if (newSeconds <= 0) {
+            if (cooldownIntervalRef.current) {
+              clearInterval(cooldownIntervalRef.current);
+            }
+            return {
+              ...prev,
+              isCooldown: false,
+              timerSeconds: COOLDOWN_DURATION,
+            };
+          }
+
+          return {
+            ...prev,
+            timerSeconds: newSeconds,
+          };
+        });
+      }, 1000);
+    }, RESEND_SIMULATE_DELAY);
+  };
+
+  // --- DASHBOARD REDIRECT ---
+  const handleDashboardClick = () => {
+    localStorage.setItem('isEmailVerified', 'true');
+    const role = localStorage.getItem('userRole') || 'freelancer';
+    window.location.href = `/${role}-dashboard`;
+  };
+
+  // --- CONFETTI ANIMATION ---
+  const startConfetti = () => {
+    if (typeof window === 'undefined') return; // SSR safety check
+
+    const confetti = (window as any).confetti;
+    if (!confetti) return;
+
+    const end = Date.now() + CONFETTI_DURATION;
+    
+    const frame = () => {
+      confetti({
+        particleCount: 5,
+        angle: 60,
+        spread: 70,
+        origin: { x: 0 },
+        colors: ['#d96464', '#22c55e'],
+      });
+      confetti({
+        particleCount: 5,
+        angle: 120,
+        spread: 70,
+        origin: { x: 1 },
+        colors: ['#d96464', '#22c55e'],
+      });
+
+      if (Date.now() < end) {
+        confettiFrameRef.current = requestAnimationFrame(frame);
+      }
+    };
+
+    frame();
+  };
+
+  // --- RENDER ---
+  return (
+    <div className="verify-container">
+      {state.isExpired ? (
+        <ExpiredCard
+          isLoading={state.isLoading}
+          isCooldown={state.isCooldown}
+          timerSeconds={state.timerSeconds}
+          onResendClick={handleResendClick}
+        />
+      ) : (
+        <SuccessCard
+          userName={state.userName}
+          onDashboardClick={handleDashboardClick}
+        />
+      )}
+
+      <div id="toast-container" className="toast-container">
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            toast={toast}
+            onRemove={removeToast}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default VerifyEmailClient;
