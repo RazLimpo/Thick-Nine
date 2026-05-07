@@ -468,19 +468,19 @@ const handleAccountSwitching = () => {
   <>
     <button className="icon-btn notification-btn" title="Notifications">
       <i className="fas fa-bell"></i>
-      <span className="badge"></span>
+      <span className="badge hidden"></span>
     </button>
     
     <button className="icon-btn notification-bell" title="Messages">
       <i className="fas fa-envelope"></i>
-      <span className="badge"></span> 
+      <span className="badge hidden"></span> 
     </button>
   </>
 )}
 
           <div className="account-dropdown-container">
           <button
-  className="account-trigger"
+  className="icon-btn account-trigger"
   onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
   aria-expanded={isAccountMenuOpen}
   title="Account Menu" // Restoring tooltip from Header-A

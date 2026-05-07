@@ -1,6 +1,6 @@
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
+@import '@fortawesome/fontawesome-free/css/all.min.css';
 
-
+/* Rest of your global.css... */
 
 
 
@@ -8,7 +8,7 @@
 /* 0. Global Reset and Variables */
 
 :root { 
-    --primary-color: #d96464; 
+    --primary-color: #d96464; /* #6a5fb8 - Violet */
     --primary-light: #730e0e; 
     --secondary-color: #222; 
     --background-light: #f4f4f4; 

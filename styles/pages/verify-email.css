@@ -1,0 +1,259 @@
+/* ============================================= */
+/*  3D SPATIAL - COMPACT & COLOURFUL             */
+/* ============================================= */
+
+:root {
+  --bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --card: #ffffff;
+  --primary: #d96464;
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+
+/* ============================================= */
+/* 1. FULL-SCREEN BACKGROUND CONTAINER */
+/* ============================================= */
+
+html {
+  height: 100%;
+  width: 100%;
+}
+
+.verify-container {
+  /* Full viewport coverage */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  
+  /* Background gradient */
+  background: var(--bg);
+  
+  /* Flexbox centering */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Layout properties */
+  padding: 20px;
+  overflow: auto;
+  perspective: 1200px;
+  z-index: 10;
+}
+
+/* ============================================= */
+/* 2. CARD CONTAINER */
+/* ============================================= */
+
+.verify-card {
+  /* Sizing */
+  width: 100%;
+  max-width: 400px;
+  
+  /* Card styling */
+  background: var(--card);
+  border-radius: 20px;
+  padding: 36px 30px 34px;
+  
+  /* Shadow depth */
+  box-shadow: 
+      0 25px 50px -12px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255,255,255,0.2) inset;
+  
+  /* Transform & transition */
+  position: relative;
+  overflow: hidden;
+  display: block;
+  transform: translateZ(0);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+}
+
+/* Hover effect - lift only */
+.verify-card:hover {
+  transform: translateZ(40px) scale(1.03);
+}
+
+/* Entry animation */
+.verify-card.show {
+  animation: spatialPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes spatialPop {
+  from {
+      opacity: 0;
+      transform: scale(0.75) translateZ(-150px);
+  }
+  to {
+      opacity: 1;
+      transform: scale(1) translateZ(0);
+  }
+}
+
+/* ============================================= */
+/* 3. LOGO */
+/* ============================================= */
+
+.card-logo-img {
+  height: 60px; /* Larger than the header version */
+  width: auto;
+  margin: 0 auto 30px auto; /* Centers the image and adds space below */
+  display: block;
+}
+
+.verify-card:hover .card-logo-img {
+  transform: translateY(-8px) scale(1.05);
+}
+
+/* ============================================= */
+/* 4. ICON CIRCLE */
+/* ============================================= */
+
+.icon-circle {
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 24px;
+  background: linear-gradient(145deg, #ffffff, #f3f4f6);
+  border-radius: 50%;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  box-shadow: 
+      0 15px 25px rgba(0,0,0,0.2),
+      inset 0 -8px 12px rgba(0,0,0,0.1),
+      0 0 0 8px rgba(255,255,255,0.6);
+  
+  transition: transform 0.4s ease;
+}
+
+.verify-card:hover .icon-circle {
+  transform: scale(1.08) rotate(0deg);
+}
+
+.success-icon {
+  color: var(--success);
+  font-size: 46px;
+  filter: drop-shadow(0 4px 8px rgba(34, 197, 94, 0.4));
+}
+
+.expired-icon {
+  color: var(--warning);
+  font-size: 44px;
+  filter: drop-shadow(0 4px 8px rgba(245, 158, 11, 0.4));
+}
+
+
+
+
+/* ============================================= */
+/* 5. TYPOGRAPHY */
+/* ============================================= */
+
+.verify-card h1 {
+  font-size: 1.72rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  
+  background: linear-gradient(90deg, #2c2c2c, #555);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.verify-card p {
+  color: #4b5563;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+/* ============================================= */
+/* 6. BUTTONS */
+/* ============================================= */
+
+.neumorph-btn {
+  /* Sizing */
+  width: 100%;
+  padding: 14px 32px;
+  
+  /* Styling */
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  
+  /* Typography */
+  font-size: 1.06rem;
+  font-weight: 700;
+  
+  /* Layout */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  
+  /* Interactive */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  /* Shadow */
+  box-shadow: 
+      0 10px 20px rgba(217, 100, 100, 0.4),
+      0 4px 8px rgba(0,0,0,0.2);
+  
+  /* Positioning for shine effect */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shine effect layer */
+.neumorph-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  transition: 0.6s;
+}
+
+/* Shine animation on hover */
+.neumorph-btn:hover::before {
+  left: 200%;
+}
+
+/* Hover state */
+.neumorph-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 25px rgba(217, 100, 100, 0.5);
+}
+
+/* Active state */
+.neumorph-btn:active {
+  transform: translateY(2px);
+}
+
+/* Disabled state */
+.neumorph-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ============================================= */
+/* 7. TIMER TEXT */
+/* ============================================= */
+
+#resend-timer {
+  margin-top: 20px !important;
+  color: #555;
+  font-size: 0.98rem;
+}
+
+#timer-seconds {
+  font-weight: 700;
+  color: var(--primary);
+}
