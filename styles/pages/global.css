@@ -1,13 +1,13 @@
-@import '@fortawesome/fontawesome-free/css/all.min.css';
-
-/* Rest of your global.css... */
-
-
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
 
 /* ---------------------------------------------------- */    
 /* 0. Global Reset and Variables */
 
 :root { 
+    /* ZONE SETTINGS: The Source of Truth */
+    --header-height: 60px; 
+
+    /* Original Brand Colors & Variables */
     --primary-color: #d96464; /* #6a5fb8 - Violet */
     --primary-light: #730e0e; 
     --secondary-color: #222; 
@@ -19,7 +19,12 @@
     --border-radius: 5px;
 } 
 
-
+/* Responsive Zone Adjustment */
+@media (max-width: 768px) {
+    :root {
+        --header-height: 50px; /* Slimmer header for mobile devices */
+    }
+}
 
 * { 
     margin: 0; 
@@ -27,28 +32,31 @@
     box-sizing: border-box; 
 } 
 
-
-body { 
-    font-family: var(--font-family); 
-    line-height: 1.5; /* Reduced from 1.6 for tighter text blocks */
-    background-color: #f7fafc;
-    color: var(--secondary-color); 
-    font-size: 15px; /* REDUCED from 16px for a more compact UI */
-}
-
-
 html, body {
     margin: 0;
     padding: 0;
     width: 100%;
-    height: 100%;
-    overflow-x: hidden;          /* Prevent unwanted horizontal scroll */
+    /* Changed to min-height to allow content to grow */
+    min-height: 100vh; 
+    overflow-x: hidden;
 }
 
+body { 
+    font-family: var(--font-family); 
+    line-height: 1.5; 
+    background-color: #f7fafc;
+    color: var(--secondary-color); 
+    font-size: 15px; 
 
+    /* ZONE RULE: Automatically reserves space for the fixed header */
+    padding-top: var(--header-height) !important;
+}
 
+/* ---------------------------------------------------- */    
+/* 1. Global Navigation & Links */
 
-a { text-decoration: none; 
+a { 
+    text-decoration: none; 
     color: var(--primary-color); 
     transition: color 0.3s ease; 
 } 
@@ -60,8 +68,6 @@ a:hover {
 
 
 
-
-/* Global Button Styles (Assuming you have these, if not, add them!) */
 /* Global Button Styles */
 .btn {
     padding: 10px 20px; /* Reduced vertical padding */
@@ -270,3 +276,14 @@ a:hover {
 
 
 
+.main-content-wrapper {
+  /* This pushes the entire page content down */
+  padding-top: var(--header-height); 
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Keeps footer at bottom even on short pages */
+}
+
+main {
+  flex: 1; /* Pushes the footer to the very bottom */
+}
