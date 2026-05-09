@@ -1,32 +1,34 @@
-/*
- * NOTE: The :root block has been removed as requested.
- * This file relies on CSS variables being defined in the linked 'global.css'.
- */
-
-
-/* === MAIN HEADER STYLES (Desktop Layout) === */
+/* === MAIN HEADER STYLES === */
 .main-header {
-  position: sticky; top: 0; left: 0; width: 100%;
+  position: fixed !important; 
+  top: 0 !important; 
+  left: 0; 
+  width: 100%;
+  
+  /* Matches the new slim variable */
+  height: var(--header-height); 
+  
   background-color: var(--f-text-light, #fff); 
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   display: flex; 
   align-items: center;
-  padding: 7px 30px; 
+  
+  /* Reduced padding for a tighter look */
+  padding: 0 20px; 
   z-index: 1000;
-  gap: 20px; /* Space between main blocks: Logo, Search, Nav, Actions */
-  min-height: 20px;
+  gap: 20px; 
 }
 
-
-
-
-/* REDUCE LOGO SIZE: Adjusting the image height - For Image Form Of Logo */ 
+/* Ensure the logo fits in the slimmer bar */
 .header-logo-img { 
-  height: 40px; /* Reduced from 60px */ 
+  height: 32px; /* Reduced from 40px to fit 60px header */ 
   width: auto; 
   display: block; 
   transition: transform 0.3s ease; 
 }
+
+
+
 
 
 /* 1. Logo - For Logo In Text Format*/
@@ -50,11 +52,16 @@
   align-items: baseline; /* Ensures 'Thick' and '9' sit on the same line */
 }
 
+
+
+
+
+
 /* 4. The word 'Thick' */
 .logo-main {
   font-family: 'Roboto', sans-serif;
   font-weight: 400; /* Normal weight */
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   color: #222222; /* Your secondary text color */
 }
 
@@ -62,7 +69,7 @@
 .logo-nine {
   font-family: 'Roboto', sans-serif;
   font-weight: 900; /* Extra bold/thick */
-  font-size: 1.9rem; /* Bigger than 'Thick' */
+  font-size: 1.5rem; /* Bigger than 'Thick' */
   color: #d96464; /* Brand Red */
   margin-left: 1px;
   line-height: 1;
@@ -530,26 +537,45 @@ body[data-user-role="guest"] #account-icon-btn::after {
 
 /* --- Login and Registration Modal - REDESIGNED AUTH MODAL --- */
 
+/* === AUTH MODAL OVERLAY === */
 .modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.7); /* Slightly darker for better focus */
-  display: none; 
-  justify-content: center; align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  display: none;
+  justify-content: center;
+  align-items: center;
   z-index: 3000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
+/* This is the missing rule */
+.modal-overlay.is-active {
+  display: flex;
+  opacity: 1;
+}
 
-
+/* Modal Container */
 .modal-container {
   background: #fff;
   width: 95%;
-  max-width: 850px; /* Wider for the split view */
+  max-width: 850px;
   border-radius: 16px;
   position: relative;
   box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-  overflow: hidden; /* Clips the image corners to the container radius */
-  display: flex;
+  overflow: hidden;
+  transform: scale(0.95);
+  transition: transform 0.3s ease;
 }
+
+.modal-overlay.is-active .modal-container {
+  transform: scale(1);
+}
+
 
 .modal-content-wrapper {
   display: flex;
@@ -877,8 +903,6 @@ justify-content: center;
 .legal-note a:hover {
   text-decoration: underline;
 }
-
-
 
 
 

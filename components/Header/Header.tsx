@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { BRAND, API_BASE_URL } from '../../lib/constants'; // Your "Remote Control" file
+import { BRAND, API_BASE_URL } from '@/lib/constants'; // Your "Remote Control" file
 import { useRouter, usePathname } from 'next/navigation';
 
 const Header = () => {
