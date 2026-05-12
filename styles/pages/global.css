@@ -5,7 +5,7 @@
 
 :root { 
     /* ZONE SETTINGS: The Source of Truth */
-    --header-height: 60px; 
+    --header-height: 50px; 
 
     /* Original Brand Colors & Variables */
     --primary-color: #d96464; /* #6a5fb8 - Violet */
@@ -22,7 +22,7 @@
 /* Responsive Zone Adjustment */
 @media (max-width: 768px) {
     :root {
-        --header-height: 50px; /* Slimmer header for mobile devices */
+        --header-height: 40px; /* Slimmer header for mobile devices */
     }
 }
 
@@ -276,6 +276,10 @@ a:hover {
 
 
 
+
+
+
+
 .main-content-wrapper {
   /* This pushes the entire page content down */
   padding-top: var(--header-height); 
@@ -286,4 +290,5 @@ a:hover {
 
 main {
   flex: 1; /* Pushes the footer to the very bottom */
+    margin: auto;
 }

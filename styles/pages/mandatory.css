@@ -5,10 +5,15 @@
 .form-layout {
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 60px 20px;
+  /* Change 'center' to 'flex-start' to pull the form up to the top */
+  align-items: flex-start; 
+  /* Reduce the top padding from 60px to 20px */
+  padding: 20px 20px 60px 20px; 
   background-color: #f4f7f6; 
-  min-height: calc(100vh - 160px); 
+  /* Remove the subtraction to allow the layout to sit naturally below the header */
+  min-height: calc(100vh - 60px); 
+  /* This is the safest way to override that global padding */
+  margin-top: calc(var(--header-height) * -1) !important;
 }
 
 .form-container {
@@ -17,15 +22,21 @@
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 700px; /* Increased width for 3 cards */
+  max-width: 700px;
+  /* Explicitly remove any top margin that might be pushing it down */
+  margin-top: 0; 
 }
 
 .form-container h1 {
+  /* Remove default browser margin-top from the heading */
+  margin-top: 0;
   margin-bottom: 10px;
   font-size: 1.8rem;
   color: var(--primary-color);
   text-align: center;
 }
+
+
 
 .form-instruction {
   text-align: center;
@@ -68,7 +79,7 @@
 
 /* ---------------------------------------------------- */
 /* 3. Role Selection Cards (3-Column Support) */
-/* ---------------------------------------------------- */
+/* ---------------------------------------------------- 
 
 .role-selection {
   display: flex;
@@ -89,7 +100,7 @@
   flex-direction: column;
   align-items: center;
   position: relative;
-  min-width: 0; /* Prevents overflow in flex containers */
+  min-width: 0; /* Prevents overflow in flex containers 
 }
 
 .role-card:hover {
@@ -104,7 +115,7 @@
   height: 0;
 }
 
-/* Modern Selection Logic */
+/* Modern Selection Logic 
 .role-card:has(input[type="radio"]:checked) {
   border-color: var(--primary-color, #007bff);
   background-color: #f0f7ff; 
@@ -116,7 +127,7 @@
 }
 
 .role-card i {
-  font-size: 2.2em; /* Slightly smaller to fit 3 cards better */
+  font-size: 2.2em; /* Slightly smaller to fit 3 cards better 
   color: #ccc;
   margin-bottom: 10px;
   transition: color 0.2s;
@@ -134,6 +145,135 @@
   font-size: 0.8em;
   line-height: 1.2;
 }
+
+------------------- */
+
+
+
+
+
+/* ---------------------------------------------------- */
+/* 3. Role Selection Cards - Skeuomorphic Style */
+/* ----REPLACE SECTION 3 WITH SKEUOMORPHISM ROLE CARD */
+
+.role-selection {
+  display: flex;
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.role-card {
+  flex: 1;
+  border: 3px solid #d1d5db;
+  border-radius: 12px;
+  padding: 20px 15px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+  
+  /* Skeuomorphic depth */
+  box-shadow: 
+      inset 0 2px 4px rgba(255,255,255,0.8),
+      inset 0 -3px 5px rgba(0,0,0,0.1),
+      0 8px 15px rgba(0, 0, 0, 0.15),
+      0 2px 4px rgba(0, 0, 0, 0.1);
+  
+  /* Bevel highlight */
+  border-top-color: #f1f3f5;
+  border-left-color: #f1f3f5;
+}
+
+.role-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+      inset 0 2px 4px rgba(255,255,255,0.9),
+      inset 0 -3px 5px rgba(0,0,0,0.08),
+      0 12px 20px rgba(0, 0, 0, 0.18),
+      0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+.role-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Selected state - pressed / active skeuomorphic look */
+.role-card:has(input[type="radio"]:checked) {
+  background: linear-gradient(145deg, #e6f0ff, #d0e0ff);
+  border-color: #4a90e2;
+  border-top-color: #7eb6f0;
+  border-left-color: #7eb6f0;
+  
+  box-shadow: 
+      inset 0 3px 6px rgba(0,0,0,0.2),
+      inset 0 -2px 3px rgba(255,255,255,0.7),
+      0 4px 8px rgba(74, 144, 226, 0.3);
+  
+  transform: translateY(2px);
+}
+
+.role-card input[type="radio"]:checked \~ i,
+.role-card input[type="radio"]:checked \~ span {
+  color: #1e5aa8;
+}
+
+.role-card i {
+  font-size: 2.4em;
+  color: #8898a8;
+  margin-bottom: 12px;
+  transition: all 0.25s ease;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1));
+}
+
+.role-card:hover i {
+  color: #5a7a9e;
+  transform: scale(1.08);
+}
+
+.role-card span {
+  font-weight: 700;
+  font-size: 1.02em;
+  display: block;
+  color: #2c3e50;
+  margin-bottom: 4px;
+}
+
+.role-card small {
+  color: #5f6c7a;
+  margin-top: 4px;
+  font-size: 0.82em;
+  line-height: 1.25;
+}
+
+/* Optional: pressed effect when clicking */
+.role-card:active {
+  transform: translateY(4px);
+  box-shadow: 
+      inset 0 4px 8px rgba(0,0,0,0.25),
+      inset 0 -2px 3px rgba(255,255,255,0.6);
+}
+
+
+/* ----------SkeuoMorphism Style Ends Here For Role Card ------------------ */
+
+
+
+
+
+
+
+
+
+
+
 
 /* ---------------------------------------------------- */
 /* 4. Buttons & Links */
@@ -173,6 +313,13 @@
   text-decoration: none;
   font-weight: 700;
 }
+
+
+
+
+
+
+
 
 
 
@@ -429,3 +576,43 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+
+
+
+
+
+
+
+
+
+
+/* Styling for the clickable links */
+.terms-link {
+  color: #333;
+  font-weight: 700;
+  margin: 0 4px; /* Added spacing to prevent "cramped" text */
+  text-decoration: underline; /* Standard for links, or use 'none' for a cleaner look */
+  transition: color 0.2s ease;
+}
+
+.terms-link:hover {
+  color: var(--primary-color, #27ae60); /* Highlights on hover */
+  text-decoration: none;
+}
+
+/* Ensure the container still has proper spacing */
+.terms-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #555;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+
+.terms-check input[type="checkbox"] {
+  margin-right: 12px; /* This creates the space you're missing */
+  margin-top: 4px;    /* Aligns the box vertically with the text */
+  width: 15px;
+  height: 15px;
+}

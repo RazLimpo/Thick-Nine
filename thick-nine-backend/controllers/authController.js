@@ -2,26 +2,24 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// REGISTER A NEW USER (Updated with Unique Username Logic)
+// REGISTER A NEW USER (Production-Ready for Thick 9)
 exports.register = async (req, res) => {
     try {
-        const { fullName, email, password, role } = req.body;
+        // 1. Destructure the NEW fields from your mandatory-CLIENT form
+        const { fullName, email, password, role, gender, country, referralCode } = req.body;
 
-        // 1. Check if email already exists
+        // 2. Check if email already exists (Updated to match frontend's 'message' expectation)
         let userExists = await User.findOne({ email });
-        if (userExists) return res.status(400).json({ msg: "User already exists" });
+        if (userExists) return res.status(400).json({ message: "User already exists" });
 
-        // 2. Generate and Verify Unique Username
-        // Takes 'razlimpo' from 'razlimpo@gmail.com'
+        // 3. Generate and Verify Unique Username (Your existing while-loop logic)
         let baseUsername = email.split('@')[0].toLowerCase();
         let finalUsername = baseUsername;
         let isUnique = false;
 
-        // Loop until we find a name not in the database
         while (!isUnique) {
             const existingName = await User.findOne({ username: finalUsername });
             if (existingName) {
-                // If username is taken, add 4 random digits
                 const randomSuffix = Math.floor(1000 + Math.random() * 9000);
                 finalUsername = `${baseUsername}${randomSuffix}`;
             } else {
@@ -29,26 +27,32 @@ exports.register = async (req, res) => {
             }
         }
 
-        // 3. Hash the password
+        // 4. Hash the password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. Create the user in the database
+        // 5. Create the user instance
         const newUser = new User({
             fullName: fullName || finalUsername,
             username: finalUsername,
             email,
             password: hashedPassword,
             role: role || 'client',
-            accountStrength: 50 // New users start at 50%
+            gender,           // Mapped from form
+            referralCode,     // Mapped from form
+            location: {       // Mapped to your nested schema
+                country: country || 'Ghana',
+                city: 'Accra'
+            },
+            accountStrength: 50 
         });
 
         await newUser.save();
 
-        // 5. Generate a Token (JWT)
+        // 6. Generate a Token (JWT)
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        // Return the full user object so the Header.tsx can save it
+        // Return data for the frontend Header.tsx
         res.status(201).json({ 
             token, 
             user: { 
@@ -61,9 +65,12 @@ exports.register = async (req, res) => {
 
     } catch (err) {
         console.error("Register Error:", err.message);
-        res.status(500).send("Server Error during registration");
+        res.status(500).json({ message: "Server Error during registration" });
     }
 };
+
+
+
 
 // LOGIN USER (Keeping your current working version)
 exports.login = async (req, res) => {

@@ -16,7 +16,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <Header />
-        {/* This container ensures content starts below the fixed header */}
+        
         <div className="main-content-wrapper">
           <main>{children}</main>
           <Footer />

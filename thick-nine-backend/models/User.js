@@ -1,19 +1,21 @@
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
-  // 1. ACCOUNT AUTH & IDENTITY
-  fullName: { type: String, required: true, trim: true },
-  username: { type: String, required: true, unique: true, lowercase: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true, select: false }, // Security: Hidden from queries by default
-  googleId: { type: String }, 
+ // 1. ACCOUNT AUTH & IDENTITY
+ fullName: { type: String, required: true, trim: true },
+ // Changed to sparse so registration doesn't fail if username isn't picked yet
+ username: { type: String, unique: true, lowercase: true, sparse: true }, 
+ email: { type: String, required: true, unique: true },
+ password: { type: String, required: true, select: false }, 
 
-  // 2. ROLE & STATUS
-  role: { 
-    type: String, 
-    enum: ['client', 'freelancer', 'affiliate', 'admin'], 
-    default: 'client' 
-  },
+ // 2. ROLE & STATUS
+ role: { 
+   type: String, 
+   enum: ['client', 'freelancer', 'affiliate', 'admin'], 
+   default: 'client' 
+ },
+ 
+ 
   planType: { 
     type: String, 
     enum: ['free', 'silver', 'gold'], 
@@ -39,6 +41,11 @@ const UserSchema = new mongoose.Schema({
     country: { type: String, default: 'Ghana' },
     city: { type: String, default: 'Accra' }
   },
+
+
+  
+
+
 
   // 4. PERFORMANCE METRICS (For Dashboard Gauges)
   metrics: {
