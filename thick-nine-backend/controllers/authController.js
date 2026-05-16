@@ -1,4 +1,4 @@
-const User = require('./models/User');
+const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -23,7 +23,7 @@ exports.register = async (req, res) => {
                 const randomSuffix = Math.floor(1000 + Math.random() * 9000);
                 finalUsername = `${baseUsername}${randomSuffix}`;
             } else {
-                isUnique = true;
+                isUnique = true; 
             }
         }
 
