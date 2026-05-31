@@ -11,7 +11,7 @@ export const metadata = {
   description: "Unlock your professional potential today.",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
