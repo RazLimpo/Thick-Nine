@@ -1,11 +1,6 @@
-import VerifyEmailClient from './client';
-import { BRAND } from '@/lib/constants'; 
+import React from 'react';
+import AffiliateDashboard from './client';
 
-export const metadata = {
-  title: `Email Verification | ${BRAND.pretty}`,
-  description: `Verify your email to access the ${BRAND.pretty} marketplace`,
-};
-
-export default function VerifyEmailPage() {
-  return <VerifyEmailClient />;
+export default function AffiliateDashboardPage() {
+  return <AffiliateDashboard />;
 }
