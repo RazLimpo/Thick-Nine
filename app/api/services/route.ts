@@ -5,7 +5,7 @@ export async function GET() {
   try {
     // 1. Connect to MongoDB using your environment variable
     if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI);
+      await mongoose.connect(process.env.MONGODB_URI as string);
     }
 
     // 2. Fetch data (Replace 'Service' with your actual model name)
