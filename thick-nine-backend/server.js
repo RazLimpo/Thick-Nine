@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { BRAND } = require('../lib/constants');
+const { BRAND } = require('./lib/constants');
 require('dotenv').config();
 
 // 1. Import the Models & Routes
@@ -10,8 +10,17 @@ const authRoutes = require('./routes/authRoutes'); // <--- NEW: Import Auth Rout
 
 const app = express();
 
-// 2. Middleware
-app.use(cors());
+// 2. Middleware (UPDATED CORS CONFIGURATION)
+const allowedOrigins = [
+  'http://localhost:3000',          // For local testing in StackBlitz/browser
+  'https://thick-nine.vercel.app'   // Put your exact live Vercel link here (No slash at the end!)
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true                 // Crucial for allowing role sessions/cookies to pass through
+}));
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
@@ -35,8 +44,6 @@ mongoose.connect(process.env.MONGODB_URI, connectionOptions)
     process.exit(1); 
   });
 
-
-
 // 4. Routes
 
 // AUTH ROUTES (The new "Brain" connection)
@@ -46,7 +53,6 @@ app.get('/', (req, res) => {
   // Uses your "One Source of Truth" for the welcome message
   res.send(`${BRAND.pretty} Backend is Live and Running!`);
 });
-
 
 // SERVICE ROUTES
 app.get('/api/services', async (req, res) => {
