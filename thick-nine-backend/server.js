@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { BRAND } = require('../lib/constants');
+const { BRAND } = require('./lib/constants');
 require('dotenv').config();
 
 // 1. Import the Models & Routes
