@@ -10,20 +10,38 @@ const authRoutes = require('./routes/authRoutes'); // <--- NEW: Import Auth Rout
 
 const app = express();
 
-// 2. Middleware (UPDATED CORS CONFIGURATION)
-const allowedOrigins = [
-  'http://localhost:3000',          // For local testing in StackBlitz/browser
-  'https://thick-nine.vercel.app'   // Put your exact live Vercel link here (No slash at the end!)
-];
 
+// 2. Middleware (THE DYNAMIC FIX)
 app.use(cors({
-  origin: allowedOrigins,
-  credentials: true                 // Crucial for allowing role sessions/cookies to pass through
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps)
+    if (!origin) return callback(null, true);
+
+    const allowedDomains = [
+      'localhost',
+      'vercel.app',
+      'webcontainer.io',
+      'stackblitz.io'
+    ];
+
+    // Check if the incoming origin contains any of our allowed domains
+    const isAllowed = allowedDomains.some(domain => origin.includes(domain));
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+app.use(express.json()); // <--- KEEP THIS
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000; // <--- KEEP THIS
+
 
 // 3. Database Connection
 console.log("Checking URI:", process.env.MONGODB_URI ? "✅ Found it!" : "❌ Empty!");
@@ -44,15 +62,18 @@ mongoose.connect(process.env.MONGODB_URI, connectionOptions)
     process.exit(1); 
   });
 
+
+
 // 4. Routes
 
 // AUTH ROUTES (The new "Brain" connection)
-app.use('/api/auth', authRoutes); // <--- NEW: Tells server to use authRoutes for any /api/auth path
+app.use('/auth', authRoutes); // <--- NEW: Tells server to use authRoutes for any /api/auth path
 
 app.get('/', (req, res) => {
   // Uses your "One Source of Truth" for the welcome message
   res.send(`${BRAND.pretty} Backend is Live and Running!`);
 });
+
 
 // SERVICE ROUTES
 app.get('/api/services', async (req, res) => {

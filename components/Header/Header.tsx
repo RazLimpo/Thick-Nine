@@ -55,66 +55,93 @@ const Header = () => {
 
   // ====================== HELPER FUNCTIONS ======================
 
-  const closeAllUI = () => {
-    setIsAccountMenuOpen(false);
-    setIsMobileMenuOpen(false);
-    setIsModalOpen(false);
-  };
+ const closeAllUI = useCallback(() => {
+  setIsAccountMenuOpen(false);
+  setIsMobileMenuOpen(false);
+  setIsModalOpen(false);
+}, []);
 
-  const openAuthModal = (tab: 'login' | 'register' = 'login') => {
-    closeAllUI();
-    setAuthTab(tab);
-    setIsModalOpen(true);
-  };
+const openAuthModal = useCallback((tab: 'login' | 'register' = 'login') => {
+  closeAllUI();
+  setAuthTab(tab);
+  setIsModalOpen(true);
+}, [closeAllUI]);
 
-  const showToast = (message: string, icon: string = 'fa-info-circle') => {
-    setToast({ visible: true, message, icon });
-    setTimeout(() => setToast({ visible: false, message: '', icon: '' }), 3000);
-  };
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(prev => !prev);
-    if (!isMobileMenuOpen) {
+const showToast = useCallback((message: string, icon: string = 'fa-info-circle') => {
+  setToast({ visible: true, message, icon });
+  setTimeout(() => setToast({ visible: false, message: '', icon: '' }), 3000);
+}, []);
+    
+    
+    
+  const toggleMobileMenu = useCallback(() => {
+  setIsMobileMenuOpen(prev => {
+    const newState = !prev;
+    if (newState) {
       setIsAccountMenuOpen(false);
       setIsModalOpen(false);
     }
-  };
+    return newState;
+  });
+}, []);
 
-const handleAccountSwitching = () => {
+
+    
+    const handleAccountSwitching = () => {
+    // 1. Grab values directly from local storage with safe fallbacks
     const currentRole = localStorage.getItem('userRole') || 'client';
-    // NEW: Get the strength value we just saved
-    const strength = parseInt(localStorage.getItem('accountStrength') || '0');
+    const storageStrength = localStorage.getItem('accountStrength');
+    
+    // Parse safely. If it's missing, default it to 50 (matching your DB starter tier)
+    const strength = storageStrength ? parseInt(storageStrength, 10) : 50;
     
     let newRole: 'client' | 'freelancer' | 'affiliate' = 'client';
 
-    // NEW Logic: If switching to freelancer, check strength first
+    // 2. Set up the target role rotation
     if (currentRole === 'client') {
-      if (strength < 60) {
-        showToast("Profile strength too low (under 60%). Please update your profile!", "fa-lock");
-        return; // This stops the switch from happening
-      }
       newRole = 'freelancer';
-    } 
-    else if (currentRole === 'freelancer') newRole = 'affiliate';
-    else newRole = 'client';
+    } else if (currentRole === 'freelancer') {
+      newRole = 'affiliate';
+    } else {
+      newRole = 'client';
+    }
 
+    // 3. THE SECURITY GATE: Disallow switching to freelancer if strength is under 60%
+    if (newRole === 'freelancer' && strength < 60) {
+      closeAllUI(); // Cleanly close the open dropdown menu
+      showToast(`Profile strength too low (${strength}%). Please complete your profile to unlock Freelancing!`, "fa-lock");
+      return; // STOP EXECUTION HERE. Do not alter roles. Do not switch pages.
+    }
+
+    // Safety fallback for unbuilt affiliate routes
+    if (newRole === 'affiliate') {
+      closeAllUI();
+      showToast("Affiliate mode is coming soon! Staying in Buying mode.", "fa-info-circle");
+      return;
+    }
+
+    // 4. If they pass qualifications, commit the valid switch
     localStorage.setItem('userRole', newRole);
     setUserRole(newRole);
-    
     window.dispatchEvent(new Event('userRoleChanged'));
     closeAllUI();
     showToast(`Switched to ${newRole.toUpperCase()} mode`, "fa-exchange-alt");
 
     if (newRole === 'freelancer') router.push('/freelancer-dashboard');
     else if (newRole === 'client') router.push('/client-dashboard');
-    else if (newRole === 'affiliate') router.push('/affiliate-dashboard');
   };
-
+    
+    
+    
+    
   const getSwitcherText = () => {
     if (userRole === 'client') return "Switch to Freelancing";
     if (userRole === 'freelancer') return "Switch to Affiliate";
     return "Switch to Buying";
   };
+    
+    
+    
 
   const handleSignOut = () => {
     localStorage.removeItem('isLoggedIn');
@@ -174,18 +201,15 @@ const handleAccountSwitching = () => {
     ];
     const isSafePage = safePages.includes(currentPath || '');
 
-    if (!isSafePage) {
-      if (!loggedIn) {
-        // Use setTimeout to prevent modal from opening during initial render
-        setTimeout(() => {
-          openAuthModal('login');
-        }, 50);
-      } else if (!emailVerified && currentPath !== '/verify-email') {
-        router.push('/verify-email');
-      } else if (emailVerified && !profileDone && currentPath !== '/mandatory') {
-        router.push('/mandatory');
-      }
-    }
+if (!isSafePage) {
+  if (!loggedIn) {
+    setTimeout(() => openAuthModal('login'), 100); // increased delay
+  } else if (!emailVerified && currentPath !== '/verify-email') {
+    router.push('/verify-email');
+  } else if (emailVerified && !profileDone && currentPath !== '/mandatory') {
+    router.push('/mandatory');
+  }
+}
   }, [currentPath, router, openAuthModal]);
     
     
@@ -322,12 +346,19 @@ const handleAccountSwitching = () => {
 
       const data = await response.json();
 
+      
+      
       if (response.ok) {
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', data.user.role || 'client');
+        localStorage.setItem('userName', data.user.username || 'New User');
+        localStorage.setItem('accountStrength', '50'); // <-- ADD THIS LINE HERE
         localStorage.setItem('registrationTimestamp', Date.now().toString());
-
+      
+      
+      
+      
         setIsLoggedIn(true);
         setUserRole(data.user.role || 'client');
         showToast("Account created! Check email to verify.", "fa-user-check");
@@ -376,6 +407,9 @@ const handleAccountSwitching = () => {
 
         setIsLoggedIn(true);
         setUserRole(data.user.role || 'client');
+        
+        closeAllUI();
+        
         showToast(`Welcome back, ${data.user.fullName || 'User'}!`, "fa-sign-in-alt");
         setTimeout(() => router.push('/'), 1200);
       } else {
