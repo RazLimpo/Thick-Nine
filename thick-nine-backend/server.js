@@ -1,8 +1,10 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { BRAND } = require('./lib/constants');
+const { BRAND } = require('../lib/constants');
 require('dotenv').config();
+
 
 // 1. Import the Models & Routes
 const Service = require('./models/Service'); 
@@ -52,6 +54,8 @@ const connectionOptions = {
   socketTimeoutMS: 45000,         // THE STABILITY FIX: Keeps connection alive
 };
 
+console.log("DEBUG: Your database connection string is:", process.env.MONGO_URI);
+
 mongoose.connect(process.env.MONGODB_URI, connectionOptions)
   .then(() => {
     console.log(`✅ Connected to MongoDB: ${BRAND.dbName}`);
@@ -67,7 +71,7 @@ mongoose.connect(process.env.MONGODB_URI, connectionOptions)
 // 4. Routes
 
 // AUTH ROUTES (The new "Brain" connection)
-app.use('/auth', authRoutes); // <--- NEW: Tells server to use authRoutes for any /api/auth path
+app.use('/api/auth', authRoutes); // <--- NEW: Tells server to use authRoutes for any /api/auth path
 
 app.get('/', (req, res) => {
   // Uses your "One Source of Truth" for the welcome message
