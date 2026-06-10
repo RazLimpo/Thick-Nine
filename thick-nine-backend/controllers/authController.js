@@ -69,9 +69,6 @@ exports.register = async (req, res) => {
     }
 };
 
-
-
-
 // LOGIN USER (Keeping your current working version)
 exports.login = async (req, res) => {
     try {
@@ -102,5 +99,78 @@ exports.login = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server Error during login");
+    }
+};
+
+// FINALIZE ONBOARDING ACCOUNT (Processes the complete mandatory-LIVE-CLIENT form data)
+exports.finalizeAccount = async (req, res) => {
+    try {
+        const { fullName, email, password, role, gender, country, referralCode } = req.body;
+
+        // 1. Verify user doesn't already exist
+        let userExists = await User.findOne({ email: email.toLowerCase().trim() });
+        if (userExists) {
+            return res.status(400).json({ msg: "An account with this email already exists." });
+        }
+
+        // 2. Generate a clean, unique username from email
+        let baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        let finalUsername = baseUsername;
+        let isUnique = false;
+
+        while (!isUnique) {
+            const existingName = await User.findOne({ username: finalUsername });
+            if (existingName) {
+                const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+                finalUsername = `${baseUsername}${randomSuffix}`;
+            } else {
+                isUnique = true;
+            }
+        }
+
+        // 3. Securely hash the password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // 4. Calculate an starting profile strength based on filled items (e.g. 65% out of the gate)
+        const starterStrength = referralCode ? 75 : 65;
+
+        // 5. Create and save the formal User Document to MongoDB
+        const newUser = new User({
+            fullName: fullName.trim(),
+            username: finalUsername,
+            email: email.toLowerCase().trim(),
+            password: hashedPassword,
+            role: role || 'client',
+            gender,
+            referralCode: referralCode ? referralCode.trim() : undefined,
+            location: {
+                country: country || 'United States',
+                city: 'Pending'
+            },
+            isProfileComplete: true,
+            isEmailVerified: false,
+            accountStrength: starterStrength
+        });
+
+        await newUser.save();
+
+        // 6. Generate access token
+        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+        // 7. Send payload back exactly matching the keys your frontend fetches
+        res.status(201).json({
+            token,
+            user: {
+                id: newUser._id,
+                fullName: newUser.fullName,
+                role: newUser.role,
+                accountStrength: newUser.accountStrength
+            }
+        });
+
+    } catch (err) {
+        console.error("Finalize Account Error:", err.message);
+        res.status(500).json({ msg: "Critical server error processing account completion." });
     }
 };
