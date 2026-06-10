@@ -8,29 +8,34 @@ const UserSchema = new mongoose.Schema({
  email: { type: String, required: true, unique: true },
  password: { type: String, required: true, select: false }, 
 
- // 2. ROLE & STATUS
- role: { 
-   type: String, 
-   enum: ['client', 'freelancer', 'affiliate', 'admin'], 
-   default: 'client' 
- },
  
- 
-  planType: { 
-    type: String, 
-    enum: ['free', 'silver', 'gold'], 
-    default: 'free' 
-  },
-  onlineStatus: { 
-    type: String, 
-    enum: ['online', 'away', 'offline'], 
-    default: 'offline' 
-  },
-  isEmailVerified: { type: Boolean, default: false },
-  isVerified: { type: Boolean, default: false }, 
+// 2. ROLE & STATUS
+role: { 
+  type: String, 
+  enum: ['client', 'freelancer', 'affiliate', 'admin'], 
+  default: 'client' 
+},
 
-  // ADD THIS LINE HERE
-  accountStrength: { type: Number, default: 50 },
+planType: { 
+  type: String, 
+  enum: ['free', 'silver', 'gold'], 
+  default: 'free' 
+},
+onlineStatus: { 
+  type: String, 
+  enum: ['online', 'away', 'offline'], 
+  default: 'offline' 
+},
+isEmailVerified: { type: Boolean, default: false },
+isVerified: { type: Boolean, default: false }, 
+
+// 👇 ADD THESE TWO NEW LINES HERE:
+verificationToken: { type: String, default: null },
+verificationTokenExpires: { type: Date, default: null },
+
+// ADD THIS LINE HERE
+accountStrength: { type: Number, default: 50 },
+
 
   // 3. PROFILE BRANDING
   avatar: { type: String, default: 'default-avatar.png' },
