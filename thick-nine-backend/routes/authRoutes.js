@@ -11,4 +11,7 @@ router.post('/login', authController.login);
 // Route for Finalizing Account Onboarding (Paste it here)
 router.post('/finalize-account', authController.finalizeAccount);
 
+// Route for verifying email token via inbox link click
+router.post('/verify-email', authController.verifyEmail);
+
 module.exports = router;

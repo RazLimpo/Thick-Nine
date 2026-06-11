@@ -2,6 +2,10 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// Add these two imports to the top of your controllers/authController.js file:
+const crypto = require('crypto');
+const emailService = require('../utils/emailService');
+
 // REGISTER A NEW USER (Production-Ready for Thick 9)
 exports.register = async (req, res) => {
     try {
@@ -102,7 +106,7 @@ exports.login = async (req, res) => {
     }
 };
 
-// FINALIZE ONBOARDING ACCOUNT (Processes the complete mandatory-LIVE-CLIENT form data)
+// FINALIZE ONBOARDING ACCOUNT (Processes form data & enforces real email verification verification)
 exports.finalizeAccount = async (req, res) => {
     try {
         const { fullName, email, password, role, gender, country, referralCode } = req.body;
@@ -132,10 +136,14 @@ exports.finalizeAccount = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. Calculate an starting profile strength based on filled items (e.g. 65% out of the gate)
+        // 4. GENERATE SECURE CRYPTO TOKEN FOR EMAIL VERIFICATION
+        const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+        const tokenExpiryDate = Date.now() + 24 * 60 * 60 * 1000; // Unlocks a strict 24-hour window
+
+        // 5. Calculate a starter profile strength
         const starterStrength = referralCode ? 75 : 65;
 
-        // 5. Create and save the formal User Document to MongoDB
+        // 6. Create and save the unverified User Document to MongoDB
         const newUser = new User({
             fullName: fullName.trim(),
             username: finalUsername,
@@ -149,28 +157,95 @@ exports.finalizeAccount = async (req, res) => {
                 city: 'Pending'
             },
             isProfileComplete: true,
-            isEmailVerified: false,
+            isEmailVerified: false, // 🔐 Strictly set to false until verification link is clicked!
+            verificationToken: emailVerificationToken,
+            verificationTokenExpires: tokenExpiryDate,
             accountStrength: starterStrength
         });
 
         await newUser.save();
 
-        // 6. Generate access token
+        // 7. DISPATCH REAL EMAIL VIA IPAGE SMTP
+        try {
+            await emailService.sendVerificationEmail(newUser.email, emailVerificationToken);
+        } catch (mailError) {
+            console.error("⚠️ Background Email Dispatch Error:", mailError.message);
+            // We intentionally don't crash the request if the mailer has an initial glitch,
+            // but the user remains unverified inside MongoDB.
+        }
+
+        // 8. Generate standard access token so frontend can keep them in state
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        // 7. Send payload back exactly matching the keys your frontend fetches
+        // 9. Send payload back. Frontend will read 'isEmailVerified: false' and route to the cooldown screen
         res.status(201).json({
             token,
             user: {
                 id: newUser._id,
                 fullName: newUser.fullName,
                 role: newUser.role,
-                accountStrength: newUser.accountStrength
+                accountStrength: newUser.accountStrength,
+                isEmailVerified: false
             }
         });
 
     } catch (err) {
         console.error("Finalize Account Error:", err.message);
         res.status(500).json({ msg: "Critical server error processing account completion." });
+    }
+};
+
+
+
+// VERIFY EMAIL TOKEN (Activates the account when the inbox link is clicked)
+exports.verifyEmail = async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ msg: "Verification token is required." });
+        }
+
+        // 1. Find the user with this exact token AND check if the token hasn't expired yet
+        const user = await User.findOne({
+            verificationToken: token,
+            verificationTokenExpires: { $gt: Date.now() } // $gt means "greater than now"
+        });
+
+        // 2. If no user is found, the link is either fake or expired
+        if (!user) {
+            return res.status(400).json({ 
+                msg: "The verification link is invalid or has expired. Please request a new one." 
+            });
+        }
+
+        // 3. Update user status and wipe out the temporary token fields
+        user.isEmailVerified = true;
+        user.verificationToken = null;
+        user.verificationTokenExpires = null;
+        
+        // Boost their account profile strength gauge for verifying their email!
+        user.calculateStrength(); 
+
+        await user.save();
+
+        // 4. Return success data along with an updated JWT access token
+        const newJwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+        res.status(200).json({
+            msg: "Email successfully verified!",
+            token: newJwtToken,
+            user: {
+                id: user._id,
+                fullName: user.fullName,
+                role: user.role,
+                accountStrength: user.accountStrength,
+                isEmailVerified: true
+            }
+        });
+
+    } catch (err) {
+        console.error("Verify Email Route Error:", err.message);
+        res.status(500).json({ msg: "Server error during email activation." });
     }
 };
