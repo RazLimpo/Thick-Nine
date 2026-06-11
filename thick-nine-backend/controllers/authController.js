@@ -249,3 +249,37 @@ exports.verifyEmail = async (req, res) => {
         res.status(500).json({ msg: "Server error during email activation." });
     }
 };
+
+
+// RESEND VERIFICATION EMAIL (Generates a fresh token and dispatches a new email link)
+exports.resendVerification = async (req, res) => {
+    try {
+        // req.user.id will come from your auth middleware since the user is logged in but unverified
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ msg: "User account not found." });
+        }
+
+        if (user.isEmailVerified) {
+            return res.status(400).json({ msg: "This email address is already verified." });
+        }
+
+        // Generate a brand new fresh token and extend it for another 24 hours
+        const newVerificationToken = crypto.randomBytes(32).toString('hex');
+        const newTokenExpiry = Date.now() + 24 * 60 * 60 * 1000;
+
+        user.verificationToken = newVerificationToken;
+        user.verificationTokenExpires = newTokenExpiry;
+        await user.save();
+
+        // Dispatch via your custom iPage SMTP server
+        await emailService.sendVerificationEmail(user.email, newVerificationToken);
+
+        res.status(200).json({ msg: "A fresh verification link has been sent to your inbox!" });
+
+    } catch (err) {
+        console.error("Resend Verification Error:", err.message);
+        res.status(500).json({ msg: "Server error while processing your resend request." });
+    }
+};

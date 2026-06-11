@@ -338,7 +338,8 @@ if (!isSafePage) {
     const userData = { fullName: "New User", username: email.split('@')[0], email, password, role: "client" };
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      // 🔗 Hit your live, updated endpoint route
+      const response = await fetch(`${API_BASE_URL}/api/auth/finalize-account`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
@@ -346,22 +347,27 @@ if (!isSafePage) {
 
       const data = await response.json();
 
-      
-      
       if (response.ok) {
+        // 🔐 LIVE VERIFICATION ALIGNMENT:
+        // Set state to unverified so the Security Guard captures it and handles redirects
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', data.user.role || 'client');
-        localStorage.setItem('userName', data.user.username || 'New User');
-        localStorage.setItem('accountStrength', '50'); // <-- ADD THIS LINE HERE
+        localStorage.setItem('isEmailVerified', 'false');    // ❌ Block access until inbox link is clicked
+        localStorage.setItem('isProfileComplete', 'false');   // ❌ Force profile data questionnaire afterwards
+        localStorage.setItem('accountStrength', (data.user.accountStrength || 50).toString());
         localStorage.setItem('registrationTimestamp', Date.now().toString());
       
-      
-      
-      
+        // Synchronize local React state flags
         setIsLoggedIn(true);
         setUserRole(data.user.role || 'client');
-        showToast("Account created! Check email to verify.", "fa-user-check");
+        setIsEmailVerified(false);
+        setIsProfileComplete(false);
+
+        closeAllUI(); // Cleanly shut down the overlay modal drawer
+        showToast("Account created! Check your email inbox to verify.", "fa-paper-plane");
+        
+        // Push the user to the verification pending holding screen
         setTimeout(() => router.push('/verify-email'), 1500);
       } else {
         showToast(data.msg || "Registration failed", "fa-exclamation-triangle");
@@ -372,6 +378,7 @@ if (!isSafePage) {
       setIsLoading(false);
     }
   };
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

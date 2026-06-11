@@ -1,17 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const auth = require('../middleware/auth'); 
 
-// Route for Registration
-router.post('/register', authController.register);
-
-// Route for Login (Uncomment this now)
-router.post('/login', authController.login);
-
-// Route for Finalizing Account Onboarding (Paste it here)
+// 1. Initial Quick Signup (Called by Header.tsx - fires verification email)
 router.post('/finalize-account', authController.finalizeAccount);
 
-// Route for verifying email token via inbox link click
+// 2. Account Login
+router.post('/login', authController.login);
+
+// 3. Email Verification Link Handler (Triggered by the inbox button click)
 router.post('/verify-email', authController.verifyEmail);
+
+// 4. Resend Verification Request (Protected by your token validation middleware)
+router.post('/resend-verification', auth, authController.resendVerification);
 
 module.exports = router;
