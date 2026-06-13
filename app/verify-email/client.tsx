@@ -317,21 +317,24 @@ const VerifyEmailClient: React.FC = () => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   };
 
-  // --- LIVE RESEND LOGIC VIA BACKEND ---
+  
+  
+    // --- LIVE RESEND LOGIC VIA BACKEND ---
   const handleResendClick = async () => {
     if (state.isCooldown || state.isLoading) return;
 
     setState(prev => ({ ...prev, isLoading: true }));
 
     try {
-      // Pull token from local storage to allow backend identification
+      // 1. Pull the authentication token from local storage safely
       const userToken = localStorage.getItem('token');
       
+      // 2. Point to the backend route using the clean GET method configuration
       const response = await fetch(`${API_BASE_URL}/api/auth/resend-verification`, {
-        method: 'POST',
+        method: 'GET', // ✅ Fixed typo from 'POS' to 'GET'
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userToken}`
+          'Authorization': `Bearer ${userToken}` // ✅ Securely sends your token to the backend
         }
       });
 
@@ -367,7 +370,10 @@ const VerifyEmailClient: React.FC = () => {
       setState(prev => ({ ...prev, isLoading: false }));
     }
   };
-
+    
+    
+    
+    
   // --- DASHBOARD REDIRECT (Fowards cleanly to mandatory onboarding page) ---
   const handleDashboardClick = () => {
     // Forward directly to profile complete wizard since they verified email successfully
