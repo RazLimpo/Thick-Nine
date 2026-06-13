@@ -13,6 +13,6 @@ router.post('/login', authController.login);
 router.post('/verify-email', authController.verifyEmail);
 
 // 4. Resend Verification Request (Protected by your token validation middleware)
-router.post('/resend-verification', auth, authController.resendVerification);
+router.get('/resend-verification', auth, authController.resendVerification);
 
 module.exports = router;

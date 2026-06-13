@@ -78,29 +78,33 @@ const ExpiredCard: React.FC<ExpiredCardProps> = ({
     <h1>Link Expired</h1>
     <p>For your security, verification links expire after 24 hours. Please request a new link.</p>
     
-    <button 
-      id="btn-resend" 
-      className="neumorph-btn" 
-      onClick={onResendClick}
-      disabled={isCooldown || isLoading}
-      style={{
-        opacity: isCooldown || isLoading ? '0.7' : '1',
-        pointerEvents: isCooldown || isLoading ? 'none' : 'auto',
-      }}
-    >
-      {isLoading ? (
-        <>
-  <i className="fa-solid fa-spinner fa-spin"></i>
-  {' '}Sending...
-</>
-      ) : (
-       <>
-  <i className="fa-solid fa-paper-plane"></i>
-  {' '}Resend Verification Link
-</>
-      )}
-    </button>
+   <button 
+  id="btn-resend" 
+  className="neumorph-btn" 
+  onClick={(e) => {
+    e.preventDefault(); // 🛑 Stops default browser page reloads
+    onResendClick();
+  }}
+  disabled={isCooldown || isLoading}
+  style={{
+    opacity: isCooldown || isLoading ? '0.7' : '1',
+    pointerEvents: isCooldown || isLoading ? 'none' : 'auto',
+  }}
+>
+  {isLoading ? (
+    <>
+      <i className="fa-solid fa-spinner fa-spin"></i>
+      {' '}Sending...
+    </>
+  ) : (
+    <>
+      <i className="fa-solid fa-paper-plane"></i>
+      {' '}Resend Verification Link
+    </>
+  )}
+</button> 
     
+      
     {isCooldown && (
       <p id="resend-timer" style={{ marginTop: '20px', color: '#555', fontSize: '0.98rem' }}>
         You can resend again in <span id="timer-seconds">{timerSeconds}</span> seconds
@@ -130,14 +134,21 @@ const PendingCard: React.FC<PendingCardProps> = ({ onResendClick, isLoading, isC
     <h1>Verify Your Email</h1>
     <p>We have sent a verification link to your email address. Please open it to activate your account.</p>
     
-    <button 
-      id="btn-resend" 
-      className="neumorph-btn" 
-      onClick={onResendClick}
-      disabled={isCooldown || isLoading}
-    >
-      {isLoading ? <><i className="fa-solid fa-spinner fa-spin"></i> Sending...</> : <><i className="fa-solid fa-paper-plane"></i> Resend Email</>}
-    </button>
+   <button 
+  id="btn-resend" 
+  className="neumorph-btn" 
+  onClick={(e) => {
+    e.preventDefault(); // 🛑 Stops default browser page reloads
+    onResendClick();
+  }}
+  disabled={isCooldown || isLoading}
+>
+  {isLoading ? (
+    <><i className="fa-solid fa-spinner fa-spin"></i> Sending...</>
+  ) : (
+    <><i className="fa-solid fa-paper-plane"></i> Resend Email</>
+  )}
+</button>
     
     {isCooldown && (
       <p style={{ marginTop: '20px', color: '#555', fontSize: '0.98rem' }}>
