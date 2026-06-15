@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server';
-import mongoose from 'mongoose';
+import { connectDB } from '@/lib/db'; // 1. Uses your centralized connection tool
 
 export async function GET() {
   try {
-    // 1. Connect to MongoDB using your environment variable
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI as string);
-    }
+    // 2. Safely connect using our optimized production pool settings
+    await connectDB();
 
-    // 2. Fetch data (Replace 'Service' with your actual model name)
-    // For a quick test, we can just return a success message
+    // 3. Return a clean, successful live connection ping
     return NextResponse.json({ 
       status: "Connected", 
-      message: "Database is live!",
+      message: "Database is live using optimized pool configs!",
       timestamp: new Date().toISOString()
     });
   } catch (error) {

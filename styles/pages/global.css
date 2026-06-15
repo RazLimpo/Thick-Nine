@@ -1,5 +1,13 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
 
+/* Inside styles/pages/global.css */
+@import "./header.css";
+@import "./footer.css";
+
+/* 1. Inject Tailwind's core styles cleanly below your layout structural imports */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /* ---------------------------------------------------- */    
 /* 0. Global Reset and Variables */
 
