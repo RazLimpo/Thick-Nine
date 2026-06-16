@@ -54,7 +54,7 @@ const connectionOptions = {
   socketTimeoutMS: 45000,         // THE STABILITY FIX: Keeps connection alive
 };
 
-console.log("DEBUG: Your database connection string is:", process.env.MONGO_URI);
+console.log("DEBUG: Your database connection string is:", process.env.MONGODB_URI);
 
 mongoose.connect(process.env.MONGODB_URI, connectionOptions)
   .then(() => {
