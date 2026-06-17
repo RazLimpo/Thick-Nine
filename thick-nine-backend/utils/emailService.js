@@ -1,39 +1,77 @@
 // utils/emailService.js
 const nodemailer = require('nodemailer');
 
-// 1. Initialize the Outgoing Mail Transporter using secure port 465 SSL settings
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,           
-  secure: true,        // Must be true for port 465
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // Make sure spaces are removed!
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-  connectionTimeout: 10000,
-  socketTimeout: 12000,
-  debug: true,
-  logger: true,
-});
+// Lazy-load transporter to ensure .env is loaded
+let transporter = null;
 
-// Self-verify the handshake connection on file startup
-transporter.verify((error) => {
-  if (error) {
-    console.error('❌ Transporter failed:', error.message);
-  } else {
-    console.log('✅ Transporter ready (using port 465)');
+function createTransporter() {
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASS;
+  const emailPort = parseInt(process.env.EMAIL_PORT || '465', 10);
+  
+  if (!emailUser || !emailPass) {
+    console.error('❌ EMAIL_USER or EMAIL_PASS not set in environment variables');
+    throw new Error('Missing email credentials in environment');
   }
-});
+
+  const isSecurePort = emailPort === 465;
+
+  const config = {
+    host: 'smtp.gmail.com',
+    port: emailPort,
+    secure: isSecurePort,  // true for 465, false for 587
+    auth: {
+      user: emailUser,
+      pass: emailPass,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 5000,
+    socketTimeout: 5000,
+    greetingTimeout: 5000,
+    debug: true,
+    logger: true,
+  };
+
+  console.log(`📧 Creating transporter: ${emailUser} on port ${emailPort} (secure: ${isSecurePort})`);
+  return nodemailer.createTransport(config);
+}
+
+function getTransporter() {
+  if (!transporter) {
+    try {
+      transporter = createTransporter();
+      
+      // Non-blocking verification
+      transporter.verify((error, success) => {
+        if (error) {
+          console.error('❌ Transporter verification failed:', error.message);
+          transporter = null; // Reset on failure
+        } else if (success) {
+          console.log(`✅ Transporter ready (Gmail SMTP on port ${process.env.EMAIL_PORT || 465})`);
+        }
+      });
+    } catch (err) {
+      console.error('❌ Failed to create transporter:', err.message);
+      throw err;
+    }
+  }
+  return transporter;
+}
 
 exports.sendVerificationEmail = async (toEmail, token) => {
-  if (!toEmail || !token) throw new Error('Missing parameters');
+  if (!toEmail || !token) {
+    throw new Error('Missing parameters: toEmail and token are required');
+  }
 
   try {
-    // Fixed string interpolation syntax
-    const verificationUrl = `${process.env.BASE_URL}/verify-email?token=${token}`;
+    const baseUrl = process.env.BASE_URL;
+    if (!baseUrl) {
+      throw new Error('BASE_URL not set in environment variables');
+    }
+
+    const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
 
     const mailOptions = {
       from: `"Thick 9 Security" <${process.env.EMAIL_USER}>`,
@@ -52,11 +90,16 @@ exports.sendVerificationEmail = async (toEmail, token) => {
       `
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const mailer = getTransporter();
+    console.log(`📤 Sending email to: ${toEmail}`);
+    
+    const info = await mailer.sendMail(mailOptions);
+    
+    console.log('✅ Verification email sent successfully. Message ID:', info.messageId);
     return info;
 
   } catch (error) {
-    console.error('Send Error:', error.message);
+    console.error('❌ Send Error:', error.message);
     throw error;
   }
 };

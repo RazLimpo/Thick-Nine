@@ -138,7 +138,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-12 px-6">
         <div className="max-w-6xl mx-auto text-center">
-          <p className="mb-2">Made for tesssssting purposes</p>
+          <p className="mb-2">Made for testing purposes</p>
           <p className="text-sm">Feel free to customize anything you want!</p>
         </div>
       </footer>
