@@ -283,9 +283,17 @@ if (!isSafePage) {
     if (userRole === 'freelancer') profilePath = "/freelancer-profile";
     else if (userRole === 'affiliate') profilePath = "/affiliate-profile";
 
-    items.push(
-      <li key="profile"><Link href={profilePath} role="menuitem"><i className="fas fa-user"></i> Profile</Link></li>
-    );
+    
+// ✅ Corrected line:
+items.push(
+  <li key="profile">
+    <Link href={profilePath} role="menuitem" onClick={closeAllUI}>
+      <i className="fas fa-user"></i> Profile
+    </Link>
+  </li>
+);
+
+
 
     if (userRole === 'freelancer') {
       items.push(
@@ -404,18 +412,22 @@ if (!isSafePage) {
 
       const data = await response.json();
 
+      
       if (response.ok) {
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userRole', data.user.role || 'client');
-        
-        // ADD THIS LINE TO SAVE ACCOUNT STRENGTH 
-        localStorage.setItem('accountStrength', (data.user.accountStrength || 0).toString()); 
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userRole', data.user.role || 'client');
+      localStorage.setItem('accountStrength', (data.user.accountStrength || 0).toString()); 
+      localStorage.setItem('isEmailVerified', (data.user.isEmailVerified ?? false).toString());
+      localStorage.setItem('isProfileComplete', (data.user.isProfileComplete ?? false).toString());
 
-        setIsLoggedIn(true);
-        setUserRole(data.user.role || 'client');
-        
-        closeAllUI();
+      setIsLoggedIn(true);
+      setUserRole(data.user.role || 'client');
+      setIsEmailVerified(data.user.isEmailVerified ?? false);
+      setIsProfileComplete(data.user.isProfileComplete ?? false);
+      
+      closeAllUI();      
+      
         
         showToast(`Welcome back, ${data.user.fullName || 'User'}!`, "fa-sign-in-alt");
         setTimeout(() => router.push('/'), 1200);

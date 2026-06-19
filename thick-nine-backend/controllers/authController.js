@@ -97,9 +97,13 @@ exports.login = async (req, res) => {
                 fullName: user.fullName, 
                 role: user.role,
                 planType: user.planType,
-                accountStrength: strength 
+                accountStrength: strength,
+                isEmailVerified: user.isEmailVerified, // Added 🔑
+                isProfileComplete: user.isProfileComplete // Added 🔑
             }
         });
+
+
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server Error during login");
