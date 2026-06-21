@@ -26,9 +26,9 @@
 }
 
 /* Gradients for text readability while showing the image */
-.slide-1 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('images/hero-2.webp'); }
-.slide-2 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('images/hero-2.webp'); }
-.slide-3 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('images/hero-3.webp'); }
+.slide-1 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('/images/index/hero-1.webp'); }
+.slide-2 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('/images/index/hero-2.webp'); }
+.slide-3 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('/images/index/hero-3.webp'); }
 
 @keyframes heroMasterSlider {
   0%, 30% { transform: translateX(0); }
@@ -341,7 +341,9 @@
   grid-template-columns: repeat(3, minmax(0, 1fr)); 
   gap: 20px;
   width: 100%;
-  background: none; /* Keeps it clean */
+  max-width: 100%;
+  overflow: hidden;
+  background: none;
 }
 
 
@@ -371,10 +373,24 @@
       position: relative;
       order: -1; /* Sidebar on top of services */
   }
+  
+
+  .services-main-col {
+      width: 100%;
+  }
+
+
   #homepage-service-grid {
       grid-template-columns: 1fr;
+      width: 100%;
   }
-  
+
+
+  .mjob-card {
+      width: 100%;
+      max-width: 100%;
+  }
+      
   
   .sidebar-sticky-wrapper {
       display: flex; /* Lines widgets up in a row */
