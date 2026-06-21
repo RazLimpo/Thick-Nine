@@ -382,7 +382,6 @@
 
   #homepage-service-grid {
       grid-template-columns: 1fr;
-      width: 100%;
   }
 
 
@@ -392,13 +391,7 @@
   }
       
   
-  .sidebar-sticky-wrapper {
-      display: flex; /* Lines widgets up in a row */
-      overflow-x: auto; /* Allows left-to-right swiping */
-      overflow-y: hidden;
-      gap: 15px;
-      padding: 10px;
-  }
+  
   
   .cat-widget {
       min-width: 250px; /* Ensures they don't shrink too small on mobile */

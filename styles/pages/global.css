@@ -300,3 +300,8 @@ main {
   flex: 1; /* Pushes the footer to the very bottom */
     margin: auto;
 }
+
+
+.container {
+    width:100%;
+  }
