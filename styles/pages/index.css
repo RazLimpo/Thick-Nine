@@ -391,7 +391,10 @@
   }
       
   
-  
+ .sidebar-sticky-wrapper {
+  display: block;
+  padding: 10px;
+}
   
   .cat-widget {
       min-width: 250px; /* Ensures they don't shrink too small on mobile */
@@ -607,13 +610,7 @@
   margin-bottom: 15px;
 }
 
-/* Hide Trending Widget on Mobile */
-@media (max-width: 768px) {
-  .trending-widget,
-  .sidebar-main-title {
-      display: none;
-  }
-}
+
 
 
 

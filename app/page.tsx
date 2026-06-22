@@ -16,6 +16,9 @@ from "@/components/CategorySidebar/CategorySidebar";
 import TrendingWidget 
 from "@/components/TrendingWidget/TrendingWidget";
 
+import ValueSection 
+from "@/components/ValueSection/ValueSection";
+
 
 
 export default function HomePage(){
@@ -60,6 +63,7 @@ return(
 
 </section>
 
+<ValueSection />
 
 
 </main>

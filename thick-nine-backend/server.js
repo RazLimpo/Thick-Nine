@@ -2,6 +2,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const auth = require('./middleware/auth');
 const { BRAND } = require('../lib/constants');
 require('dotenv').config();
 
@@ -79,21 +80,31 @@ app.get('/', (req, res) => {
 });
 
 
+
 // SERVICE ROUTES
 app.get('/api/services', async (req, res) => {
   try {
-    const services = await Service.find();
+    // Advanced touch: .populate('sellerId', 'fullName avatar') lets the frontend 
+    // fetch the creator's name and image alongside the service automatically!
+    const services = await Service.find().populate('sellerId', 'fullName avatar');
     res.json(services);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-app.post('/api/services', async (req, res) => {
+app.post('/api/services', auth, async (req, res) => {
+  // 1. Extract dynamic data sent from your frontend forms
+  const { title, price, description, category, images } = req.body;
+
+  // 2. Build the new service document linking it to the authenticated user
   const service = new Service({
-    title: "Website Design",
-    price: 50,
-    description: "I will build you a professional Next.js website."
+    sellerId: req.user.id, // ✅ Automatically grabbed from your JWT auth token!
+    title,
+    price,
+    description,
+    category,
+    images
   });
 
   try {
@@ -103,6 +114,8 @@ app.post('/api/services', async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
+
+
 
 // 5. Start Server
 app.listen(PORT, () => {
