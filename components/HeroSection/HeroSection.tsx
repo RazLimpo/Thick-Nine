@@ -3,11 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+interface SubCategoryMapping {
+  name: string;
+  parentCategory: string;
+}
+
 interface HeroSlide {
   id: number;
   className: string;
   headline: string;
-  categories: string[];
+  categories: SubCategoryMapping[];
 }
 
 const heroSlides: HeroSlide[] = [
@@ -15,19 +20,34 @@ const heroSlides: HeroSlide[] = [
     id: 1,
     className: 'slide-1',
     headline: 'Build your brand identity now.',
-    categories: ['Logo Design', 'Brand Identity', 'Packaging Design', 'UI/UX Design'],
+    categories: [
+      { name: 'Logo Design', parentCategory: 'Graphics & Design' },
+      { name: 'Brand Identity', parentCategory: 'Graphics & Design' },
+      { name: 'Packaging Design', parentCategory: 'Graphics & Design' },
+      { name: 'UI/UX Design', parentCategory: 'Graphics & Design' },
+    ],
   },
   {
     id: 2,
     className: 'slide-2',
     headline: 'Expert web developers are ready to code.',
-    categories: ['eCommerce', 'WordPress', 'Web Apps', 'QA & Testing'],
+    categories: [
+      { name: 'eCommerce', parentCategory: 'Programming & Tech' },
+      { name: 'WordPress', parentCategory: 'Programming & Tech' },
+      { name: 'Web Apps', parentCategory: 'Programming & Tech' },
+      { name: 'QA & Testing', parentCategory: 'Programming & Tech' },
+    ],
   },
   {
     id: 3,
     className: 'slide-3',
     headline: 'Skyrocket your traffic with digital marketing pros.',
-    categories: ['SEO', 'Social Media', 'Content Marketing', 'Lead Generation'],
+    categories: [
+      { name: 'SEO', parentCategory: 'Digital Marketing' },
+      { name: 'Social Media', parentCategory: 'Digital Marketing' },
+      { name: 'Content Marketing', parentCategory: 'Digital Marketing' },
+      { name: 'Lead Generation', parentCategory: 'Digital Marketing' },
+    ],
   },
 ];
 
@@ -48,7 +68,6 @@ export default function HeroSection() {
     <section className="hero-section" id="hero-slider" style={{ position: 'relative', overflow: 'hidden', height: '450px' }}>
       
       {/* Content Overlay */}
-      {/* ✅ Fixed inline-style string values below (width: '100%') */}
       <div className="hero-overlay" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }}>
         <h1 className="hero-main-title">Digital Deals</h1>
         <p className="hero-dynamic-text" id="dynamic-headline">
@@ -61,7 +80,7 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* Track - Explicitly forcing horizontal layout alignment */}
+      {/* Track */}
       <div
         className="hero-track"
         style={{
@@ -83,10 +102,14 @@ export default function HeroSection() {
               backgroundPosition: 'center'
             }}
           >
+            {/* Maintained inside the track layout loop to preserve your eye-catching sliding transitions */}
             <div className="slide-category-bar">
-              {slide.categories.map((category) => (
-                <Link href={`/search-results?q=${encodeURIComponent(category)}`} key={category}>
-                  {category}
+              {slide.categories.map((cat) => (
+                <Link 
+                  href={`/search-results?category=${encodeURIComponent(cat.parentCategory)}&subcategory=${encodeURIComponent(cat.name)}`} 
+                  key={cat.name}
+                >
+                  {cat.name}
                 </Link>
               ))}
             </div>
