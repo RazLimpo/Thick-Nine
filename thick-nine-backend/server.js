@@ -12,13 +12,13 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ====================== HARDENED PRODUCTION CORS MATRIX ======================
-// Prevents cross-site script validation hijacking while allowing local sandboxes to run smoothly.
 const allowedOriginsRegExp = [
-  /^http:\/\/localhost(:\d+)?$/,                             // Local Dev Environment Ports
-  /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,                  // Automated Vercel Deploy Previews
-  /^https:\/\/[a-zA-Z0-9-]+\.webcontainer\.io$/,             // StackBlitz Dev Containers
-  /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,               // StackBlitz Sandboxes
-  /^https:\/\/osindoworks\.com$/                             // Your Production Apex Domain Name (Replace with your actual live URL)
+  /^http:\/\/localhost(:\d+)?$/,                               // Local Dev Environment Ports
+  /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,                    // Automated Vercel Deploy Previews
+  /^https:\/\/[a-zA-Z0-9-]+\.webcontainer\.io$/,               // StackBlitz Dev Containers
+  /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,                 // StackBlitz Sandboxes
+  /^https:\/\/[a-zA-Z0-9-]+\.[a-z-]+\.staticblitz\.com$/,     // ✅ FIX: Matches StackBlitz Credentialless Previews
+  /^https:\/\/osindoworks\.com$/                               // Production Domain
 ];
 
 app.use(cors({
@@ -50,7 +50,7 @@ app.use(express.json({ limit: '10mb' }));
 
 
 
-// ====================== DATABASE CONNECTION POOL STAGING ======================
+// ====================== ADAPTIVE DATABASE CONNECTION POOL ======================
 // Validates environmental setup configurations without leaking sensitive credential tokens to host logs.
 console.log("Validating Database Configuration Environment:");
 console.log(process.env.MONGODB_URI ? "  ↳ MONGODB_URI: ✅ Environment String Active" : "  ↳ MONGODB_URI: ❌ Missing Critical Parameter");
@@ -66,19 +66,25 @@ const connectionOptions = {
   socketTimeoutMS: 45000,         
 };
 
-// Fire connection pipeline directly into your cloud instance database cluster
-mongoose.connect(process.env.MONGODB_URI, connectionOptions)
-  .then(() => {
-    console.log(`\x1b[32m✅ Database Pipeline Synced: Sourced collection pool targeting "${connectionOptions.dbName}"\x1b[0m`);
-  })
-  .catch((err) => {
-    console.error('\x1b[31m❌ MongoDB Cluster Critical Connection Failure:\x1b[0m', err.message);
-    
-    // Critical Crash Handshake: Force abort processes instantly so live host orchestrators (like Render) 
-    // know to immediately restart the container instance or halt a corrupted pipeline build.
-    process.exit(1); 
-  });
+// ✅ CHECK: If running inside the local StackBlitz sandbox, bypass the cloud handshake entirely
+const isStackBlitz = process.env.NODE_ENV === 'development' || process.env.STACKBLITZ === 'true';
 
+if (isStackBlitz) {
+  console.log('\x1b[33m⚠️  StackBlitz local environment detected: Database connection skipped to prevent sandbox freezes.\x1b[0m');
+} else {
+  // Live Production (Render) execution path: Establishes true socket pipes seamlessly
+  mongoose.connect(process.env.MONGODB_URI, connectionOptions)
+    .then(() => {
+      console.log(`\x1b[32m✅ Database Pipeline Synced: Sourced collection pool targeting "${connectionOptions.dbName}"\x1b[0m`);
+    })
+    .catch((err) => {
+      console.error('\x1b[31m❌ MongoDB Cluster Critical Connection Failure:\x1b[0m', err.message);
+      
+      // Critical Crash Handshake: Force abort processes instantly so live host orchestrators (like Render) 
+      // know to immediately restart the container instance or halt a corrupted pipeline build.
+      process.exit(1); 
+    });
+}
 
 
 

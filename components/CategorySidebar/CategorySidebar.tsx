@@ -38,42 +38,42 @@ const categories: Category[] = [
     name: "Writing",
     label: "Contents",
     displayTitle: "Writing & Translation",
-    image: "/images/categorysidebar/dig4.png",
+    image: "/images/categorysidebar/watch.png",
     className: "bg-writing"
   },
   {
     name: "Music-and-Audio",
     label: "Acoustic",
     displayTitle: "Music & Audio",
-    image: "/images/categorysidebar/music.png",
+    image: "/images/categorysidebar/watch.png",
     className: "bg-music"
   },
   {
     name: "Digital-Marketing",
     label: "Growth",
     displayTitle: "Digital Marketing",
-    image: "/images/categorysidebar/dig1.png",
+    image: "/images/categorysidebar/watch.png",
     className: "bg-marketing"
   },
   {
     name: "Business",
     label: "Professional",
     displayTitle: "Business Services",
-    image: "/images/categorysidebar/3.png",
+    image: "/images/categorysidebar/watch.png",
     className: "bg-business"
   },
   {
     name: "Data-Science",
     label: "Analysis",
     displayTitle: "Data & Analytics",
-    image: "/images/categorysidebar/dig4.png",
+    image: "/images/categorysidebar/watch.png",
     className: "bg-data"
   },
   {
     name: "Travelling",
     label: "Explore",
     displayTitle: "Travelling Services",
-    image: "/images/categorysidebar/travelling.png",
+    image: "/images/categorysidebar/watch.png",
     className: "bg-travelling"
   },
   {
