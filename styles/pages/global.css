@@ -57,7 +57,7 @@ body {
     font-size: 15px; 
 
     /* ZONE RULE: Automatically reserves space for the fixed header */
-    padding-top: var(--header-height) !important;
+    
 }
 
 /* ---------------------------------------------------- */    

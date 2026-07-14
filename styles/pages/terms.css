@@ -1,0 +1,128 @@
+.legal-container {
+    max-width: 900px;
+    margin: 100px auto 60px;
+    padding: 50px;
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+/* Tab Navigation Elements */
+.legal-tab-nav {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 35px;
+    border-bottom: 2px solid #f4f4f4;
+    padding-bottom: 15px;
+}
+
+.tab-btn {
+    padding: 10px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    color: #666;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    color: var(--primary-color);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.tab-btn.active {
+    color: #fff;
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.legal-header {
+    border-bottom: 2px solid #f4f4f4;
+    padding-bottom: 30px;
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+.legal-header h1 {
+    color: var(--secondary-color);
+    font-size: 2.2rem;
+    margin-bottom: 10px;
+}
+
+.last-updated {
+    color: #888;
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+.legal-content section {
+    margin-bottom: 45px;
+}
+
+.legal-content h2 {
+    color: var(--primary-color);
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+    border-left: 5px solid var(--primary-color);
+    padding-left: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.legal-content h3 {
+    font-size: 1.1rem;
+    margin: 25px 0 15px;
+    color: #333;
+    text-decoration: underline;
+}
+
+.legal-content p, .legal-content li {
+    color: #444;
+    line-height: 1.8;
+    margin-bottom: 15px;
+    font-size: 1rem;
+}
+
+.legal-content ul, .legal-content ol {
+    padding-left: 25px;
+    margin-bottom: 25px;
+}
+
+.legal-content .highlight-box {
+    background: #fdf2f2;
+    border: 1px solid #f9d6d6;
+    padding: 25px;
+    border-radius: 10px;
+    margin: 25px 0;
+}
+
+.back-home {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 30px;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.sub-text { 
+    font-size: 0.9rem; 
+    color: #777; 
+}
+
+/* Inline Switch Trigger Buttons */
+.inline-link-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-weight: bold;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    display: inline;
+}

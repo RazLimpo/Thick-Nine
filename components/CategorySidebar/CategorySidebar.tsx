@@ -111,14 +111,14 @@ export default function CategorySidebar() {
                 <h4>{category.displayTitle}</h4>
               </div>
 
-              {/* Next.js Optimized Image inheriting your fluid CSS aspect ratios */}
-              <div style={{ position: 'absolute', right: '5px', bottom: '0', height: '90%', width: '120px' }}>
+              {/* CLEANED WRAPPER: Styles now managed in index.css */}
+              <div className="cat-widget-img-wrapper">
                 <Image
                   src={category.image}
                   alt={category.displayTitle}
                   fill
                   sizes="120px"
-                  style={{ objectFit: 'contain', objectPosition: 'bottom right' }}
+                  style={{ objectFit: 'cover' }} /* Changed 'contain' to 'cover' to fill the card */
                   priority={category.name === "Graphics" || category.name === "Programming"}
                 />
               </div>
@@ -126,7 +126,6 @@ export default function CategorySidebar() {
           </Link>
         ))}
 
-        {/* Trending Glassmorphic List Container */}
         <TrendingWidget />
         
       </div>

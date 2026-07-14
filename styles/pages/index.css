@@ -464,17 +464,16 @@
   line-height: 1.2;
 }
 
-/* Image Positioning */
-.cat-widget img {
+/* Container for the Next.js Image */
+.cat-widget-img-wrapper {
   position: absolute;
-  right: 5px;
-  bottom: 0;
-  height: 90%; /* Scale based on widget height */
-  width: auto;
-  object-fit: contain;
+  right: 0;
+  top: 0;
+  height: 100%;    /* Fills the height of the card completely */
+  width: 130px;    /* Matches your design width */
   z-index: 1;
+  overflow: hidden; /* Clips the background to the card's rounded borders */
 }
-
 /* Specific Solid Background Colors (Matching your images) */
 /* Custom Palette for Widgets */
 .bg-business { background-color: #4a90e2; }
