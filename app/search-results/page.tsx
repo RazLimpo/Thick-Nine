@@ -1,6 +1,5 @@
-import React from 'react';
-import AffiliateDashboard from './client';
+import SearchResultsClient from "./client";
 
-export default function AffiliateDashboardPage() {
-  return <AffiliateDashboard />;
+export default function SearchResultsPage() {
+  return <SearchResultsClient />;
 }

@@ -1,10 +1,22 @@
-import React from 'react';
+"use client";
 
-export default function AffiliateDashboard() {
+import SearchSidebar from "@/components/SearchResults/SearchSidebar";
+import '@/styles/pages/search-results.css';
+
+export default function SearchResultsClient() {
   return (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <h1>Affiliate Dashboard</h1>
-      <p>This page is currently under construction for the live environment.</p>
-    </div>
+    <main className="search-page-container">
+      <SearchSidebar />
+
+      <section className="search-main-content">
+        {/* SponsoredCarousel */}
+
+        {/* ResultsControls */}
+
+        {/* ResultsGrid */}
+
+        {/* Pagination */}
+      </section>
+    </main>
   );
 }
