@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useState, useRef } from "react";
+import { useServices } from "@/hooks/useServices";
 import ServiceCard from "@/components/ServiceCard/ServiceCard";
-import { API_BASE_URL } from "@/lib/constants";
+
 
 interface Service {
   id: number;
