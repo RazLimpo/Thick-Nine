@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import '@/styles/pages/terms.css';
 
+
+
 type LegalTab = 'terms' | 'privacy';
 
 export default function TermsClientLayout() {
@@ -51,7 +53,7 @@ export default function TermsClientLayout() {
             <div className="legal-header">
               <h1>Thick 9 International Terms of Service</h1>
               <p className="last-updated">Last Update: 27 June, 2026</p>
-              <p className="sub-text">Welcome to www.thick9.com</p>
+              <p className="sub-text">Welcome to <Link href="https://thick9.com">www.thick9.com</Link></p>
             </div>
 
             <div className="legal-content">
@@ -63,8 +65,8 @@ export default function TermsClientLayout() {
               <section>
                 <h2>A Pact Between a User and Thick 9 Int.</h2>
                 <p>This website has been established only to assist user(s) to engage themselves in business transactions that have the capability of being rendered and delivered via online in our hustle free and well secured cyber environment. This website is for no other purpose than this. All activities of a user of the website must have bearing on digital related service(s) that are spelt out within the confinement of these terms and conditions.</p>
-                <p>The following Terms of Service govern your access to and use of the Thick 9 website, including any content, functionality and service offered on or through www.thick9.com by Thick 9 Int., as applicable. Thick 9 Int., referred hereto as “Thick 9”, “we” or “us” and “you” or “user” means you as a user of the site.</p>
-                <div class="highlight-box">
+                <p>The following Terms of Service govern your access to and use of the Thick 9 website, including any content, functionality and service offered on or through <Link href="https://thick9.com">www.thick9.com</Link> by Thick 9 Int., as applicable. Thick 9 Int., referred hereto as “Thick 9”, “we” or “us” and “you” or “user” means you as a user of the site.</p>
+                <div className="highlight-box">
                   <p><strong>Please read these Terms of Use carefully before using this website.</strong> By accessing, browsing, or using this website, you acknowledge that you have read (or read to), understood, and agreed to be bound by these Terms of Use. You are obliged to read our Privacy Policy too. If you do not accept these Terms of Use or any of its related content, do not use the website.</p>
                 </div>
               </section>
@@ -107,8 +109,8 @@ export default function TermsClientLayout() {
                   <li>3. A verified registered user can buy or sell any digital related services within our frameworks.</li>
                   <li>4. A user’s profile must be kept in its true sense free from misleading or false information.</li>
                   <li>5. Price of an enlisted service is determined by the seller under the monitoring of Thick 9 to prevent exploitation.</li>
-                  <li>6. Buyer-to-Seller payment is an <strong>escrow system managed in USD with a 14-day security hold</strong> for financial security. See "ESCROW, PAYMENTS & WITHDRAWALS" below.</li>
-                  <li>7. Users must not offer or accept payments using any other method than through www.thick9.com.</li>
+                  <li>6. Buyer-to-Seller payment is an <strong>escrow system managed in USD with a 14-day security hold</strong> for financial security. See &quot;ESCROW, PAYMENTS & WITHDRAWALS&quot; below.</li>
+                  <li>7. Users must not offer or accept payments using any other method than through <Link href="https://thick9.com">www.thick9.com</Link>.</li>
                   <li>8. Thick 9 retains the right to use published services, logo designs and testimonials for marketing purposes.</li>
                   <li>9. Communication between users and Thick 9 must be friendly, constructive, and professional.</li>
                   <li>10. As a user, never reveal your password or bank account information to another user.</li>
@@ -130,8 +132,8 @@ export default function TermsClientLayout() {
 
               <section id="escrow-policy">
                 <h2>Escrow, Payments & Withdrawals</h2>
-                <div class="highlight-box">
-                  <p><strong>Important: USD Only + 14-Day Hold</strong> All payments are held in USD in our escrow account. Freelancers are paid 85% of the job value, 14 days after the buyer marks the job "Complete".</p>
+                <div className="highlight-box">
+                  <p><strong>Important: USD Only + 14-Day Hold</strong> All payments are held in USD in our escrow account. Freelancers are paid 85% of the job value, 14 days after the buyer marks the job &quot;Complete&quot;.</p>
                 </div>
 
                 <h3>1. How Buyer Payments Work</h3>
@@ -174,7 +176,7 @@ export default function TermsClientLayout() {
                 <h3>1. Our 3-Step Mediation Process</h3>
                 <ol>
                   <li><strong>Step 1: Talk First - 72 Hours:</strong> Both parties must attempt to resolve the issue in chat within 72 hours of delivery.</li>
-                  <li><strong>Step 2: Raise Dispute:</strong> If no agreement, either party clicks "Raise Dispute". Our team will review chat logs, gig description, files delivered, and deadlines. We make a binding decision within 7 days.</li>
+                  <li><strong>Step 2: Raise Dispute:</strong> If no agreement, either party clicks &quot;Raise Dispute&quot;. Our team will review chat logs, gig description, files delivered, and deadlines. We make a binding decision within 7 days.</li>
                   <li><strong>Step 3: Escrow Decision:</strong> Outcome A: Freelancer wins = Funds released after 14-day hold. Outcome B: Buyer wins = Partial or full refund from escrow. Outcome C: Split = We can split funds 50/50.</li>
                 </ol>
 
@@ -225,8 +227,8 @@ export default function TermsClientLayout() {
 
             <div className="legal-content">
               <section>
-                <p>This privacy policy discloses the privacy practices for <strong>Thick 9 Int.</strong> web platform. This policy applies solely to information collected by this website. By accessing or using www.thick9.com, you acknowledge this policy as legally binding.</p>
-                <div class="highlight-box">
+                <p>This privacy policy discloses the privacy practices for <strong>Thick 9 Int.</strong> web platform. This policy applies solely to information collected by this website. By accessing or using <Link href="https://thick9.com">www.thick9.com</Link>, you acknowledge this policy as legally binding.</p>
+                <div className="highlight-box">
                   <p><strong>This policy notifies you of:</strong></p>
                   <ul>
                     <li>What personally identifiable information is collected and how it is used.</li>
@@ -257,7 +259,7 @@ export default function TermsClientLayout() {
 
               <section>
                 <h2>3. Cookies and Tracking</h2>
-                <p>We use "cookies" on this site. A cookie is a piece of data stored on a site visitor's hard drive to help us improve your access to our site and identify repeat visitors. Cookies enable us to track and target the interests of our users to enhance their experience on our site. Usage of a cookie is in no way linked to any personally identifiable information on our site.</p>
+                <p>We use &quot;cookies&quot; on this site. A cookie is a piece of data stored on a site visitor's hard drive to help us improve your access to our site and identify repeat visitors. Cookies enable us to track and target the interests of our users to enhance their experience on our site. Usage of a cookie is in no way linked to any personally identifiable information on our site.</p>
               </section>
 
               <section>
@@ -274,7 +276,7 @@ export default function TermsClientLayout() {
               <section>
                 <h2>5. Security</h2>
                 <p>We take precautions to protect your information. When you submit sensitive information via the website, your information is protected both online and offline.</p>
-                <p>Wherever we collect sensitive information (such as credit card data), that information is encrypted and transmitted to us in a secure way. You can verify this by looking for a lock icon in the address bar and looking for "https" at the beginning of the address of the Web page.</p>
+                <p>Wherever we collect sensitive information (such as credit card data), that information is encrypted and transmitted to us in a secure way. You can verify this by looking for a lock icon in the address bar and looking for &quot;https&quot; at the beginning of the address of the Web page.</p>
                 <p>While we use encryption to protect sensitive information transmitted online, we also protect your information offline. Only employees who need the information to perform a specific job (for example, billing or customer service) are granted access to personally identifiable information.</p>
               </section>
 
