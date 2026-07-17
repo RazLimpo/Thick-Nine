@@ -259,7 +259,7 @@ export default function TermsClientLayout() {
 
               <section>
                 <h2>3. Cookies and Tracking</h2>
-                <p>We use &quot;cookies&quot; on this site. A cookie is a piece of data stored on a site visitor's hard drive to help us improve your access to our site and identify repeat visitors. Cookies enable us to track and target the interests of our users to enhance their experience on our site. Usage of a cookie is in no way linked to any personally identifiable information on our site.</p>
+                <p>We use &quot;cookies&quot; on this site. A cookie is a piece of data stored on a site visitor&apos;s hard drive to help us improve your access to our site and identify repeat visitors. Cookies enable us to track and target the interests of our users to enhance their experience on our site. Usage of a cookie is in no way linked to any personally identifiable information on our site.</p>
               </section>
 
               <section>
