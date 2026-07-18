@@ -105,9 +105,24 @@ app.get('/api/services', async (req, res) => {
   try {
     // Slices into your cluster to return available services, 
     // seamlessly populating the associated seller's profile details.
-    const services = await Service.find()
-      .populate('sellerId', 'fullName avatar')
-      .sort({ createdAt: -1 }); // Production enhancement: Puts newest gigs first
+    const services = await Service.find({
+  status: "active"
+})
+.populate(
+  "sellerId",
+  `
+  fullName
+  avatar
+  level
+  professionalTitle
+  onlineStatus
+  isVerified
+  location
+  metrics
+  memberSince
+  `
+)
+.sort({ createdAt: -1 });
     
     res.json(services);
   } catch (err) {
@@ -143,11 +158,29 @@ app.post('/api/services', auth, async (req, res) => {
 
   try {
     const newService = await service.save();
-    res.status(201).json({
-      success: true,
-      message: "Marketplace service created successfully!",
-      data: newService
-    });
+
+const populatedService = await Service.findById(newService._id)
+  .populate(
+    "sellerId",
+    `
+    fullName
+    avatar
+    level
+    professionalTitle
+    onlineStatus
+    isVerified
+    location
+    metrics
+    memberSince
+    `
+  );
+
+res.status(201).json({
+  success: true,
+  message: "Marketplace service created successfully!",
+  data: populatedService
+});
+      
   } catch (err) {
     res.status(400).json({ 
       success: false, 
@@ -161,7 +194,6 @@ app.post('/api/services', auth, async (req, res) => {
 app.listen(PORT, () => {
   console.log(`\x1b[36m🚀 Thick 9 System Engine Core successfully initialized on Port ${PORT}\x1b[0m`);
 });
-
 
 
 

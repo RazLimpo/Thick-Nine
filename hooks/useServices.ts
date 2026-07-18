@@ -1,7 +1,9 @@
+// hooks/useServices.ts
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { getServices } from "@/lib/api/services";
+import { mapService } from "@/lib/mappers/serviceMapper"; // ✅ IMPORTED MAPPER
 import type { Service } from "@/types/service";
 
 interface UseServicesResult {
@@ -21,9 +23,14 @@ export function useServices(): UseServicesResult {
       setLoading(true);
       setError(null);
 
-      const data = await getServices();
+      const rawData = await getServices();
 
-      setServices(data);
+      // ✅ MAPPED: Sanitize raw backend objects into the clean UI interface array
+      const mappedData = Array.isArray(rawData) 
+        ? rawData.map((item: any) => mapService(item)) 
+        : [];
+
+      setServices(mappedData);
     } catch (err) {
       console.error(err);
 

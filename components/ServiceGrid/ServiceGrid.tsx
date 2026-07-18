@@ -80,7 +80,7 @@ export default function ServiceGrid() {
         {visibleServices.length > 0 ? (
           visibleServices.map((service) => (
             <ServiceCard
-              key={service._id}
+              key={service.id}
               service={service}
             />
           ))
