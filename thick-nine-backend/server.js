@@ -14,11 +14,12 @@ const PORT = process.env.PORT || 5000;
 // ====================== HARDENED PRODUCTION CORS MATRIX ======================
 const allowedOriginsRegExp = [
   /^http:\/\/localhost(:\d+)?$/,                               // Local Dev Environment Ports
-  /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,                    // Automated Vercel Deploy Previews
-  /^https:\/\/[a-zA-Z0-9-]+\.webcontainer\.io$/,               // StackBlitz Dev Containers
-  /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,                 // StackBlitz Sandboxes
-  /^https:\/\/[a-zA-Z0-9-]+\.[a-z-]+\.staticblitz\.com$/,     // ✅ FIX: Matches StackBlitz Credentialless Previews
-  /^https:\/\/osindoworks\.com$/                               // Production Domain
+  /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,                     // Automated Vercel Deploy Previews
+  /^https:\/\/[a-zA-Z0-9-]+\.webcontainer\.io$/,                // StackBlitz Dev Containers
+  /^https:\/\/[a-zA-Z0-9-]+--\d+--[a-zA-Z0-9-]+\.local-credentialless\.webcontainer\.io$/, // ✅ FIX: Dynamic credentialless previews
+  /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,                   // StackBlitz Sandboxes
+  /^https:\/\/[a-zA-Z0-9-]+\.[a-z-]+\.staticblitz\.com$/,     // Matches StackBlitz Static Previews
+  /^https:\/\/osindoworks\.com$/                                // Production Domain
 ];
 
 app.use(cors({
@@ -44,53 +45,34 @@ app.use(cors({
 // Standard JSON body parser middleware limit adjustments to allow full-stack payload processing
 app.use(express.json({ limit: '10mb' }));
 
-
-
-
-
-
-
 // ====================== ADAPTIVE DATABASE CONNECTION POOL ======================
-// Validates environmental setup configurations without leaking sensitive credential tokens to host logs.
 console.log("Validating Database Configuration Environment:");
 console.log(process.env.MONGODB_URI ? "  ↳ MONGODB_URI: ✅ Environment String Active" : "  ↳ MONGODB_URI: ❌ Missing Critical Parameter");
 
 const connectionOptions = {
-  // Uses your server configuration namespace fallback to stay decoupled from frontend directories
   dbName: process.env.DB_NAME || 'freelancingDB', 
-  
-  // The Safety Gate: Stops long, hung worker routines by cutting dead sync attempts off after 5 seconds
-  serverSelectionTimeoutMS: 5000, 
-  
-  // The Stability Keep-Alive: Maintains persistent cloud communication pipes open during peak loads
-  socketTimeoutMS: 45000,         
+  serverSelectionTimeoutMS: 5000,  // Safety Gate: Stops long hung loops
+  socketTimeoutMS: 45000,          // Keep-Alive connection persistence
 };
 
-// ✅ CHECK: If running inside the local StackBlitz sandbox, bypass the cloud handshake entirely
-const isStackBlitz = process.env.NODE_ENV === 'development' || process.env.STACKBLITZ === 'true';
+// Check for intentional database isolation flag (StackBlitz sandbox workaround)
+const skipDatabase = process.env.SKIP_DB === 'true' || !process.env.MONGODB_URI;
 
-if (isStackBlitz) {
-  console.log('\x1b[33m⚠️  StackBlitz local environment detected: Database connection skipped to prevent sandbox freezes.\x1b[0m');
+if (skipDatabase) {
+  console.log('\x1b[33m⚠️  StackBlitz sandbox mode active: Cloud TCP connection bypassed. Serving memory layer mock hooks.\x1b[0m');
 } else {
-  // Live Production (Render) execution path: Establishes true socket pipes seamlessly
+  // Live Production execution path (Render environment)
   mongoose.connect(process.env.MONGODB_URI, connectionOptions)
     .then(() => {
       console.log(`\x1b[32m✅ Database Pipeline Synced: Sourced collection pool targeting "${connectionOptions.dbName}"\x1b[0m`);
     })
     .catch((err) => {
       console.error('\x1b[31m❌ MongoDB Cluster Critical Connection Failure:\x1b[0m', err.message);
-      
-      // Critical Crash Handshake: Force abort processes instantly so live host orchestrators (like Render) 
-      // know to immediately restart the container instance or halt a corrupted pipeline build.
       process.exit(1); 
     });
 }
 
-
-
-
 // ====================== REST ROUTE SUB-ROUTERS ======================
-// Mounts your user authentication pipeline (Login, Register, Session Validation)
 app.use('/api/auth', authRoutes); 
 
 // Core Server Health Verification Ping Root Route
@@ -102,27 +84,64 @@ app.get('/', (req, res) => {
 
 // 1. Dynamic Service Read Aggregator (Fetch all listed marketplace offerings)
 app.get('/api/services', async (req, res) => {
+  // 🚀 LOCAL STACKBLITZ MOCK FALLBACK LAYER
+  if (skipDatabase) {
+    return res.json([
+      {
+        _id: "mock-srv-001",
+        title: "Full-Stack MERN Application Development",
+        price: 250,
+        description: "Custom full-stack web applications built with Next.js, Express, and modern styling architectures.",
+        category: "Programming & Tech",
+        status: "active",
+        images: [],
+        createdAt: new Date(),
+        sellerId: {
+          _id: "mock-usr-001",
+          fullName: "Alex Rivera",
+          avatar: "",
+          level: "Level 2 Seller",
+          professionalTitle: "Full Stack Engineer",
+          onlineStatus: "online",
+          isVerified: true,
+          location: { city: "Lagos", country: "Nigeria" },
+          metrics: { responseRate: 98, onTimeDelivery: 100, orderCompletion: 95 },
+          memberSince: "2024-01-15"
+        }
+      },
+      {
+        _id: "mock-srv-002",
+        title: "High-Converting SEO & Content Marketing Campaign",
+        price: 120,
+        description: "On-page optimization strategies and fully organic outreach frameworks.",
+        category: "SEO",
+        status: "active",
+        images: [],
+        createdAt: new Date(Date.now() - 86400000),
+        sellerId: {
+          _id: "mock-usr-002",
+          fullName: "Sarah Chen",
+          avatar: "",
+          level: "Top Rated Seller",
+          professionalTitle: "SEO Specialist",
+          onlineStatus: "offline",
+          isVerified: true,
+          location: { city: "Toronto", country: "Canada" },
+          metrics: { responseRate: 100, onTimeDelivery: 99, orderCompletion: 100 },
+          memberSince: "2023-11-02"
+        }
+      }
+    ]);
+  }
+
+  // Live Database Execution Path (Render)
   try {
-    // Slices into your cluster to return available services, 
-    // seamlessly populating the associated seller's profile details.
-    const services = await Service.find({
-  status: "active"
-})
-.populate(
-  "sellerId",
-  `
-  fullName
-  avatar
-  level
-  professionalTitle
-  onlineStatus
-  isVerified
-  location
-  metrics
-  memberSince
-  `
-)
-.sort({ createdAt: -1 });
+    const services = await Service.find({ status: "active" })
+      .populate(
+        "sellerId",
+        "fullName avatar level professionalTitle onlineStatus isVerified location metrics memberSince"
+      )
+      .sort({ createdAt: -1 });
     
     res.json(services);
   } catch (err) {
@@ -138,7 +157,6 @@ app.get('/api/services', async (req, res) => {
 app.post('/api/services', auth, async (req, res) => {
   const { title, price, description, category, images } = req.body;
 
-  // Validation Guard: Ensure required core values exist before attempting execution
   if (!title || !price || !description || !category) {
     return res.status(400).json({ 
       success: false, 
@@ -146,9 +164,38 @@ app.post('/api/services', auth, async (req, res) => {
     });
   }
 
-  // Construct a clean instance mapping the gig properties to the seller's verified JWT token ID
+  // 🚀 LOCAL STACKBLITZ MOCK CREATION INTERCEPTOR
+  if (skipDatabase) {
+    return res.status(201).json({
+      success: true,
+      message: "Marketplace service created successfully! (Mock Sandbox Environment)",
+      data: {
+        _id: `mock-srv-${Math.random().toString(36).substr(2, 9)}`,
+        title,
+        price: Number(price),
+        description,
+        category,
+        images: images || [],
+        createdAt: new Date(),
+        sellerId: {
+          _id: req.user?.id || "mock-usr-current",
+          fullName: "Sandbox Developer",
+          avatar: "",
+          level: "Level 1 Seller",
+          professionalTitle: "Workspace Owner",
+          onlineStatus: "online",
+          isVerified: true,
+          location: { city: "Local", country: "Sandbox" },
+          metrics: { responseRate: 100, onTimeDelivery: 100, orderCompletion: 100 },
+          memberSince: "2026-07-01"
+        }
+      }
+    });
+  }
+
+  // Live Database Execution Path (Render)
   const service = new Service({
-    sellerId: req.user.id, // Injected automatically from your verified 'auth' middleware validation layer
+    sellerId: req.user.id, 
     title,
     price,
     description,
@@ -158,28 +205,17 @@ app.post('/api/services', auth, async (req, res) => {
 
   try {
     const newService = await service.save();
+    const populatedService = await Service.findById(newService._id)
+      .populate(
+        "sellerId",
+        "fullName avatar level professionalTitle onlineStatus isVerified location metrics memberSince"
+      );
 
-const populatedService = await Service.findById(newService._id)
-  .populate(
-    "sellerId",
-    `
-    fullName
-    avatar
-    level
-    professionalTitle
-    onlineStatus
-    isVerified
-    location
-    metrics
-    memberSince
-    `
-  );
-
-res.status(201).json({
-  success: true,
-  message: "Marketplace service created successfully!",
-  data: populatedService
-});
+    res.status(201).json({
+      success: true,
+      message: "Marketplace service created successfully!",
+      data: populatedService
+    });
       
   } catch (err) {
     res.status(400).json({ 
@@ -194,8 +230,3 @@ res.status(201).json({
 app.listen(PORT, () => {
   console.log(`\x1b[36m🚀 Thick 9 System Engine Core successfully initialized on Port ${PORT}\x1b[0m`);
 });
-
-
-
-
-
