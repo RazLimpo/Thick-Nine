@@ -1,3 +1,6 @@
+//thick-nine-backend/server.js
+
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,6 +9,7 @@ require('dotenv').config(); // Hydrates backend parameters safely from the envir
 
 // ====================== DATABASE MODELS & SUB-ROUTERS ======================
 const Service = require('./models/Service'); 
+const User = require('./models/User'); 
 const authRoutes = require('./routes/authRoutes'); 
 
 const app = express();
@@ -14,35 +18,31 @@ const PORT = process.env.PORT || 5000;
 // ====================== HARDENED PRODUCTION CORS MATRIX ======================
 const allowedOriginsRegExp = [
   /^http:\/\/localhost(:\d+)?$/,                               // Local Dev Environment Ports
-  /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,                     // Automated Vercel Deploy Previews
-  /^https:\/\/[a-zA-Z0-9-]+\.webcontainer\.io$/,                // StackBlitz Dev Containers
-  /^https:\/\/[a-zA-Z0-9-]+--\d+--[a-zA-Z0-9-]+\.local-credentialless\.webcontainer\.io$/, // ✅ FIX: Dynamic credentialless previews
-  /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,                   // StackBlitz Sandboxes
+  /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,                    // Automated Vercel Deploy Previews
+  /^https:\/\/[a-zA-Z0-9-]+\.webcontainer\.io$/,               // StackBlitz Dev Containers
+  /^https:\/\/[a-zA-Z0-9-]+--\d+--[a-zA-Z0-9-]+\.local-credentialless\.webcontainer\.io$/, // Dynamic credentialless previews
+  /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,                 // StackBlitz Sandboxes
   /^https:\/\/[a-zA-Z0-9-]+\.[a-z-]+\.staticblitz\.com$/,     // Matches StackBlitz Static Previews
-  /^https:\/\/osindoworks\.com$/                                // Production Domain
+  /^https:\/\/osindoworks\.com$/                               // Production Domain
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // 1. Allow background machine tasks with no origin headers (like local script testing or system crons)
     if (!origin) return callback(null, true);
 
-    // 2. Validate the incoming origin header against our strict regex checklist
     const isAllowed = allowedOriginsRegExp.some(regex => regex.test(origin));
 
     if (isAllowed) {
       callback(null, true);
     } else {
-      // Security Event: Abort request processing to keep authorization tokens isolated
       callback(new Error('CORS Violation: Access denied from unauthorized platform domains.'));
     }
   },
-  credentials: true, // Enables cookies and dynamic bearer token headers to pass through securely
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Standard JSON body parser middleware limit adjustments to allow full-stack payload processing
 app.use(express.json({ limit: '10mb' }));
 
 // ====================== ADAPTIVE DATABASE CONNECTION POOL ======================
@@ -51,17 +51,20 @@ console.log(process.env.MONGODB_URI ? "  ↳ MONGODB_URI: ✅ Environment String
 
 const connectionOptions = {
   dbName: process.env.DB_NAME || 'freelancingDB', 
-  serverSelectionTimeoutMS: 5000,  // Safety Gate: Stops long hung loops
-  socketTimeoutMS: 45000,          // Keep-Alive connection persistence
+  serverSelectionTimeoutMS: 5000, 
+  socketTimeoutMS: 45000,         
 };
 
-// Check for intentional database isolation flag (StackBlitz sandbox workaround)
-const skipDatabase = process.env.SKIP_DB === 'true' || !process.env.MONGODB_URI;
+// Unified sandbox detection (Triggers locally/StackBlitz, bypasses on Render)
+const skipDatabase = 
+  process.env.SKIP_DB === 'true' || 
+  process.env.STACKBLITZ === 'true' || 
+  (process.env.NODE_ENV === 'development' && !process.env.MONGODB_URI) ||
+  !process.env.MONGODB_URI;
 
 if (skipDatabase) {
   console.log('\x1b[33m⚠️  StackBlitz sandbox mode active: Cloud TCP connection bypassed. Serving memory layer mock hooks.\x1b[0m');
 } else {
-  // Live Production execution path (Render environment)
   mongoose.connect(process.env.MONGODB_URI, connectionOptions)
     .then(() => {
       console.log(`\x1b[32m✅ Database Pipeline Synced: Sourced collection pool targeting "${connectionOptions.dbName}"\x1b[0m`);
@@ -75,16 +78,68 @@ if (skipDatabase) {
 // ====================== REST ROUTE SUB-ROUTERS ======================
 app.use('/api/auth', authRoutes); 
 
-// Core Server Health Verification Ping Root Route
 app.get('/', (req, res) => {
   res.send(`OsinoWorks Engine Server API is Live, Secured, and Running smoothly.`);
 });
 
 // ====================== SERVICE MARKETPLACE LOGIC ENDPOINTS ======================
 
-// 1. Dynamic Service Read Aggregator (Fetch all listed marketplace offerings)
+// 0. Dynamic Location Aggregator for Filters
+app.get('/api/services/locations', async (req, res) => {
+  if (skipDatabase) {
+    return res.json({
+      locations: [
+        { label: "Lagos, Nigeria", value: "Lagos, Nigeria" },
+        { label: "Toronto, Canada", value: "Toronto, Canada" }
+      ]
+    });
+  }
+
+  try {
+    const activeSellerIds = await Service.distinct("sellerId", { status: "active" });
+
+    const users = await User.find(
+      { _id: { $in: activeSellerIds } },
+      "location"
+    ).lean();
+
+    const uniqueLocations = new Set();
+
+    users.forEach((user) => {
+      if (!user.location) return;
+
+      const city = user.location.city?.trim();
+      const country = user.location.country?.trim();
+
+      let locationStr = "";
+      if (city && country) {
+        locationStr = `${city}, ${country}`;
+      } else if (city || country) {
+        locationStr = city || country;
+      }
+
+      if (locationStr) {
+        uniqueLocations.add(locationStr);
+      }
+    });
+
+    const locations = Array.from(uniqueLocations)
+      .sort((a, b) => a.localeCompare(b))
+      .map((loc) => ({ label: loc, value: loc }));
+
+    res.json({ locations });
+  } catch (err) {
+    console.error("Error fetching filter locations:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch filter locations", 
+      error: err.message 
+    });
+  }
+});
+
+// 1. Dynamic Service Read Aggregator
 app.get('/api/services', async (req, res) => {
-  // 🚀 LOCAL STACKBLITZ MOCK FALLBACK LAYER
   if (skipDatabase) {
     return res.json([
       {
@@ -134,7 +189,6 @@ app.get('/api/services', async (req, res) => {
     ]);
   }
 
-  // Live Database Execution Path (Render)
   try {
     const services = await Service.find({ status: "active" })
       .populate(
@@ -153,7 +207,7 @@ app.get('/api/services', async (req, res) => {
   }
 });
 
-// 2. Protected Service Creator Endpoint (Post a new marketplace offering)
+// 2. Protected Service Creator Endpoint
 app.post('/api/services', auth, async (req, res) => {
   const { title, price, description, category, images } = req.body;
 
@@ -164,7 +218,6 @@ app.post('/api/services', auth, async (req, res) => {
     });
   }
 
-  // 🚀 LOCAL STACKBLITZ MOCK CREATION INTERCEPTOR
   if (skipDatabase) {
     return res.status(201).json({
       success: true,
@@ -193,9 +246,8 @@ app.post('/api/services', auth, async (req, res) => {
     });
   }
 
-  // Live Database Execution Path (Render)
   const service = new Service({
-    sellerId: req.user.id, 
+    sellerId: req.user.id,
     title,
     price,
     description,
