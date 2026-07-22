@@ -2,62 +2,69 @@
 
 import React, { useState, useEffect } from "react";
 
-interface BudgetFilterProps {
+export interface BudgetFilterProps {
+  // Support both naming conventions
+  min?: number;
+  max?: number;
   minPrice?: number;
   maxPrice?: number;
+  currentMin?: number;
+  currentMax?: number;
   setMinPrice?: (val: number) => void;
   setMaxPrice?: (val: number) => void;
+  onChange?: (min: number, max: number) => void;
 }
 
 const MIN_LIMIT = 5;
-const MAX_LIMIT = 1000;   // ← Kept as you wanted
+const MAX_LIMIT = 1000;
 
-export default function BudgetFilter({
-  minPrice = 5,
-  maxPrice = 800,
-  setMinPrice,
-  setMaxPrice,
-}: BudgetFilterProps) {
+export default function BudgetFilter(props: BudgetFilterProps) {
+  // Normalize values coming from either interface style
+  const activeMin = props.currentMin ?? props.minPrice ?? props.min ?? MIN_LIMIT;
+  const activeMax = props.currentMax ?? props.maxPrice ?? props.max ?? MAX_LIMIT;
+
   const [isOpen, setIsOpen] = useState(false);
-  const [localMin, setLocalMin] = useState(minPrice);
-  const [localMax, setLocalMax] = useState(maxPrice);
+  const [localMin, setLocalMin] = useState(activeMin);
+  const [localMax, setLocalMax] = useState(activeMax);
 
-  // Sync with parent component
+  // Sync with parent component updates
   useEffect(() => {
-    setLocalMin(minPrice);
-    setLocalMax(maxPrice);
-  }, [minPrice, maxPrice]);
+    setLocalMin(activeMin);
+    setLocalMax(activeMax);
+  }, [activeMin, activeMax]);
 
   const p1 = ((localMin - MIN_LIMIT) / (MAX_LIMIT - MIN_LIMIT)) * 100;
   const p2 = ((localMax - MIN_LIMIT) / (MAX_LIMIT - MIN_LIMIT)) * 100;
 
   const trackStyle = {
-  background: `linear-gradient(to right, #e0e0e0 ${p1}%, var(--primary-color, #dc3545) ${p1}%, var(--primary-color, #dc3545) ${p2}%, #e0e0e0 ${p2}%)`,
-};
+    background: `linear-gradient(to right, #e0e0e0 ${p1}%, var(--primary-color, #dc3545) ${p1}%, var(--primary-color, #dc3545) ${p2}%, #e0e0e0 ${p2}%)`,
+  };
 
   const handleMinChange = (val: number) => {
     const newMin = Math.min(Math.max(MIN_LIMIT, val), localMax - 5);
     setLocalMin(newMin);
-    setMinPrice?.(newMin);
+    props.setMinPrice?.(newMin);
+    props.onChange?.(newMin, localMax);
   };
 
   const handleMaxChange = (val: number) => {
     const newMax = Math.max(Math.min(MAX_LIMIT, val), localMin + 5);
     setLocalMax(newMax);
-    setMaxPrice?.(newMax);
+    props.setMaxPrice?.(newMax);
+    props.onChange?.(localMin, newMax);
   };
 
   return (
     <div className={`filter-section ${isOpen ? "active" : ""}`}>
-  <button
-    className="filter-toggle"
-    type="button"
-    onClick={() => setIsOpen((prev) => !prev)}
-    aria-expanded={isOpen}
-  >
-    Budget Range{" "}
-    <i className={`fas fa-chevron-down ${isOpen ? "rotate" : ""}`} />
-  </button>
+      <button
+        className="filter-toggle"
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+      >
+        Budget Range{" "}
+        <i className={`fas fa-chevron-down ${isOpen ? "rotate" : ""}`} />
+      </button>
 
       <div className="filter-dropdown-content">
         <div className="budget-input-row">
