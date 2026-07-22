@@ -1,7 +1,7 @@
 "use client";
 
 import ServiceCard from "@/components/ServiceCard/ServiceCard";
-import type { Service } from "@/lib/services";
+import type { Service } from "@/types/service";
 
 interface ResultsGridProps {
   services?: Service[];

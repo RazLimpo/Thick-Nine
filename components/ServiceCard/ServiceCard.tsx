@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import type { Service } from "@/lib/services";
+import type { Service } from "@/types/service";
 
 interface ServiceCardProps {
   service: Service;

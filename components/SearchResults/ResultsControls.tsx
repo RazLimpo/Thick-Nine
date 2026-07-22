@@ -40,25 +40,25 @@ export default function ResultsControls({
   quickFilters = DEFAULT_QUICK_FILTERS,
 }: ResultsControlsProps) {
   return (
-    <section className="results-control-wrapper">
-      <div className="results-count-row">
-        <h2>
-          {searchQuery.trim() ? (
-            <>
-              Results for{" "}
-              <span className="query-highlight">
-                "{searchQuery}"
-              </span>
-            </>
-          ) : (
-            "All Services"
-          )}{" "}
-          <span className="count-badge">
-            ({totalResults})
-          </span>
-        </h2>
-      </div>
-
+  <section className="results-control-wrapper">
+    <div className="results-count-row">
+      <h2>
+        {searchQuery.trim() ? (
+          <>
+            Results for{" "}
+            <span className="query-highlight">
+              &quot;{searchQuery}&quot;
+            </span>
+          </>
+        ) : (
+          "All Services"
+        )}{" "}
+        <span className="count-badge">
+          ({totalResults})
+        </span>
+      </h2>
+    </div>
+    
       <div
         className="quick-filter-toggles"
         role="group"
