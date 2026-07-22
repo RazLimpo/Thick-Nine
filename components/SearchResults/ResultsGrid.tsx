@@ -15,7 +15,7 @@ export default function ResultsGrid({
   // Loading Skeleton
   if (isLoading) {
     return (
-      <div className="results-grid">
+      <div className="mjob-grid">
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={index}
@@ -41,7 +41,7 @@ export default function ResultsGrid({
 
   // Render Services
   return (
-    <div className="results-grid">
+    <div className="mjob-grid">
       {services.map((service) => (
         <ServiceCard
           key={service.id}
