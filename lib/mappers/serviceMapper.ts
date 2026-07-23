@@ -48,8 +48,8 @@ export function mapService(rawService: any): Service {
     rating: isNaN(parsedRating) ? 5.0 : parsedRating,
     deliveryTime: isNaN(parsedDelivery) ? 3 : parsedDelivery,
     
-    // Explicit visibility flag states mapping to backend schema fields
-    featured: Boolean(rawService.featured),
+    // Standardized visibility flags to align with the Service interface
+    isFeatured: Boolean(rawService.isFeatured || rawService.featured),
     sponsored: Boolean(rawService.sponsored),
 
     // Populated fallback bindings reading directly from nested seller models
@@ -61,5 +61,5 @@ export function mapService(rawService: any): Service {
 
     // Optional fields
     description: rawService.description || ""
-  };
+  } as Service;
 }
