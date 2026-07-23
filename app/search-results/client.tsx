@@ -50,7 +50,7 @@ export default function SearchResultsClient() {
         !searchQuery ||
         (service.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (service.category || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (service.seller || "").toLowerCase().includes(searchQuery.toLowerCase());
+        (service.sellerId || "").toLowerCase().includes(searchQuery.toLowerCase());
 
       // Quick Pills Match
       const matchesPills =
