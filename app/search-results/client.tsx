@@ -18,7 +18,17 @@ export default function SearchResultsClient() {
 
   // 2. Centralized Filter, Search, Sort & Pagination Hook
   const {
-    filters,
+    searchTerm,
+    categories,
+    minPrice,
+    maxPrice,
+    locations,
+    delivery,
+    isOnlineOnly,
+    isFeaturedOnly,
+    isFavoriteOnly,
+    sortBy,
+    selectedPills = [],
     setSearchTerm,
     setCategories,
     setPriceRange,
@@ -29,17 +39,29 @@ export default function SearchResultsClient() {
     clearAllFilters,
     filteredServices,
     paginatedServices,
-    sponsoredServices,
+    sponsoredServices = [],
     currentPage,
     totalPages,
     setCurrentPage,
   } = useSearchFilters(services);
 
+  // Construct state object expected by SearchSidebar
+  const sidebarFilters = {
+    categories,
+    minPrice,
+    maxPrice,
+    locations,
+    deliveryTime: delivery,
+    isOnlineOnly,
+    isFeaturedOnly,
+    isFavoriteOnly,
+  };
+
   return (
     <main className="search-page-container">
-      {/* Sidebar Controls - Unified with hook actions */}
+      {/* Sidebar Controls */}
       <SearchSidebar
-        filters={filters}
+        filters={sidebarFilters}
         onCategoryChange={setCategories}
         onPriceChange={setPriceRange}
         onLocationChange={setLocations}
@@ -63,11 +85,11 @@ export default function SearchResultsClient() {
         {/* Controls, Quick Pills, Search Input & Sorting */}
         <ResultsControls
           totalResults={filteredServices.length}
-          searchQuery={filters.searchTerm}
+          searchQuery={searchTerm}
           onSearchChange={setSearchTerm}
-          selectedPills={filters.selectedPills}
+          selectedPills={selectedPills}
           onTogglePill={toggleQuickFilterPill}
-          sortBy={filters.sortBy}
+          sortBy={sortBy}
           onSortChange={setSortBy}
         />
 
