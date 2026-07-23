@@ -5,7 +5,9 @@ import { useMemo } from "react";
 import SearchSidebar, {
   type FilterState as SidebarFilterState,
 } from "@/components/SearchResults/SearchSidebar";
-import SponsoredCarousel from "@/components/SearchResults/SponsoredCarousel";
+import SponsoredCarousel, {
+  type SponsoredAd,
+} from "@/components/SearchResults/SponsoredCarousel";
 import ResultsControls from "@/components/SearchResults/ResultsControls";
 import ResultsGrid from "@/components/SearchResults/ResultsGrid";
 import Pagination from "@/components/SearchResults/Pagination";
@@ -17,10 +19,10 @@ import "@/styles/pages/search-results.css";
 import "@/styles/pages/service-card.css";
 
 export default function SearchResultsClient() {
-  // 1. Data Source
+  // 1. Fetch Services Data
   const { services, loading, error } = useServices();
 
-  // 2. Filter & Pagination Hook
+  // 2. Custom Filtering & Pagination Hook
   const {
     searchTerm,
     categories,
@@ -57,21 +59,21 @@ export default function SearchResultsClient() {
     [categories, minPrice, maxPrice, locations, delivery]
   );
 
-  // Bridge Sidebar onFilterChange back to individual Hook setters
+  // Bridge Sidebar updates back to individual Hook setters
   const handleSidebarFilterChange = (updated: SidebarFilterState) => {
     setCategories(updated.categories);
     setMinPrice(updated.minPrice);
     setMaxPrice(updated.maxPrice);
     setLocations(updated.locations);
     setDelivery(updated.deliveryTime);
-    setCurrentPage(1); // Reset pagination on sidebar filter change
+    setCurrentPage(1); // Reset to page 1 on filter change
   };
 
-  // 4. Handle Quick Pills ("online", "top_rated", "pro")
+  // 4. Manage Quick Pill Toggles ("online", "top_rated", "pro")
   const selectedPills = useMemo(() => {
     const pills: string[] = [];
     if (isOnlineOnly) pills.push("online");
-    if (isFeaturedOnly) pills.push("pro"); // Maps "pro" to isFeaturedOnly filter
+    if (isFeaturedOnly) pills.push("pro");
     return pills;
   }, [isOnlineOnly, isFeaturedOnly]);
 
@@ -81,12 +83,22 @@ export default function SearchResultsClient() {
     } else if (pillId === "pro" || pillId === "top_rated") {
       setIsFeaturedOnly(!isFeaturedOnly);
     }
-    setCurrentPage(1); // Reset pagination on pill toggle
+    setCurrentPage(1);
   };
 
-  // 5. Sponsored Services Computation
-  const sponsoredServices = useMemo(() => {
-    return services.filter((service) => (service as any).sponsored);
+  // 5. Map Sponsored Services to SponsoredAd Format
+  const sponsoredAds: SponsoredAd[] = useMemo(() => {
+    return services
+      .filter((s: any) => Boolean(s.sponsored || s.isSponsored))
+      .map((s: any) => ({
+        id: s._id || s.id || String(Math.random()),
+        title: s.title || "Featured Service",
+        price: typeof s.price === "number" ? `$${s.price}` : String(s.price || "$0"),
+        username: s.sellerName || s.seller?.fullName || s.username || "Verified Seller",
+        gender: s.gender === "male" || s.gender === "female" ? s.gender : undefined,
+        imageUrl: s.coverImage || s.image || s.imageUrl || "/default-service.png",
+        linkUrl: `/service-details?id=${s._id || s.id}`,
+      }));
   }, [services]);
 
   return (
@@ -107,9 +119,7 @@ export default function SearchResultsClient() {
         )}
 
         {/* Sponsored Services Carousel */}
-        {sponsoredServices.length > 0 && (
-          <SponsoredCarousel services={sponsoredServices} />
-        )}
+        <SponsoredCarousel ads={sponsoredAds.length > 0 ? sponsoredAds : undefined} />
 
         {/* Top Controls & Quick Pills */}
         <ResultsControls
