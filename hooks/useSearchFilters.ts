@@ -45,29 +45,35 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
   const filteredServices = useMemo(() => {
     return initialServices.filter((service) => {
       // Price Filter
-      if (service.price < minPrice || service.price > maxPrice) {
+      const numericPrice = Number(service.price);
+    
+      if (numericPrice < minPrice || numericPrice > maxPrice) {
         return false;
       }
 
       // Categories Filter
-      if (categories.length > 0 && !categories.includes(service.category)) {
+      if (categories.length > 0 && (!service.category || !categories.includes(service.category))) {
         return false;
       }
 
       // Quick Toggles
       if (isOnlineOnly && !service.isOnline) return false;
-      if (isFeaturedOnly && !service.featured) return false;
+      if (isFeaturedOnly && !service.featured && !service.isFeatured) return false;
 
       // Location Filter
       const skipLoc = locations.includes("Any") || locations.length === 0;
-      if (!skipLoc && !locations.some((loc) => service.location.includes(loc))) {
-        return false;
+      if (!skipLoc) {
+        const serviceLocation = service.location || "";
+        if (!locations.some((loc) => serviceLocation.includes(loc))) {
+          return false;
+        }
       }
 
       // Delivery Time Filter
       if (delivery !== "Any") {
         const maxAllowedDelivery = parseInt(delivery, 10);
-        if (!isNaN(maxAllowedDelivery) && service.deliveryTime > maxAllowedDelivery) {
+        const numericDelivery = Number(service.deliveryTime);
+        if (!isNaN(maxAllowedDelivery) && !isNaN(numericDelivery) && numericDelivery > maxAllowedDelivery) {
           return false;
         }
       }
@@ -89,7 +95,7 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
   const sortedServices = useMemo(() => {
     const list = [...filteredServices];
     if (sortBy === "Popular") {
-      return list.sort((a, b) => b.rating - a.rating);
+      return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     }
     // Default to Newest
     return list;
