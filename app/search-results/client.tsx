@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 
-// 1. IMPORT FilterState FROM SearchSidebar
 import SearchSidebar, { FilterState } from "@/components/SearchResults/SearchSidebar";
 import SponsoredCarousel from "@/components/SearchResults/SponsoredCarousel";
 import ResultsControls from "@/components/SearchResults/ResultsControls";
@@ -23,7 +22,6 @@ export default function SearchResultsClient() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  // 2. PASTE THE STATE HERE
   const [filters, setFilters] = useState<FilterState>({
     categories: [],
     minPrice: 0,
@@ -32,27 +30,47 @@ export default function SearchResultsClient() {
     deliveryTime: "Any",
   });
 
+  /* ==========================================================
+     STATE HANDLERS (WITH PAGINATION RESET)
+  ========================================================== */
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = (newFilters: FilterState) => {
+    setFilters(newFilters);
+    setCurrentPage(1);
+  };
+
   const toggleQuickFilter = (pill: string) => {
     setSelectedPills((previous) =>
       previous.includes(pill)
         ? previous.filter((p) => p !== pill)
         : [...previous, pill]
     );
+    setCurrentPage(1);
   };
 
- /* ==========================================================
+  /* ==========================================================
      FILTER LOGIC (TYPESAFE)
   ========================================================== */
   const filteredServices = useMemo(() => {
     return services.filter((service) => {
-      // Search Query Match (Safely handle optional properties)
+      // 1. Safe extraction for seller identification
+      const sellerName =
+        typeof service.sellerId === "object"
+          ? service.sellerId?.name || service.sellerId?.username || ""
+          : String(service.sellerId || "");
+
+      // 2. Search Query Match
       const matchesSearch =
         !searchQuery ||
         (service.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (service.category || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (service.sellerId || "").toLowerCase().includes(searchQuery.toLowerCase());
+        sellerName.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Quick Pills Match
+      // 3. Quick Pills Match
       const matchesPills =
         selectedPills.length === 0 ||
         selectedPills.every((pill) => {
@@ -71,7 +89,7 @@ export default function SearchResultsClient() {
           return true;
         });
 
-      // Sidebar Filters Match
+      // 4. Sidebar Filters Match
       const matchesCategory =
         filters.categories.length === 0 ||
         (service.category ? filters.categories.includes(service.category) : false);
@@ -101,6 +119,9 @@ export default function SearchResultsClient() {
     });
   }, [services, searchQuery, selectedPills, filters]);
 
+  /* ==========================================================
+     SPONSORED & PAGINATION COMPUTATION
+  ========================================================== */
   const sponsoredServices = useMemo(() => {
     return services.filter((service) => service.sponsored);
   }, [services]);
@@ -111,14 +132,16 @@ export default function SearchResultsClient() {
     return filteredServices.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredServices, currentPage, itemsPerPage]);
 
+  /* ==========================================================
+     RENDER
+  ========================================================== */
   return (
     <main className="search-page-container">
-      {/* 3. PASTE THE COMPONENT WITH PROPS HERE */}
       <SearchSidebar
         filters={filters}
-        onFilterChange={setFilters}
+        onFilterChange={handleFilterChange}
         onClearAll={() => {
-          setFilters({
+          handleFilterChange({
             categories: [],
             minPrice: 0,
             maxPrice: 1000,
@@ -142,7 +165,7 @@ export default function SearchResultsClient() {
         <ResultsControls
           totalResults={filteredServices.length}
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           selectedPills={selectedPills}
           onTogglePill={toggleQuickFilter}
         />
