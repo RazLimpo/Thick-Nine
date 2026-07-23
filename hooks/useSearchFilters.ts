@@ -53,9 +53,9 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
 
       // 1. Search Term (Title, Seller, Description, Category, Location)
       if (term) {
-        const locCity = typeof service.location === "object" ? svcAny.location?.city : null;
-        const locCountry = typeof service.location === "object" ? svcAny.location?.country : null;
-        const locString = typeof service.location === "string" ? service.location : null;
+        const locCity = typeof svcAny.location === "object" ? svcAny.location?.city : null;
+        const locCountry = typeof svcAny.location === "object" ? svcAny.location?.country : null;
+        const locString = typeof svcAny.location === "string" ? svcAny.location : null;
 
         const searchableText = [
           service.title,
@@ -95,9 +95,9 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
 
       // 5. Location Filter
       if (!locations.includes("Any") && locations.length > 0) {
-        const locCity = typeof service.location === "object" ? svcAny.location?.city : null;
-        const locCountry = typeof service.location === "object" ? svcAny.location?.country : null;
-        const locString = typeof service.location === "string" ? service.location : null;
+        const locCity = typeof svcAny.location === "object" ? svcAny.location?.city : null;
+        const locCountry = typeof svcAny.location === "object" ? svcAny.location?.country : null;
+        const locString = typeof svcAny.location === "string" ? svcAny.location : null;
 
         const serviceLoc = [locCity, locCountry, locString].filter(Boolean).join(", ");
 
