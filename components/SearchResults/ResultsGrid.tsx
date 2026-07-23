@@ -2,6 +2,8 @@
 
 import ServiceCard from "@/components/ServiceCard/ServiceCard";
 import type { Service } from "@/types/service";
+// Uncomment when your NoResults UI is ready:
+// import NoResults from "./NoResults";
 
 interface ResultsGridProps {
   services?: Service[];
@@ -12,7 +14,7 @@ export default function ResultsGrid({
   services = [],
   isLoading = false,
 }: ResultsGridProps) {
-  // Loading Skeleton
+  // 1. Loading Skeleton
   if (isLoading) {
     return (
       <div className="mjob-container">
@@ -34,17 +36,18 @@ export default function ResultsGrid({
     );
   }
 
-  // No Results
+  // 2. Empty State
   if (services.length === 0) {
-    return null;
+    return null; 
+    // return <NoResults />;
   }
 
-  // Render Services
+  // 3. Render Grid
   return (
     <div className="mjob-container">
       {services.map((service) => (
         <ServiceCard
-          key={service.id}
+          key={service._id ?? service.id}
           service={service}
         />
       ))}
