@@ -40,31 +40,33 @@ export default function SearchResultsClient() {
     );
   };
 
-  /* ==========================================================
-     FILTER LOGIC (UPDATED WITH SIDEBAR FILTERS)
+ /* ==========================================================
+     FILTER LOGIC (TYPESAFE)
   ========================================================== */
   const filteredServices = useMemo(() => {
     return services.filter((service) => {
-      // Search Query Match
+      // Search Query Match (Safely handle optional properties)
       const matchesSearch =
         !searchQuery ||
-        service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        service.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        service.seller.toLowerCase().includes(searchQuery.toLowerCase());
+        (service.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (service.category || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (service.seller || "").toLowerCase().includes(searchQuery.toLowerCase());
 
       // Quick Pills Match
       const matchesPills =
         selectedPills.length === 0 ||
         selectedPills.every((pill) => {
           const lowerPill = pill.toLowerCase();
+          const level = (service.level || "").toLowerCase();
+
           if (lowerPill === "pro services" || lowerPill === "pro") {
-            return service.level.toLowerCase().includes("top") || service.level.toLowerCase().includes("level 2");
+            return level.includes("top") || level.includes("level 2");
           }
           if (lowerPill === "online sellers" || lowerPill === "online") {
-            return service.isOnline;
+            return Boolean(service.isOnline);
           }
           if (lowerPill === "featured") {
-            return service.isFeatured;
+            return Boolean(service.isFeatured);
           }
           return true;
         });
@@ -72,21 +74,21 @@ export default function SearchResultsClient() {
       // Sidebar Filters Match
       const matchesCategory =
         filters.categories.length === 0 ||
-        filters.categories.includes(service.category);
+        (service.category ? filters.categories.includes(service.category) : false);
 
       const matchesBudget =
-        service.price >= filters.minPrice &&
-        service.price <= filters.maxPrice;
+        (service.price ?? 0) >= filters.minPrice &&
+        (service.price ?? 0) <= filters.maxPrice;
 
       const matchesLocation =
         filters.locations.includes("Any") ||
         filters.locations.some((loc) =>
-          service.location.toLowerCase().includes(loc.toLowerCase())
+          (service.location || "").toLowerCase().includes(loc.toLowerCase())
         );
 
       const matchesDelivery =
         filters.deliveryTime === "Any" ||
-        service.deliveryTime <= parseInt(filters.deliveryTime, 10);
+        (service.deliveryTime ?? 0) <= parseInt(filters.deliveryTime, 10);
 
       return (
         matchesSearch &&
