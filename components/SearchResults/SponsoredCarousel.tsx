@@ -88,17 +88,12 @@ export default function SponsoredCarousel({
             <div className="ad-permanent-info">
              <div className="ad-meta">
   <span className="mjob-username">
-    {ad.gender && (
-      <i
-        className={`fas ${
-          ad.gender === "male"
-            ? "fa-mars m-icon"
-            : "fa-venus f-icon"
-        }`}
-        aria-hidden="true"
-      />
-    )}
-
+    <i
+      className={`fas fa-user ${
+        ad.gender === "female" ? "f-icon" : "m-icon"
+      }`}
+      aria-hidden="true"
+    />{" "}
     {ad.username}
   </span>
 
@@ -106,7 +101,6 @@ export default function SponsoredCarousel({
     {ad.price}
   </span>
 </div>
-
               <div className="ad-title">
                 {ad.title}
               </div>
