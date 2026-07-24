@@ -4,7 +4,10 @@ export interface BackendSeller {
   _id?: string;
   id?: string;
   fullName: string;
+  displayName?: string;
+  username?: string;
   avatar: string;
+  gender?: "male" | "female" | "other" | "prefer_not_to_say";
   level: string;
   professionalTitle?: string;
   onlineStatus?: 'online' | 'away' | 'offline' | string;
@@ -58,6 +61,7 @@ export interface Service {
   isSponsored?: boolean;
   sellerName?: string;
   sellerAvatar?: string;
+  sellerGender?: "male" | "female" | "other" | "prefer_not_to_say";
   sellerId?: BackendSeller;
   description?: string;
 }
