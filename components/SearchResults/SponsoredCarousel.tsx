@@ -1,3 +1,5 @@
+//SponsoredCarousel.
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -84,26 +86,26 @@ export default function SponsoredCarousel({
             aria-label={`View sponsored service: ${ad.title}`}
           >
             <div className="ad-permanent-info">
-              <div className="ad-meta">
-                <span className="mjob-username">
-                  {ad.gender && (
-                    <i
-                      className={`fas ${
-                        ad.gender === "male"
-                          ? "fa-mars m-icon"
-                          : "fa-venus f-icon"
-                      }`}
-                      aria-hidden="true"
-                    />
-                  )}
+             <div className="ad-meta">
+  <span className="mjob-username">
+    {ad.gender && (
+      <i
+        className={`fas ${
+          ad.gender === "male"
+            ? "fa-mars m-icon"
+            : "fa-venus f-icon"
+        }`}
+        aria-hidden="true"
+      />
+    )}
 
-                  {ad.username}
-                </span>
+    {ad.username}
+  </span>
 
-                <span className="ad-price">
-                  {ad.price}
-                </span>
-              </div>
+  <span className="ad-price">
+    {ad.price}
+  </span>
+</div>
 
               <div className="ad-title">
                 {ad.title}
