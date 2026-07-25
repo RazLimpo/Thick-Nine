@@ -1,23 +1,69 @@
+// ==========================================
+// FILE: controllers/authController.js (PART 1 OF 2)
+// ==========================================
+
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
-// Add these two imports to the top of your controllers/authController.js file:
 const crypto = require('crypto');
 const emailService = require('../utils/emailService');
 
-// REGISTER A NEW USER (Production-Ready for Thick 9)
+/**
+ * COMPATIBILITY HELPER: formatUserPayload
+ * Ensures every auth response consistently delivers complete user metadata required
+ * by Next.js components. Includes full fallback support for both `avatar` and `profilePicture`,
+ * stringifies MongoDB IDs, and delegates location defaults directly to the User schema.
+ */
+const formatUserPayload = (user) => {
+    const userObj = user.toObject ? user.toObject() : user;
+    
+    // Resolve avatar / profilePicture compatibility
+    const userAvatar = userObj.avatar || userObj.profilePicture || '';
+    const userProfilePicture = userObj.profilePicture || userObj.avatar || '';
+
+    return {
+        id: userObj._id?.toString(), // Safely stringifies ObjectId for Next.js
+        fullName: userObj.fullName,
+        displayName: userObj.displayName || userObj.fullName, // Model field or fallback
+        username: userObj.username,
+        email: userObj.email,
+        gender: userObj.gender,
+        role: userObj.role || 'client',
+        planType: userObj.planType || 'free',
+        accountStrength: userObj.accountStrength || 50,
+        isEmailVerified: Boolean(userObj.isEmailVerified),
+        isProfileComplete: Boolean(userObj.isProfileComplete),
+        avatar: userAvatar,
+        profilePicture: userProfilePicture,
+        location: userObj.location || { country: '', city: '' } // 🔑 Guarantees object shape so frontend keys never crash
+    };
+};
+
+/**
+ * @route   POST /api/auth/register
+ * @desc    REGISTER A NEW USER (Maintained for Backwards Compatibility)
+ * @access  Public
+ */
 exports.register = async (req, res) => {
     try {
-        // 1. Destructure the NEW fields from your mandatory-CLIENT form
         const { fullName, email, password, role, gender, country, referralCode } = req.body;
 
-        // 2. Check if email already exists (Updated to match frontend's 'message' expectation)
-        let userExists = await User.findOne({ email });
-        if (userExists) return res.status(400).json({ message: "User already exists" });
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required." });
+        }
 
-        // 3. Generate and Verify Unique Username (Your existing while-loop logic)
-        let baseUsername = email.split('@')[0].toLowerCase();
+        // Email Normalization
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // 1. Check existing user
+        let userExists = await User.findOne({ email: normalizedEmail });
+        if (userExists) {
+            return res.status(400).json({ message: "User already exists" });
+        }
+
+        // 2. Generate and Verify Unique Username
+        let baseUsername = normalizedEmail.split('@')[0].replace(/[^a-z0-9]/g, '').toLowerCase();
+        if (!baseUsername) baseUsername = 'user';
         let finalUsername = baseUsername;
         let isUnique = false;
 
@@ -31,98 +77,72 @@ exports.register = async (req, res) => {
             }
         }
 
-        // 4. Hash the password
+        // 3. Hash Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 5. Create the user instance
+        // 4. Create User Document (Delegates location defaults to User schema if country is unpassed)
         const newUser = new User({
-            fullName: fullName || finalUsername,
+            fullName: fullName ? fullName.trim() : finalUsername,
             username: finalUsername,
-            email,
+            email: normalizedEmail,
             password: hashedPassword,
             role: role || 'client',
-            gender,           // Mapped from form
-            referralCode,     // Mapped from form
-            location: {       // Mapped to your nested schema
-                country: country || 'Ghana',
-                city: 'Accra'
-            },
-            accountStrength: 50 
+            gender,
+            referralCode: referralCode ? referralCode.trim() : undefined,
+            ...(country && { location: { country } }) // Lets schema defaults supply missing fields
         });
+
+        // 5. Calculate account strength on model instance before initial save
+        if (typeof newUser.calculateStrength === 'function') {
+            newUser.calculateStrength();
+        } else {
+            newUser.accountStrength = 50;
+        }
 
         await newUser.save();
 
-        // 6. Generate a Token (JWT)
+        // 6. Generate JWT Token
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        // Return data for the frontend Header.tsx
-        res.status(201).json({ 
+        return res.status(201).json({ 
             token, 
-            user: { 
-                id: newUser._id, 
-                fullName: newUser.fullName, 
-                role: newUser.role,
-                accountStrength: newUser.accountStrength
-            } 
+            user: formatUserPayload(newUser)
         });
 
     } catch (err) {
         console.error("Register Error:", err.message);
-        res.status(500).json({ message: "Server Error during registration" });
+        return res.status(500).json({ message: "Server Error during registration" });
     }
 };
 
-// LOGIN USER (Keeping your current working version)
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        const user = await User.findOne({ email }).select('+password');
-        
-        if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
-
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
-
-        // Strength calculation based on your preference
-        const strength = user.planType ? 100 : 50;
-
-        res.json({
-            token,
-            user: { 
-                id: user._id, 
-                fullName: user.fullName, 
-                role: user.role,
-                planType: user.planType,
-                accountStrength: strength,
-                isEmailVerified: user.isEmailVerified, // Added 🔑
-                isProfileComplete: user.isProfileComplete // Added 🔑
-            }
-        });
 
 
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send("Server Error during login");
-    }
-};
-
-// FINALIZE ONBOARDING ACCOUNT (Processes form data & enforces real email verification verification)
+/**
+ * @route   POST /api/auth/finalize-account
+ * @desc    FINALIZE ONBOARDING ACCOUNT (Enforces Email Verification Workflow)
+ * @access  Public
+ */
 exports.finalizeAccount = async (req, res) => {
     try {
         const { fullName, email, password, role, gender, country, referralCode } = req.body;
 
-        // 1. Verify user doesn't already exist
-        let userExists = await User.findOne({ email: email.toLowerCase().trim() });
-        if (userExists) {
-            return res.status(400).json({ msg: "An account with this email already exists." });
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required." });
         }
 
-        // 2. Generate a clean, unique username from email
-        let baseUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        // Email Normalization
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // 1. Verify user doesn't exist
+        let userExists = await User.findOne({ email: normalizedEmail });
+        if (userExists) {
+            return res.status(400).json({ message: "An account with this email already exists." });
+        }
+
+        // 2. Generate Unique Username
+        let baseUsername = normalizedEmail.split('@')[0].replace(/[^a-z0-9]/g, '').toLowerCase();
+        if (!baseUsername) baseUsername = 'user';
         let finalUsername = baseUsername;
         let isUnique = false;
 
@@ -136,140 +156,183 @@ exports.finalizeAccount = async (req, res) => {
             }
         }
 
-        // 3. Securely hash the password
+        // 3. Hash Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. GENERATE SECURE CRYPTO TOKEN FOR EMAIL VERIFICATION
+        // 4. Crypto Token for Verification
         const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-        const tokenExpiryDate = Date.now() + 24 * 60 * 60 * 1000; // Unlocks a strict 24-hour window
+        const tokenExpiryDate = Date.now() + 24 * 60 * 60 * 1000; // 24 Hours
 
-        // 5. Calculate a starter profile strength
-        const starterStrength = referralCode ? 75 : 65;
-
-        // 6. Create and save the unverified User Document to MongoDB
+        // 5. Create User Instance (Delegates location defaults to User schema if country is unpassed)
         const newUser = new User({
-            fullName: fullName.trim(),
+            fullName: fullName ? fullName.trim() : finalUsername,
             username: finalUsername,
-            email: email.toLowerCase().trim(),
+            email: normalizedEmail,
             password: hashedPassword,
             role: role || 'client',
             gender,
             referralCode: referralCode ? referralCode.trim() : undefined,
-            location: {
-                country: country || 'United States',
-                city: 'Pending'
-            },
             isProfileComplete: true,
-            isEmailVerified: false, // 🔐 Strictly set to false until verification link is clicked!
+            isEmailVerified: false,
             verificationToken: emailVerificationToken,
             verificationTokenExpires: tokenExpiryDate,
-            accountStrength: starterStrength
+            ...(country && { location: { country } })
         });
+
+        // 6. Calculate account strength on model instance before initial save
+        if (typeof newUser.calculateStrength === 'function') {
+            newUser.calculateStrength();
+        } else {
+            newUser.accountStrength = referralCode ? 75 : 65;
+        }
 
         await newUser.save();
 
-        // 7. DISPATCH REAL EMAIL VIA IPAGE SMTP
+        // 7. Dispatch Email
         try {
             await emailService.sendVerificationEmail(newUser.email, emailVerificationToken);
         } catch (mailError) {
             console.error("⚠️ Background Email Dispatch Error:", mailError.message);
-            // We intentionally don't crash the request if the mailer has an initial glitch,
-            // but the user remains unverified inside MongoDB.
         }
 
-        // 8. Generate standard access token so frontend can keep them in state
+        // 8. Generate JWT Token
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        // 9. Send payload back. Frontend will read 'isEmailVerified: false' and route to the cooldown screen
-        res.status(201).json({
+        return res.status(201).json({
             token,
-            user: {
-                id: newUser._id,
-                fullName: newUser.fullName,
-                role: newUser.role,
-                accountStrength: newUser.accountStrength,
-                isEmailVerified: false
-            }
+            user: formatUserPayload(newUser)
         });
 
     } catch (err) {
         console.error("Finalize Account Error:", err.message);
-        res.status(500).json({ msg: "Critical server error processing account completion." });
+        return res.status(500).json({ message: "Critical server error processing account completion." });
     }
 };
 
+// ==========================================
+// FILE: controllers/authController.js (PART 2 OF 2)
+// ==========================================
 
+/**
+ * @route   POST /api/auth/login
+ * @desc    LOGIN USER & RETURN FULL MARKETPLACE PAYLOAD
+ * @access  Public
+ */
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-// VERIFY EMAIL TOKEN (Activates the account when the inbox link is clicked)
+        if (!email || !password) {
+            return res.status(400).json({ message: "Please enter both email and password." });
+        }
+
+        // Email Normalization
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // Find user & include password field
+        const user = await User.findOne({ email: normalizedEmail }).select('+password');
+        
+        if (!user) {
+            return res.status(400).json({ message: "Invalid Credentials" });
+        }
+
+        // Match password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid Credentials" });
+        }
+
+        // Generate Token
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+        return res.json({
+            token,
+            user: formatUserPayload(user)
+        });
+
+    } catch (err) {
+        console.error("Login Error:", err.message);
+        return res.status(500).json({ message: "Server Error during login" });
+    }
+};
+
+/**
+ * @route   POST /api/auth/verify-email
+ * @desc    VERIFY EMAIL TOKEN & ACTIVATE ACCOUNT
+ * @access  Public
+ */
 exports.verifyEmail = async (req, res) => {
     try {
         const { token } = req.body;
 
         if (!token) {
-            return res.status(400).json({ msg: "Verification token is required." });
+            return res.status(400).json({ message: "Verification token is required." });
         }
 
-        // 1. Find the user with this exact token AND check if the token hasn't expired yet
+        // 1. Find user by non-expired verification token
         const user = await User.findOne({
             verificationToken: token,
-            verificationTokenExpires: { $gt: Date.now() } // $gt means "greater than now"
+            verificationTokenExpires: { $gt: Date.now() }
         });
 
-        // 2. If no user is found, the link is either fake or expired
         if (!user) {
             return res.status(400).json({ 
-                msg: "The verification link is invalid or has expired. Please request a new one." 
+                message: "The verification link is invalid or has expired. Please request a new one." 
             });
         }
 
-        // 3. Update user status and wipe out the temporary token fields
+        // 2. Clear tokens and set verification
         user.isEmailVerified = true;
         user.verificationToken = null;
         user.verificationTokenExpires = null;
         
-        // Boost their account profile strength gauge for verifying their email!
-        user.calculateStrength(); 
+        // 3. Recalculate Strength Safely
+        if (typeof user.calculateStrength === 'function') {
+            user.calculateStrength();
+        } else {
+            user.accountStrength = 100;
+        }
 
         await user.save();
 
-        // 4. Return success data along with an updated JWT access token
+        // 4. Issue Fresh Token
         const newJwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        res.status(200).json({
-            msg: "Email successfully verified!",
+        return res.status(200).json({
+            message: "Email successfully verified!",
             token: newJwtToken,
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                role: user.role,
-                accountStrength: user.accountStrength,
-                isEmailVerified: true
-            }
+            user: formatUserPayload(user)
         });
 
     } catch (err) {
         console.error("Verify Email Route Error:", err.message);
-        res.status(500).json({ msg: "Server error during email activation." });
+        return res.status(500).json({ message: "Server error during email activation." });
     }
 };
 
-
-// RESEND VERIFICATION EMAIL (Generates a fresh token and dispatches a new email link)
+/**
+ * @route   POST /api/auth/resend-verification
+ * @desc    RESEND EMAIL VERIFICATION LINK
+ * @access  Private (Requires authenticated user session)
+ */
 exports.resendVerification = async (req, res) => {
     try {
-        // req.user.id will come from your auth middleware since the user is logged in but unverified
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ message: "Unauthorized. User ID required." });
+        }
+
         const user = await User.findById(req.user.id);
 
         if (!user) {
-            return res.status(404).json({ msg: "User account not found." });
+            return res.status(404).json({ message: "User account not found." });
         }
 
         if (user.isEmailVerified) {
-            return res.status(400).json({ msg: "This email address is already verified." });
+            return res.status(400).json({ message: "This email address is already verified." });
         }
 
-        // Generate a brand new fresh token and extend it for another 24 hours
+        // Generate fresh token
         const newVerificationToken = crypto.randomBytes(32).toString('hex');
         const newTokenExpiry = Date.now() + 24 * 60 * 60 * 1000;
 
@@ -277,13 +340,15 @@ exports.resendVerification = async (req, res) => {
         user.verificationTokenExpires = newTokenExpiry;
         await user.save();
 
-        // Dispatch via your custom iPage SMTP server
+        // Dispatch email via service
         await emailService.sendVerificationEmail(user.email, newVerificationToken);
 
-        res.status(200).json({ msg: "A fresh verification link has been sent to your inbox!" });
+        return res.status(200).json({ message: "A fresh verification link has been sent to your inbox!" });
 
     } catch (err) {
         console.error("Resend Verification Error:", err.message);
-        res.status(500).json({ msg: "Server error while processing your resend request." });
+        return res.status(500).json({ message: "Server error while processing your resend request." });
     }
 };
+
+

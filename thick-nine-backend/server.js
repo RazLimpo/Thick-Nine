@@ -1,11 +1,13 @@
-//thick-nine-backend/server.js
-
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const auth = require('./middleware/auth');
 require('dotenv').config(); // Hydrates backend parameters safely from the environment
+
+// Optional Infrastructure Middleware (Failsafe standard wrappers)
+let helmet, morgan;
+try { helmet = require('helmet'); } catch (_) {}
+try { morgan = require('morgan'); } catch (_) {}
 
 // ====================== DATABASE MODELS & SUB-ROUTERS ======================
 const Service = require('./models/Service'); 
@@ -14,6 +16,14 @@ const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// ====================== CENTRALIZED PROJECTION STRINGS ======================
+// Guarantees all populated seller objects return avatar/profilePicture, displayName, and username for Next.js routes
+const SELLER_POPULATE_FIELDS = "fullName displayName username avatar profilePicture level professionalTitle onlineStatus isVerified location metrics memberSince";
+
+// ====================== SECURITY & LOGGING MIDDLEWARE ======================
+if (helmet) app.use(helmet());
+if (morgan) app.use(morgan('dev'));
 
 // ====================== HARDENED PRODUCTION CORS MATRIX ======================
 const allowedOriginsRegExp = [
@@ -106,10 +116,10 @@ app.get('/api/services/locations', async (req, res) => {
     const uniqueLocations = new Set();
 
     users.forEach((user) => {
-      if (!user.location) return;
+      if (!user?.location) return;
 
-      const city = user.location.city?.trim();
-      const country = user.location.country?.trim();
+      const city = user.location.city?.trim() || "";
+      const country = user.location.country?.trim() || "";
 
       let locationStr = "";
       if (city && country) {
@@ -154,7 +164,10 @@ app.get('/api/services', async (req, res) => {
         sellerId: {
           _id: "mock-usr-001",
           fullName: "Alex Rivera",
+          displayName: "Alex Rivera",
+          username: "arivera",
           avatar: "",
+          profilePicture: "",
           level: "Level 2 Seller",
           professionalTitle: "Full Stack Engineer",
           onlineStatus: "online",
@@ -176,7 +189,10 @@ app.get('/api/services', async (req, res) => {
         sellerId: {
           _id: "mock-usr-002",
           fullName: "Sarah Chen",
+          displayName: "Sarah Chen",
+          username: "schen_seo",
           avatar: "",
+          profilePicture: "",
           level: "Top Rated Seller",
           professionalTitle: "SEO Specialist",
           onlineStatus: "offline",
@@ -191,10 +207,7 @@ app.get('/api/services', async (req, res) => {
 
   try {
     const services = await Service.find({ status: "active" })
-      .populate(
-        "sellerId",
-        "fullName avatar level professionalTitle onlineStatus isVerified location metrics memberSince"
-      )
+      .populate("sellerId", SELLER_POPULATE_FIELDS)
       .sort({ createdAt: -1 });
     
     res.json(services);
@@ -233,7 +246,10 @@ app.post('/api/services', auth, async (req, res) => {
         sellerId: {
           _id: req.user?.id || "mock-usr-current",
           fullName: "Sandbox Developer",
+          displayName: "Sandbox Developer",
+          username: "sandbox_dev",
           avatar: "",
+          profilePicture: "",
           level: "Level 1 Seller",
           professionalTitle: "Workspace Owner",
           onlineStatus: "online",
@@ -258,10 +274,7 @@ app.post('/api/services', auth, async (req, res) => {
   try {
     const newService = await service.save();
     const populatedService = await Service.findById(newService._id)
-      .populate(
-        "sellerId",
-        "fullName avatar level professionalTitle onlineStatus isVerified location metrics memberSince"
-      );
+      .populate("sellerId", SELLER_POPULATE_FIELDS);
 
     res.status(201).json({
       success: true,
@@ -278,7 +291,41 @@ app.post('/api/services', auth, async (req, res) => {
   }
 });
 
-// ====================== CLOUD SYSTEM BOOT ENGINE ======================
-app.listen(PORT, () => {
+// ====================== GLOBAL ERROR & UNHANDLED ROUTE HANDLERS ======================
+
+// 404 Fallback
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Requested endpoint route does not exist."
+  });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("Unhandled Global Error:", err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error"
+  });
+});
+
+// ====================== CLOUD SYSTEM BOOT ENGINE & GRACEFUL SHUTDOWN ======================
+const server = app.listen(PORT, () => {
   console.log(`\x1b[36m🚀 Thick 9 System Engine Core successfully initialized on Port ${PORT}\x1b[0m`);
 });
+
+// Graceful process termination handler
+const handleGracefulShutdown = (signal) => {
+  console.log(`\n\x1b[33mReceived ${signal}. Shutting down server gracefully...\x1b[0m`);
+  server.close(async () => {
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.close();
+      console.log('\x1b[32m✅ MongoDB Connection Pool gracefully closed.\x1b[0m');
+    }
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
