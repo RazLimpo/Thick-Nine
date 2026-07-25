@@ -32,6 +32,7 @@ export default function SearchResultsClient() {
     delivery,
     isOnlineOnly,
     isFeaturedOnly,
+    isProOnly,
     currentPage,
     totalPages,
     totalMatches,
@@ -43,6 +44,7 @@ export default function SearchResultsClient() {
     setDelivery,
     setIsOnlineOnly,
     setIsFeaturedOnly,
+    setIsProOnly,
     setCurrentPage,
     clearAllFilters,
   } = useSearchFilters(services, 12);
@@ -73,19 +75,22 @@ export default function SearchResultsClient() {
   const selectedPills = useMemo(() => {
     const pills: string[] = [];
     if (isOnlineOnly) pills.push("online");
-    if (isFeaturedOnly) pills.push("pro");
+    if (isFeaturedOnly) pills.push("top_rated");
+    if (isProOnly) pills.push("pro"); // 👈 Maps to Pro Sellers independently
     return pills;
-  }, [isOnlineOnly, isFeaturedOnly]);
+  }, [isOnlineOnly, isFeaturedOnly, isProOnly]);
 
   const handleTogglePill = (pillId: string) => {
     if (pillId === "online") {
       setIsOnlineOnly(!isOnlineOnly);
-    } else if (pillId === "pro" || pillId === "top_rated") {
+    } else if (pillId === "top_rated") {
       setIsFeaturedOnly(!isFeaturedOnly);
+    } else if (pillId === "pro") {
+      setIsProOnly(!isProOnly); // 👈 Toggles Pro Sellers independently
     }
     setCurrentPage(1);
   };
-
+  
   // 5. Map Sponsored Services to SponsoredAd Format
   const sponsoredAds: SponsoredAd[] = useMemo(() => {
     return services

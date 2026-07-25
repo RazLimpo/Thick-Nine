@@ -13,6 +13,7 @@ export interface FilterState {
   isOnlineOnly: boolean;
   isFeaturedOnly: boolean;
   isFavoriteOnly: boolean;
+  isProOnly: boolean;
   sortBy: string;
   currentPage: number;
 }
@@ -27,6 +28,7 @@ const DEFAULT_FILTERS: FilterState = {
   isOnlineOnly: false,
   isFeaturedOnly: false,
   isFavoriteOnly: false,
+  isProOnly: false,
   sortBy: "Newest",
   currentPage: 1,
 };
@@ -41,10 +43,12 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
   const [isOnlineOnly, setIsOnlineOnly] = useState<boolean>(DEFAULT_FILTERS.isOnlineOnly);
   const [isFeaturedOnly, setIsFeaturedOnly] = useState<boolean>(DEFAULT_FILTERS.isFeaturedOnly);
   const [isFavoriteOnly, setIsFavoriteOnly] = useState<boolean>(DEFAULT_FILTERS.isFavoriteOnly);
+  const [isProOnly, setIsProOnly] = useState<boolean>(DEFAULT_FILTERS.isProOnly);
   const [sortBy, setSortBy] = useState<string>(DEFAULT_FILTERS.sortBy);
   const [currentPage, setCurrentPage] = useState<number>(DEFAULT_FILTERS.currentPage);
-
-  // Main Filter Logic (including search)
+    
+    
+    // Main Filter Logic (including search)
   const filteredServices = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
 
@@ -93,6 +97,15 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
       const isFavorited = Boolean(svcAny.isFavorited || svcAny.isFavorite);
       if (isFavoriteOnly && !isFavorited) return false;
 
+      const isProSeller = Boolean(
+        svcAny.isPro || 
+        svcAny.seller?.isPro || 
+        svcAny.sellerLevel === "Pro" || 
+        svcAny.sellerId?.level === "Top Rated Seller" ||
+        svcAny.sellerId?.level === "Level 2 Seller"
+      );
+      if (isProOnly && !isProSeller) return false;
+
       // 5. Location Filter
       if (!locations.includes("Any") && locations.length > 0) {
         const locCity = typeof svcAny.location === "object" ? svcAny.location?.city : null;
@@ -128,9 +141,11 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
     isOnlineOnly,
     isFeaturedOnly,
     isFavoriteOnly,
+    isProOnly,
   ]);
-
-  // Sorting
+    
+    
+    // Sorting
   const sortedServices = useMemo(() => {
     const list = [...filteredServices];
 
@@ -168,6 +183,7 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
     setIsOnlineOnly(DEFAULT_FILTERS.isOnlineOnly);
     setIsFeaturedOnly(DEFAULT_FILTERS.isFeaturedOnly);
     setIsFavoriteOnly(DEFAULT_FILTERS.isFavoriteOnly);
+    setIsProOnly(DEFAULT_FILTERS.isProOnly);
     setSortBy(DEFAULT_FILTERS.sortBy);
     setCurrentPage(DEFAULT_FILTERS.currentPage);
   };
@@ -183,6 +199,7 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
     isOnlineOnly,
     isFeaturedOnly,
     isFavoriteOnly,
+    isProOnly,
     sortBy,
     currentPage,
     totalPages,
@@ -201,6 +218,7 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
     setIsOnlineOnly,
     setIsFeaturedOnly,
     setIsFavoriteOnly,
+    setIsProOnly,
     setSortBy,
     setCurrentPage,
     clearAllFilters,
