@@ -16,6 +16,7 @@ interface RegistrationData {
   password: string;
   retypePassword: string;
   country: string;
+  city: string;
   role: UserRole;
   referralCode: string;
   agreedToTerms: boolean;
@@ -38,6 +39,7 @@ interface FormErrors {
   password?: string;
   retypePassword?: string;
   country?: string;
+  city?: string;
   role?: string;
   referralCode?: string;
   agreedToTerms?: string;
@@ -53,10 +55,12 @@ export default function MandatoryClientPage() {
     password: '',
     retypePassword: '',
     country: '',
+    city: '',
     role: 'client',
     referralCode: '',
     agreedToTerms: false,
   });
+    
 
   // --- UI State ---
   const [ui, setUi] = useState<UIState>({
@@ -215,14 +219,12 @@ export default function MandatoryClientPage() {
   };
 
   // --- Role Selection ---
-  const handleRoleChange = (role: UserRole) => {
-    setSelectedRole(role);
-
-    setFormData((prev) => ({
-      ...prev,
-      role,
-    }));
-  };
+const handleRoleChange = (role: UserRole) => {
+  setFormData((prev) => ({
+    ...prev,
+    role,
+  }));
+};
 
   // --- Form Validation ---
   const validateForm = (): boolean => {
@@ -268,10 +270,14 @@ export default function MandatoryClientPage() {
         'Passwords do not match.';
     }
 
-    // Country
+   // Country
     if (!formData.country) {
-      newErrors.country =
-        'Please select your country.';
+      newErrors.country = 'Please select your country.';
+    }
+
+    // City
+    if (!formData.city.trim()) {
+      newErrors.city = 'City is required.';
     }
 
     // Terms
@@ -285,79 +291,68 @@ export default function MandatoryClientPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- Submit Handler ---
-  const handleSubmit = (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  // --- Submit Handler (Production Version) ---
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+    // 1. Validate the form fields first
+    if (!validateForm()) return;
 
-    setUi((prev) => ({
-      ...prev,
-      isSubmitting: true,
-    }));
+    // 2. Start the loading state
+    setUi((prev) => ({ ...prev, isSubmitting: true }));
 
-    submitTimeoutRef.current = setTimeout(() => {
-      try {
-        // NOTE:
-        // Replace this with real backend auth/session logic in production.
+    try {
+      // 3. Send the data to your MongoDB via the Backend API
+      const response = await fetch(`http://localhost:5000/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          gender: formData.gender,
+          email: formData.email,
+          password: formData.password,
+          country: formData.country,
+          city: formData.city.trim(),
+          role: formData.role,
+          referralCode: formData.referralCode,
+        }),
+      });
+      
+      const data = await response.json();
 
-        localStorage.setItem('isLoggedIn', 'true');
-
-        localStorage.setItem(
-          'userName',
-          formData.fullName.trim()
-        );
-
-        localStorage.setItem(
-          'userRole',
-          formData.role
-        );
-
-        localStorage.setItem(
-          'isProfileComplete',
-          'true'
-        );
-
-        localStorage.setItem(
-          'isEmailVerified',
-          'false'
-        );
-
-        localStorage.setItem(
-          'registrationTimestamp',
-          Date.now().toString()
-        );
-
-        // Clear sensitive password data
-        setFormData((prev) => ({
-          ...prev,
-          password: '',
-          retypePassword: '',
+      // 4. Handle Server Errors (e.g., Email already in use)
+      if (!response.ok) {
+        setErrors((prev) => ({ 
+          ...prev, 
+          email: data.message || 'Registration failed. Please try again.' 
         }));
-
-        setUi((prev) => ({
-          ...prev,
-          isSubmitting: false,
-          showSuccess: true,
-        }));
-      } catch (error) {
-        console.error(
-          'Failed to finalize account:',
-          error
-        );
-
-        setUi((prev) => ({
-          ...prev,
-          isSubmitting: false,
-        }));
+        setUi((prev) => ({ ...prev, isSubmitting: false }));
+        return;
       }
-    }, 1800);
-  };
 
+      // 5. If Success: Clear password and show the Success Overlay
+      setFormData((prev) => ({
+        ...prev,
+        password: '',
+        retypePassword: '',
+      }));
+
+      setUi((prev) => ({
+        ...prev,
+        isSubmitting: false,
+        showSuccess: true,
+      }));
+
+    } catch (error) {
+      // 5. Handle Connection Errors (e.g., MongoDB is down or IP not whitelisted)
+      console.error('Registration Error:', error);
+      setErrors((prev) => ({ 
+        ...prev, 
+        email: 'Unable to connect to server. Check your internet or try later.' 
+      }));
+      setUi((prev) => ({ ...prev, isSubmitting: false }));
+    }
+  };
   // --- Resend Verification Email ---
   const handleResendEmail = () => {
     if (ui.resendCooldown > 0) {
@@ -958,6 +953,40 @@ export default function MandatoryClientPage() {
           </div>
 
 
+{/* City */}
+          <div className="form-group">
+            <label htmlFor="city">
+              City
+            </label>
+
+            <input
+              type="text"
+              id="city"
+              name="city"
+              placeholder="e.g. Accra, Lagos, Nairobi"
+              autoComplete="address-level2"
+              required
+              maxLength={100}
+              value={formData.city}
+              onChange={handleInputChange}
+              aria-invalid={!!errors.city}
+              aria-describedby={
+                errors.city
+                  ? 'city-error'
+                  : undefined
+              }
+            />
+
+            {errors.city && (
+              <small
+                id="city-error"
+                className="error-text"
+              >
+                {errors.city}
+              </small>
+            )}
+          </div>
+
 
 
 {/* Role Selection */}
@@ -976,9 +1005,10 @@ export default function MandatoryClientPage() {
                   type="radio"
                   name="role"
                   value="client"
-                  checked={
-                    selectedRole === 'client'
-                  }
+                  
+                  // For Client radio:
+checked={formData.role === 'client'}
+
                   onChange={() =>
                     handleRoleChange('client')
                   }
@@ -998,25 +1028,15 @@ export default function MandatoryClientPage() {
                 </small>
               </label>
 
-              {/* Freelancer */}
-              <label
-                className="role-card"
-              >
-                <input
-                  type="radio"
-                  name="role"
-                  value="freelancer"
-                  checked={
-                    selectedRole ===
-                    'freelancer'
-                  }
-                  onChange={() =>
-                    handleRoleChange(
-                      'freelancer'
-                    )
-                  }
-                />
-
+             {/* Freelancer */}
+<label className="role-card">
+  <input
+    type="radio"
+    name="role"
+    value="freelancer"
+    checked={formData.role === 'freelancer'} // ✅ Reading from formData.role
+    onChange={() => handleRoleChange('freelancer')}
+  />
                 <i
                   className="fas fa-pen-nib"
                   aria-hidden="true"
@@ -1036,20 +1056,12 @@ export default function MandatoryClientPage() {
                 className="role-card"
               >
                 <input
-                  type="radio"
-                  name="role"
-                  value="affiliate"
-                  checked={
-                    selectedRole ===
-                    'affiliate'
-                  }
-                  onChange={() =>
-                    handleRoleChange(
-                      'affiliate'
-                    )
-                  }
-                />
-
+  type="radio"
+  name="role"
+  value="affiliate"
+  checked={formData.role === 'affiliate'} // ✅ Updated to formData.role
+  onChange={() => handleRoleChange('affiliate')}
+/>
                 <i
                   className="fas fa-chart-line"
                   aria-hidden="true"

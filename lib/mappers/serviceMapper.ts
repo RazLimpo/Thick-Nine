@@ -1,65 +1,94 @@
-// lib/mappers/serviceMapper.ts
+// ==========================================
+// FILE: lib/mappers/serviceMapper.ts
+// ==========================================
 
-import { Service, BackendServiceResponse } from "@/types/service";
+import type { Service, BackendServiceResponse } from "@/types/service";
 
 /**
- * Maps and sanitizes raw backend/database service documents into the 
- * strict, flattened Service layout required by the frontend UI components.
+ * Maps and sanitizes raw backend service documents into the
+ * frontend Service interface used throughout the marketplace UI.
  */
-export function mapService(rawService: any): Service {
-  // Safe extraction of the populated seller block
-  const sellerData = rawService.sellerId && typeof rawService.sellerId === 'object' 
-    ? rawService.sellerId 
-    : null;
+export function mapService(rawService: BackendServiceResponse): Service {
+  // ==========================================
+  // 1. Extract Seller
+  // ==========================================
+  const seller = rawService.sellerId;
 
-  // Resolve country/city into a clean string layout
-  let calculatedLocation = "Remote";
-  if (sellerData?.location) {
-    const { city, country } = sellerData.location;
-    calculatedLocation = city && country ? `${city}, ${country}` : country || city || "Remote";
-  } else if (typeof rawService.location === 'string') {
-    calculatedLocation = rawService.location;
-  }
+  // ==========================================
+  // 2. Sanitize Numeric Fields
+  // ==========================================
+  const price =
+    typeof rawService.price === "number"
+      ? rawService.price
+      : Number(rawService.price) || 0;
 
-  // Runtime sanitization: Safely parse strings to numbers to fulfill type guarantees
-  const parsedPrice = typeof rawService.price === 'number' 
-    ? rawService.price 
-    : parseFloat(String(rawService.price || 0));
+  const deliveryTime =
+    typeof rawService.deliveryTime === "number"
+      ? rawService.deliveryTime
+      : Number(rawService.deliveryTime) || 3;
 
-  const parsedRating = typeof rawService.rating === 'number'
-    ? rawService.rating
-    : parseFloat(String(rawService.rating || 5.0));
-
-  const parsedDelivery = typeof rawService.deliveryTime === 'number'
-    ? rawService.deliveryTime
-    : parseInt(String(rawService.deliveryTime || rawService.delivery || 3));
-
+  // ==========================================
+  // 3. Return Clean Service Object
+  // ==========================================
   return {
-    // Flattened top-level mapping properties
-    id: String(rawService._id || rawService.id),
+    // ----------------------------------------
+    // Service Identity
+    // ----------------------------------------
+    _id: rawService._id,
+    id: rawService.id ?? rawService._id,
+
+    // ----------------------------------------
+    // Service Details
+    // ----------------------------------------
     title: rawService.title || "Untitled Service",
     category: rawService.category || "General",
-    images: Array.isArray(rawService.images) && rawService.images.length > 0 
-      ? rawService.images 
-      : ["/default-service.png"],
-    
-    // Hard sanitized numerical primitives matching global interfaces
-    price: isNaN(parsedPrice) ? 0 : parsedPrice,
-    rating: isNaN(parsedRating) ? 5.0 : parsedRating,
-    deliveryTime: isNaN(parsedDelivery) ? 3 : parsedDelivery,
-    
-    // Standardized visibility flags to align with the Service interface
-    isFeatured: Boolean(rawService.isFeatured || rawService.featured),
-    sponsored: Boolean(rawService.sponsored),
+    description: rawService.description || "",
 
-    // Populated fallback bindings reading directly from nested seller models
-    seller: sellerData?.fullName || rawService.seller || "Unknown Seller",
-    avatar: sellerData?.avatar || rawService.avatar || "/default-avatar.png",
-    level: sellerData?.level || rawService.level || "Level 1 Seller",
-    isOnline: sellerData?.onlineStatus === 'online' || Boolean(rawService.isOnline),
-    location: calculatedLocation,
+    price,
+    deliveryTime,
 
-    // Optional fields
-    description: rawService.description || ""
-  } as Service;
+    images:
+      Array.isArray(rawService.images) && rawService.images.length > 0
+        ? rawService.images
+        : ["/default-service.png"],
+
+    // ----------------------------------------
+    // Marketplace Statistics
+    // (Backend currently doesn't provide these)
+    // ----------------------------------------
+    rating: 5,
+    reviewsCount: 0,
+
+    // ----------------------------------------
+    // Seller Information
+    // ----------------------------------------
+    sellerName:
+      seller?.displayName ||
+      seller?.fullName ||
+      "Unknown Seller",
+
+    sellerAvatar:
+      seller?.avatar ||
+      "/default-avatar.png",
+
+    sellerGender: seller?.gender,
+
+    sellerId: seller,
+
+    level:
+      seller?.level ||
+      "Level 1 Seller",
+
+    isOnline:
+      seller?.onlineStatus === "online",
+
+    // ----------------------------------------
+    // Marketplace Flags
+    // ----------------------------------------
+    isFeatured: Boolean(rawService.featured),
+
+    isSponsored: Boolean(rawService.sponsored),
+
+    isFavorited: false,
+  };
 }

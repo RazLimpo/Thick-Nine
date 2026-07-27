@@ -3,11 +3,15 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+
 import type { Service } from "@/types/service";
 
 interface ServiceCardProps {
   service: Service;
-  onFavoriteToggle?: (serviceId: string, isFavorited: boolean) => void;
+  onFavoriteToggle?: (
+    serviceId: string,
+    isFavorited: boolean
+  ) => void;
 }
 
 export default function ServiceCard({
@@ -15,7 +19,7 @@ export default function ServiceCard({
   onFavoriteToggle,
 }: ServiceCardProps) {
   /* ==========================================================
-     BACKEND DATA MAPPING & FALLBACKS
+     SERVICE DATA & DERIVED METADATA
      ========================================================== */
 
   const serviceId = service.id ?? service._id ?? "";
@@ -28,54 +32,68 @@ export default function ServiceCard({
 
   const [activeImage, setActiveImage] = useState(0);
 
-  // ---------- Seller ----------
-  const seller = service.sellerId;
+ // ---------- Seller Info Object ----------
+const seller = service.sellerId;
 
-  const sellerName =
-    seller?.fullName || service.sellerName || "Freelancer";
+const sellerInfo = {
+  name:
+    service.sellerName ??
+    seller?.displayName ??
+    seller?.fullName ??
+    "Freelancer",
 
-  const sellerAvatar =
-    seller?.avatar || service.sellerAvatar || "/default-avatar.png";
+  avatar:
+    service.sellerAvatar ??
+    seller?.avatar ??
+    "/default-avatar.png",
 
-  // ---------- Location ----------
-  const city = seller?.location?.city;
-  const country = seller?.location?.country;
+  level:
+    service.level ??
+    seller?.level ??
+    "Level 1 Seller",
 
+  verified: seller?.isVerified ?? false,
+
+  online:
+    service.isOnline ??
+    (seller?.onlineStatus === "online"),
+
+  pro:
+    seller?.planType === "gold" ||
+    seller?.planType === "silver",
+
+  city: seller?.location?.city,
+
+  country: seller?.location?.country,
+};
+  
+  // ---------- Location String ----------
   const location =
-    city && country
-      ? `${city}, ${country}`
-      : city || country || "Remote";
+    sellerInfo.city && sellerInfo.country
+      ? `${sellerInfo.city}, ${sellerInfo.country}`
+      : sellerInfo.city || sellerInfo.country || "Remote";
 
-  // ---------- Pricing ----------
-  const formattedPrice =
-    typeof service.price === "number"
-      ? `$${service.price}`
-      : service.price || "$0";
+ // ---------- Pricing ----------
+const formattedPrice = `$${Number(service.price).toLocaleString()}`;
 
-  // ---------- Ratings ----------
-  const rating = service.rating ?? 5.0;
+  // ---------- Ratings & Delivery ----------
+  const rating = service.rating ?? 5;
   const reviewsCount = service.reviewsCount ?? 0;
+  const delivery = `${service.deliveryTime ?? 3} Days`;
 
-  // ---------- Seller Level & Delivery ----------
-  const sellerLevel = seller?.level || service.level || "New Seller";
-  const delivery = service.deliveryTime || "3 Days";
-
-  // ---------- Category ----------
-  const category = service.category || "General";
-
-  // ---------- Seller Status ----------
-  const isOnline = seller?.onlineStatus === "online";
-  const isVerified = seller?.isVerified ?? false;
-  const isPro = seller?.planType === "gold" || seller?.planType === "silver";
-
-  // ---------- Marketplace Badges ----------
+  // ---------- Category & Service Badges ----------
+  const category = service.category ?? "General";
   const isSponsored = service.isSponsored ?? false;
   const isFeatured = service.isFeatured ?? false;
 
-  // ---------- Favourite ----------
-  const [favorite, setFavorite] = useState(service.isFavorited ?? false);
+  // ---------- Favorite State ----------
+  const [favorite, setFavorite] = useState(
+    service.isFavorited ?? false
+  );
 
-  const handleFavoriteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleFavoriteClick = (
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -84,20 +102,23 @@ export default function ServiceCard({
     onFavoriteToggle?.(serviceId, nextState);
   };
 
-  const handleDotClick = (e: React.MouseEvent<HTMLButtonElement>, index: number) => {
+  const handleDotClick = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    index: number
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     setActiveImage(index);
   };
-
-  return (
+      
+      return (
     <article
       className={`mjob-card ${
-        isOnline ? "status-online" : "status-offline"
+        sellerInfo.online ? "status-online" : "status-offline"
       }`}
     >
       {/* ==========================================================
-          VISUAL HEADER
+          VISUAL HEADER (SLIDER, BADGES, FAVORITE)
       ========================================================== */}
       <div className="mjob-visual-header">
         {/* ---------- Image Slider ---------- */}
@@ -149,20 +170,24 @@ export default function ServiceCard({
         {/* ---------- Seller Avatar ---------- */}
         <div className="mjob-profile-box">
           <Image
-            src={sellerAvatar}
-            alt={sellerName}
+            src={sellerInfo.avatar}
+            alt={sellerInfo.name}
             width={36}
             height={36}
             className="mjob-avatar"
           />
-          {isOnline && (
-            <span className="mjob-status-badge" title="Online" />
+
+          {sellerInfo.online && (
+            <span
+              className="mjob-status-badge"
+              title="Online"
+            />
           )}
         </div>
 
-        {/* ---------- Top Right Status Icons ---------- */}
+        {/* ---------- Marketplace Badges ---------- */}
         <div className="mjob-status-icons">
-          {isVerified && (
+          {sellerInfo.verified && (
             <span
               className="m-status-circle verified-icon"
               title="Verified Seller"
@@ -171,8 +196,11 @@ export default function ServiceCard({
             </span>
           )}
 
-          {isPro && (
-            <span className="m-status-circle pro-icon" title="Pro Seller">
+          {sellerInfo.pro && (
+            <span
+              className="m-status-circle pro-icon"
+              title="Pro Seller"
+            >
               <i className="fas fa-award" />
             </span>
           )}
@@ -196,33 +224,52 @@ export default function ServiceCard({
           )}
         </div>
 
-        {/* ---------- Favourite ---------- */}
+        {/* ---------- Favorite Button ---------- */}
         <button
           type="button"
           className="mjob-favorite"
           onClick={handleFavoriteClick}
           aria-label={
-            favorite ? "Remove from favourites" : "Add to favourites"
+            favorite
+              ? "Remove from favourites"
+              : "Add to favourites"
           }
         >
-          <i className={favorite ? "fas fa-heart" : "far fa-heart"} />
+          <i
+            className={
+              favorite
+                ? "fas fa-heart"
+                : "far fa-heart"
+            }
+          />
         </button>
 
-        {/* ---------- Category ---------- */}
-        <span className="mjob-category-tag">{category}</span>
+        {/* ---------- Category Tag ---------- */}
+        <span className="mjob-category-tag">
+          {category}
+        </span>
       </div>
 
       {/* ==========================================================
-          CARD CONTENT LINK
+          CARD CONTENT (LINKED AREA)
       ========================================================== */}
-      <Link href={`/services/${serviceId}`} className="mjob-card-link">
+      <Link
+        href={`/services/${serviceId}`}
+        className="mjob-card-link"
+      >
         <div className="mjob-content-area">
-          {/* ---------- Top Statistics ---------- */}
+          {/* ---------- Stats Row ---------- */}
           <div className="mjob-stats-row">
             <div className="stat-item">
-              <i className="fas fa-star" aria-hidden="true" />
+              <i
+                className="fas fa-star"
+                aria-hidden="true"
+              />
               <span>{rating.toFixed(1)}</span>
-              {reviewsCount > 0 && <small>({reviewsCount})</small>}
+
+              {reviewsCount > 0 && (
+                <small>({reviewsCount})</small>
+              )}
             </div>
 
             <div className="stat-item">
@@ -238,30 +285,43 @@ export default function ServiceCard({
                 className="fas fa-award icon-muted"
                 aria-hidden="true"
               />
-              <span>{sellerLevel}</span>
+              <span>{sellerInfo.level}</span>
             </div>
           </div>
 
-          {/* ---------- Service Title ---------- */}
-          <h3 className="mjob-title">{service.title}</h3>
+          {/* ---------- Title ---------- */}
+          <h3 className="mjob-title">
+            {service.title}
+          </h3>
 
-          {/* ---------- Seller Information ---------- */}
+          {/* ---------- Seller Meta ---------- */}
           <div className="mjob-user-meta">
             <span className="mjob-username">
-              <i className="fas fa-user m-icon" aria-hidden="true" />
-              {sellerName}
+              <i
+                className="fas fa-user m-icon"
+                aria-hidden="true"
+              />
+              {sellerInfo.name}
             </span>
 
             <span className="mjob-location">
-              <i className="fas fa-map-marker-alt" aria-hidden="true" />
+              <i
+                className="fas fa-map-marker-alt"
+                aria-hidden="true"
+              />
               {location}
             </span>
           </div>
 
-          {/* ---------- Bottom Footer ---------- */}
+          {/* ---------- Footer Price ---------- */}
           <div className="mjob-footer-price">
-            <span className="mjob-level">{sellerLevel}</span>
-            <span className="mjob-price">{formattedPrice}</span>
+            <span className="mjob-level">
+              {sellerInfo.level}
+            </span>
+
+            <span className="mjob-price">
+              {formattedPrice}
+            </span>
           </div>
         </div>
       </Link>

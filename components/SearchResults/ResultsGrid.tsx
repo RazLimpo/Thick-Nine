@@ -2,7 +2,8 @@
 
 import ServiceCard from "@/components/ServiceCard/ServiceCard";
 import type { Service } from "@/types/service";
-// Uncomment when your NoResults UI is ready:
+
+// Uncomment when your NoResults component is ready
 // import NoResults from "./NoResults";
 
 interface ResultsGridProps {
@@ -14,7 +15,9 @@ export default function ResultsGrid({
   services = [],
   isLoading = false,
 }: ResultsGridProps) {
+  // ==================================================
   // 1. Loading Skeleton
+  // ==================================================
   if (isLoading) {
     return (
       <div className="mjob-container">
@@ -36,18 +39,32 @@ export default function ResultsGrid({
     );
   }
 
+  // ==================================================
   // 2. Empty State
+  // ==================================================
   if (services.length === 0) {
-    return null; 
-    // return <NoResults />;
+    return (
+      <div className="search-empty-state">
+        <h3>No services found</h3>
+        <p>
+          Try adjusting your filters or search keywords to discover more
+          services.
+        </p>
+
+        {/* Future replacement */}
+        {/* <NoResults /> */}
+      </div>
+    );
   }
 
-  // 3. Render Grid
+  // ==================================================
+  // 3. Results Grid
+  // ==================================================
   return (
     <div className="mjob-container">
       {services.map((service) => (
         <ServiceCard
-          key={service._id ?? service.id}
+          key={service.id}
           service={service}
         />
       ))}
