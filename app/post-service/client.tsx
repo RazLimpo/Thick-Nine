@@ -1,10 +1,14 @@
-import React from 'react';
+// app/post-service/client.tsx
+'use client';
 
-export default function AffiliateDashboard() {
+import React from 'react';
+import '../../styles/pages/post-service.css';
+import { PostService } from '../../components/PostService/PostService';
+
+export default function PostServiceClient() {
   return (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <h1>Affiliate Dashboard</h1>
-      <p>This page is currently under construction for the live environment.</p>
-    </div>
+    <main className="main-content-wrapper">
+      <PostService />
+    </main>
   );
 }
