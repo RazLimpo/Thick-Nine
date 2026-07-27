@@ -189,9 +189,7 @@ export default function MandatoryClientPage() {
     ReturnType<typeof setTimeout> | null
   >(null);
 
-  const resendTimeoutRef = useRef<
-    ReturnType<typeof setTimeout> | null
-  >(null);
+  const resendTimeoutRef = useRef<number | NodeJS.Timeout | null>(null);
       
       
       
@@ -1271,6 +1269,7 @@ export default function MandatoryClientPage() {
                 <input
                   id="country-search-input"
                   type="text"
+                  role="combobox"
                   placeholder="Type to search country..."
                   value={
                     ui.isCountryOpen
