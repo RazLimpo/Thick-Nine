@@ -442,7 +442,7 @@
   color: #94a3b8; /* Faint ash color */
   text-decoration: none;
   cursor: pointer;
-  text-transform: lowercase
+  text-transform: lowercase;
   transition: color 0.2s;
   flex-grow: 1; /* Pushes the price to the far right */ 
   text-align: left;

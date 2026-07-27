@@ -3,6 +3,7 @@
 
 import React from 'react';
 import '../../styles/pages/post-service.css';
+import '../../styles/pages/service-details.css';
 import { PostService } from '../../components/PostService/PostService';
 
 export default function PostServiceClient() {

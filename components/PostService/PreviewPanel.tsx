@@ -85,7 +85,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ formData, activeTier
       <div
         style={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           borderTop: '1px dashed #cbd5e1',
           paddingTop: '10px',
