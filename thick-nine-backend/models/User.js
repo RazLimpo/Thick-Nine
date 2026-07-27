@@ -131,13 +131,7 @@ const UserSchema = new mongoose.Schema(
 
     gender: {
         type: String,
-        enum: [
-            "male",
-            "female",
-            "other",
-            "prefer_not_to_say"
-        ],
-        default: "prefer_not_to_say"
+        enum: ["male", "female"]
     },
 
     referralCode: {

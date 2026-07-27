@@ -1,13 +1,29 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+// ============ SECTION 1 - IMPORTS ============
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
+
 import Link from 'next/link';
 import ReactCountryFlag from 'react-country-flag';
 
 import '@/styles/pages/mandatory.css';
+import { API_BASE_URL } from '@/lib/constants';
+import { POPULAR_COUNTRIES, ALL_COUNTRIES } from '@/lib/countries';
 
-// ============ TYPES ============
-type UserRole = 'client' | 'freelancer' | 'affiliate';
+
+
+// ============ SECTION 2 - TYPE DEFINITIONS ============
+
+type UserRole =
+  | 'client'
+  | 'freelancer'
+  | 'affiliate';
 
 interface RegistrationData {
   fullName: string;
@@ -16,7 +32,6 @@ interface RegistrationData {
   password: string;
   retypePassword: string;
   country: string;
-  city: string;
   role: UserRole;
   referralCode: string;
   agreedToTerms: boolean;
@@ -25,12 +40,25 @@ interface RegistrationData {
 interface UIState {
   isSubmitting: boolean;
   showSuccess: boolean;
+
   passwordVisible: boolean;
   confirmVisible: boolean;
+
   resendCooldown: number;
+
   passwordStrength: number;
-  strengthText: string;
+  strengthText: PasswordStrengthLabel;
+  
+  isCountryOpen: boolean; 
+  countrySearch: string;
 }
+
+type PasswordStrengthLabel =
+  | 'Too short'
+  | 'Weak'
+  | 'Fair'
+  | 'Good'
+  | 'Strong';
 
 interface FormErrors {
   fullName?: string;
@@ -39,100 +67,260 @@ interface FormErrors {
   password?: string;
   retypePassword?: string;
   country?: string;
-  city?: string;
   role?: string;
   referralCode?: string;
   agreedToTerms?: string;
 }
 
-// ============ COMPONENT ============
-export default function MandatoryClientPage() {
-  // --- Form State ---
-  const [formData, setFormData] = useState<RegistrationData>({
-    fullName: '',
-    gender: '',
-    email: '',
-    password: '',
-    retypePassword: '',
-    country: '',
-    city: '',
-    role: 'client',
-    referralCode: '',
-    agreedToTerms: false,
-  });
-    
 
-  // --- UI State ---
+
+
+// ============ SECTION 3 - COMPONENT INITIALIZATION ============
+
+export default function MandatoryClientPage() {
+
+  /**
+   * ------------------------------------------------
+   * PRODUCTION NOTES
+   * ------------------------------------------------
+   * - This component is fully client-side.
+   * - All UI logic is state-driven.
+   * - No direct DOM manipulation is used.
+   * - Safe for Next.js App Router usage.
+   * - Authentication/session logic should
+   *   eventually move server-side.
+   * ------------------------------------------------
+   */
+  
+  
+  
+  // ==================================================
+  // SECTION 4 — FORM STATE MANAGEMENT
+  // ==================================================
+
+  /**
+   * Main controlled form state.
+   * All inputs are fully state-driven.
+   * No uncontrolled inputs are used.
+   */
+
+  const [formData, setFormData] =
+    useState<RegistrationData>({
+      fullName: '',
+      gender: '',
+      email: '',
+      password: '',
+      retypePassword: '',
+      country: '',
+      role: 'client',
+      referralCode: '',
+      agreedToTerms: false,
+    });
+      
+      
+      
+      
+      // ==================================================
+  // SECTION 5 — UI STATE MANAGEMENT
+  // ==================================================
+
+  /**
+   * Centralized UI state.
+   * Keeps visual behavior predictable
+   * and fully state-driven.
+   */
+
   const [ui, setUi] = useState<UIState>({
     isSubmitting: false,
+
     showSuccess: false,
+
     passwordVisible: false,
     confirmVisible: false,
+
     resendCooldown: 0,
+
     passwordStrength: 0,
     strengthText: 'Too short',
+    
+    isCountryOpen: false, 
+    countrySearch: '',
   });
+    
+    
+    
+    // ==================================================
+  // SECTION 6 — ERROR STATE MANAGEMENT
+  // ==================================================
 
-  // --- Errors ---
-  const [errors, setErrors] = useState<FormErrors>({});
+  /**
+   * Centralized validation errors.
+   * Each field maps to its own
+   * optional error message.
+   */
 
-  // --- Role Selection ---
-  const [selectedRole, setSelectedRole] =
-    useState<UserRole>('client');
+  const [errors, setErrors] =
+    useState<FormErrors>({});
+      
+      
+      
+      
+ // ==================================================
+// SECTION 7 — ROLE SELECTION STATE
+// ==================================================
 
-  // --- Timeout Refs ---
-  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const resendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    
-    
-    
-    
-    
-    
-    
-    
-    // ============ EFFECTS ============
+/**
+ * Removed separate selectedRole state to prevent duplication.
+ * We now rely only on formData.role for both logic and UI.
+ */
+      
+      
+      // ==================================================
+  // SECTION 8 — REFS / TIMER MANAGEMENT
+  // ==================================================
 
-  // --- Load Temporary Auth Data ---
+  /**
+   * Persistent timeout references.
+   * Prevents memory leaks and ensures
+   * proper cleanup during unmounts.
+   */
+
+  const submitTimeoutRef = useRef<
+    ReturnType<typeof setTimeout> | null
+  >(null);
+
+  const resendTimeoutRef = useRef<
+    ReturnType<typeof setTimeout> | null
+  >(null);
+      
+      
+      
+      
+      // ==================================================
+  // SECTION 9 — LOAD TEMPORARY AUTH DATA EFFECT
+  // ==================================================
+
+  /**
+   * Loads temporary auth data created
+   * during the lightweight signup flow.
+   *
+   * This helps users continue onboarding
+   * without re-entering their information.
+   */
+
   useEffect(() => {
-    const tempAuthData = localStorage.getItem('tempAuthData');
+    /**
+     * Prevent execution during SSR.
+     */
+    if (typeof window === 'undefined') {
+      return;
+    }
 
-    if (!tempAuthData) return;
+    const tempAuthData =
+      localStorage.getItem('tempAuthData');
+
+    if (!tempAuthData) {
+      return;
+    }
 
     try {
-      const parsed = JSON.parse(tempAuthData);
+      const parsedData = JSON.parse(
+        tempAuthData
+      );
 
       setFormData((prev) => ({
         ...prev,
-        fullName: parsed?.name || '',
-        email: parsed?.email || '',
+        fullName:
+          typeof parsedData?.name === 'string'
+            ? parsedData.name
+            : '',
+
+        email:
+          typeof parsedData?.email === 'string'
+            ? parsedData.email
+            : '',
       }));
 
-      localStorage.removeItem('tempAuthData');
+      /**
+       * Remove temporary onboarding data
+       * after successful hydration.
+       */
+      localStorage.removeItem(
+        'tempAuthData'
+      );
+
     } catch (error) {
-      console.error('Failed to parse tempAuthData:', error);
-      localStorage.removeItem('tempAuthData');
+
+      console.error(
+        'Failed to parse tempAuthData:',
+        error
+      );
+
+      /**
+       * Remove corrupted data to avoid
+       * future parsing failures.
+       */
+      localStorage.removeItem(
+        'tempAuthData'
+      );
     }
   }, []);
+      
+      
+      
+      
+      // ==================================================
+  // SECTION 10 — PASSWORD STRENGTH EFFECT
+  // ==================================================
 
-  // --- Password Strength Checker ---
+  /**
+   * Live password strength analysis.
+   * Updates strength meter and labels
+   * as the user types.
+   */
+
   useEffect(() => {
+
     const password = formData.password;
 
-    const calculateStrength = (pw: string) => {
+    /**
+     * Password strength scoring:
+     *
+     * +1 → minimum length
+     * +1 → uppercase character
+     * +1 → numeric character
+     * +1 → special character
+     */
+
+    const calculateStrength = (
+      value: string
+    ): number => {
+
       let score = 0;
 
-      if (pw.length >= 8) score++;
-      if (/[A-Z]/.test(pw)) score++;
-      if (/[0-9]/.test(pw)) score++;
-      if (/[^A-Za-z0-9]/.test(pw)) score++;
+      if (value.length >= 8) {
+        score += 1;
+      }
+
+      if (/[A-Z]/.test(value)) {
+        score += 1;
+      }
+
+      if (/[0-9]/.test(value)) {
+        score += 1;
+      }
+
+      if (/[^A-Za-z0-9]/.test(value)) {
+        score += 1;
+      }
 
       return score;
     };
 
-    const strength = calculateStrength(password);
+    const strength =
+      calculateStrength(password);
 
-    const strengthLabels = [
+    const strengthLabels: PasswordStrengthLabel[] = [
       'Too short',
       'Weak',
       'Fair',
@@ -142,235 +330,508 @@ export default function MandatoryClientPage() {
 
     setUi((prev) => ({
       ...prev,
+
       passwordStrength: strength,
-      strengthText: strengthLabels[strength] || 'Too short',
+
+      strengthText:
+        strengthLabels[strength] ||
+        'Too short',
     }));
+
   }, [formData.password]);
+      
+      
+      
+      
+    // ==================================================
+  // SECTION 11 — RESEND COOLDOWN EFFECT
+  // ==================================================
 
-  // --- Resend Cooldown Timer ---
+  /**
+   * Controls resend email cooldown.
+   * Prevents rapid repeated requests.
+   */
+
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
 
-    if (ui.resendCooldown > 0) {
-      interval = setInterval(() => {
-        setUi((prev) => ({
-          ...prev,
-          resendCooldown: Math.max(prev.resendCooldown - 1, 0),
-        }));
-      }, 1000);
+    if (ui.resendCooldown <= 0) {
+      return;
     }
 
+    const interval = window.setInterval(() => {
+
+      setUi((prev) => ({
+        ...prev,
+
+        resendCooldown:
+          prev.resendCooldown > 0
+            ? prev.resendCooldown - 1
+            : 0,
+      }));
+
+    }, 1000);
+
     return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
+      window.clearInterval(interval);
     };
+
   }, [ui.resendCooldown]);
+      
+      
+      
+      
+    // ==================================================
+  // SECTION 12 — UNMOUNT CLEANUP EFFECT
+  // ==================================================
 
-  // --- Cleanup Timeouts On Unmount ---
   useEffect(() => {
-    return () => {
-      if (submitTimeoutRef.current) {
-        clearTimeout(submitTimeoutRef.current);
-      }
+    const submitTimeout = submitTimeoutRef.current;
+    const resendTimeout = resendTimeoutRef.current;
 
-      if (resendTimeoutRef.current) {
-        clearTimeout(resendTimeoutRef.current);
+    return () => {
+      if (submitTimeout) {
+        window.clearTimeout(submitTimeout);
+      }
+      if (resendTimeout) {
+        window.clearTimeout(resendTimeout);
       }
     };
+  }, []);      
+      
+      
+      
+      // ==================================================
+  // SECTION 13 A - SEARCHABLE COUNTRY FILTER & CLOSE ON CLICK OUTSIDE
+  // ==================================================
+  const countryContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Close country dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        countryContainerRef.current &&
+        !countryContainerRef.current.contains(event.target as Node)
+      ) {
+        setUi((prev) => ({ ...prev, isCountryOpen: false }));
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-    
-    
-    
-    
-    
-    
-    
-    // ============ HANDLERS ============
 
-  // --- Input Change Handler ---
+  // Filter countries based on name or code or aliases (e.g. USA -> United States)
+  const filteredCountries = ALL_COUNTRIES.filter((country) => {
+    const query = ui.countrySearch.toLowerCase().trim();
+    if (!query) return true;
+    
+    const nameMatch = country.name.toLowerCase().includes(query);
+    const codeMatch = country.code.toLowerCase().includes(query);
+    const aliasMatch = country.aliases?.some((alias) =>
+      alias.toLowerCase().includes(query)
+    );
+
+    return nameMatch || codeMatch || aliasMatch;
+  });
+
+  const selectedCountryObj = ALL_COUNTRIES.find(
+    (c) => c.code === formData.country
+  );
+      
+      
+      
+      
+      // ==================================================
+  // SECTION 13 B — INPUT CHANGE HANDLER
+  // ==================================================
+
+  /**
+   * Centralized controlled input handler.
+   *
+   * Handles:
+   * - text inputs
+   * - email inputs
+   * - password inputs
+   * - select dropdowns
+   * - checkbox inputs
+   *
+   * Also clears field-specific validation
+   * errors automatically after correction.
+   */
+
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: ChangeEvent<
+      HTMLInputElement | HTMLSelectElement
+    >
   ) => {
-    const { id, name, value, type } = e.target;
 
-    const fieldKey = (id || name) as keyof RegistrationData;
+    const {
+      id,
+      name,
+      value,
+      type,
+    } = event.target;
+
+    /**
+     * Use either id or name
+     * as the state key.
+     */
+
+    const fieldKey =
+      (id || name) as keyof RegistrationData;
+
+    /**
+     * Safely handle checkbox values.
+     */
 
     const fieldValue =
       type === 'checkbox'
-        ? (e.target as HTMLInputElement).checked
+        ? (
+            event.target as HTMLInputElement
+          ).checked
         : value;
+
+    /**
+     * Update form state.
+     */
 
     setFormData((prev) => ({
       ...prev,
-      [fieldKey]:
-        typeof fieldValue === 'string'
-          ? fieldValue
-          : fieldValue,
+
+      [fieldKey]: fieldValue,
     }));
 
-    // Clear field-specific error
+    /**
+     * Automatically clear the field's
+     * validation error once the user
+     * starts correcting the input.
+     */
+
     if (errors[fieldKey]) {
+
       setErrors((prev) => ({
         ...prev,
-        [fieldKey]: '',
+
+        [fieldKey]: undefined,
       }));
     }
   };
+      
+      
+      
+      
+      
+      // ==================================================
+  // SECTION 14 — ROLE CHANGE HANDLER
+  // ==================================================
 
-  // --- Role Selection ---
-const handleRoleChange = (role: UserRole) => {
-  setFormData((prev) => ({
-    ...prev,
-    role,
-  }));
-};
+  const handleRoleChange = (role: UserRole) => {
+    setFormData((prev) => ({
+      ...prev,
+      role,
+      referralCode: role !== 'affiliate' ? '' : prev.referralCode,
+    }));
+  };      
+      
+      
+      // ==================================================
+  // SECTION 15 — FORM VALIDATION
+  // ==================================================
 
-  // --- Form Validation ---
+  /**
+   * Validates all form fields before
+   * account finalization submission.
+   */
+
   const validateForm = (): boolean => {
+
     const newErrors: FormErrors = {};
 
-    const trimmedFullName = formData.fullName.trim();
-    const trimmedEmail = formData.email.trim();
+    /**
+     * Normalize user inputs.
+     */
 
-    // Full Name
+    const trimmedFullName =
+      formData.fullName.trim();
+
+    const trimmedEmail =
+      formData.email.trim().toLowerCase();
+
+    const trimmedReferralCode =
+      formData.referralCode.trim();
+
+    // --------------------------------------------------
+    // FULL NAME VALIDATION
+    // --------------------------------------------------
+
     if (!trimmedFullName) {
-      newErrors.fullName = 'Full name is required.';
+
+      newErrors.fullName =
+        'Full name is required.';
+
+    } else if (trimmedFullName.length < 2) {
+
+      newErrors.fullName =
+        'Full name must be at least 2 characters.';
     }
 
-    // Gender
+    // --------------------------------------------------
+    // GENDER VALIDATION
+    // --------------------------------------------------
+
     if (!formData.gender) {
-      newErrors.gender = 'Please select your gender.';
+
+      newErrors.gender =
+        'Please select your gender.';
     }
 
-    // Email
+    // --------------------------------------------------
+    // EMAIL VALIDATION
+    // --------------------------------------------------
+
     if (!trimmedEmail) {
-      newErrors.email = 'Email address is required.';
+
+      newErrors.email =
+        'Email address is required.';
+
     } else {
+
       const emailRegex =
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
       if (!emailRegex.test(trimmedEmail)) {
+
         newErrors.email =
           'Please enter a valid email address.';
       }
     }
 
-    // Password
-    if (formData.password.length < 8) {
+    // --------------------------------------------------
+    // PASSWORD VALIDATION
+    // --------------------------------------------------
+
+    if (!formData.password) {
+
+      newErrors.password =
+        'Password is required.';
+
+    } else if (formData.password.length < 8) {
+
       newErrors.password =
         'Password must be at least 8 characters.';
     }
 
-    // Confirm Password
-    if (
-      formData.password !== formData.retypePassword
+    // --------------------------------------------------
+    // CONFIRM PASSWORD VALIDATION
+    // --------------------------------------------------
+
+    if (!formData.retypePassword) {
+
+      newErrors.retypePassword =
+        'Please confirm your password.';
+
+    } else if (
+      formData.password !==
+      formData.retypePassword
     ) {
+
       newErrors.retypePassword =
         'Passwords do not match.';
     }
 
-   // Country
+    // --------------------------------------------------
+    // COUNTRY VALIDATION
+    // --------------------------------------------------
+
     if (!formData.country) {
-      newErrors.country = 'Please select your country.';
+
+      newErrors.country =
+        'Please select your country.';
     }
 
-    // City
-    if (!formData.city.trim()) {
-      newErrors.city = 'City is required.';
+    // --------------------------------------------------
+    // AFFILIATE REFERRAL VALIDATION
+    // --------------------------------------------------
+
+    if (
+      formData.role === 'affiliate' &&
+      trimmedReferralCode.length > 0 &&
+      trimmedReferralCode.length < 4
+    ) {
+
+      newErrors.referralCode =
+        'Referral code is too short.';
     }
 
-    // Terms
+    // --------------------------------------------------
+    // TERMS VALIDATION
+    // --------------------------------------------------
+
     if (!formData.agreedToTerms) {
+
       newErrors.agreedToTerms =
         'You must agree to the Terms and Privacy Policy.';
     }
 
+    /**
+     * Update validation state.
+     */
+
     setErrors(newErrors);
+
+    /**
+     * Return validation result.
+     */
 
     return Object.keys(newErrors).length === 0;
   };
-
-  // --- Submit Handler (Production Version) ---
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    // 1. Validate the form fields first
-    if (!validateForm()) return;
-
-    // 2. Start the loading state
-    setUi((prev) => ({ ...prev, isSubmitting: true }));
-
-    try {
-      // 3. Send the data to your MongoDB via the Backend API
-      const response = await fetch(`http://localhost:5000/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: formData.fullName,
-          gender: formData.gender,
-          email: formData.email,
-          password: formData.password,
-          country: formData.country,
-          city: formData.city.trim(),
-          role: formData.role,
-          referralCode: formData.referralCode,
-        }),
-      });
       
-      const data = await response.json();
+      
+      
+      
+     // ==================================================
+  // SECTION 16 — SUBMIT HANDLER
+  // ==================================================   
+      
+   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
 
-      // 4. Handle Server Errors (e.g., Email already in use)
-      if (!response.ok) {
-        setErrors((prev) => ({ 
-          ...prev, 
-          email: data.message || 'Registration failed. Please try again.' 
-        }));
-        setUi((prev) => ({ ...prev, isSubmitting: false }));
-        return;
+  if (ui.isSubmitting) return;
+
+  const isValid = validateForm();
+  if (!isValid) return;
+
+  setUi((prev) => ({ ...prev, isSubmitting: true }));
+
+  const normalizedFullName = formData.fullName.trim();
+  const normalizedEmail = formData.email.trim().toLowerCase();
+  const normalizedReferralCode = formData.referralCode.trim();
+
+  // 1. Build the production request body
+  const payload = {
+    fullName: normalizedFullName,
+    gender: formData.gender,
+    email: normalizedEmail,
+    password: formData.password,
+    country: formData.country,
+    role: formData.role,
+    referralCode: normalizedReferralCode || undefined
+  };
+
+  try {
+    // 2. Make the real API call to your backend
+    const response = await fetch(`${API_BASE_URL}/api/auth/finalize-account`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // 3. SECURE LOCAL STORAGE RULE: Save the JWT token and basic UI metadata
+      localStorage.setItem('token', data.token); // Secure authorization token
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userRole', formData.role);
+      localStorage.setItem('userName', normalizedFullName);
+      localStorage.setItem('isProfileComplete', 'true');
+      localStorage.setItem('isEmailVerified', 'false'); // Set to true once verified via email
+      localStorage.setItem('accountStrength', data.user?.accountStrength || '60');
+
+      if (formData.role === 'affiliate' && normalizedReferralCode) {
+        localStorage.setItem('affiliateReferralCode', normalizedReferralCode);
       }
+      
+      
+      // RIGHT HERE: Wake up your Header component instantly! 
+      window.dispatchEvent(new Event('storage'));
 
-      // 5. If Success: Clear password and show the Success Overlay
+      // Clear password states from memory safely
       setFormData((prev) => ({
         ...prev,
         password: '',
         retypePassword: '',
       }));
 
+      // Show success modal wrapper
       setUi((prev) => ({
         ...prev,
         isSubmitting: false,
         showSuccess: true,
       }));
 
-    } catch (error) {
-      // 5. Handle Connection Errors (e.g., MongoDB is down or IP not whitelisted)
-      console.error('Registration Error:', error);
-      setErrors((prev) => ({ 
-        ...prev, 
-        email: 'Unable to connect to server. Check your internet or try later.' 
-      }));
+    } else {
+      // If backend validation fails (e.g., email already exists)
       setUi((prev) => ({ ...prev, isSubmitting: false }));
+      // Use your toast component to show the error
+      alert(data.msg || "Account finalization failed.");
     }
-  };
-  // --- Resend Verification Email ---
+  } catch (error) {
+    console.error('Failed to finalize account:', error);
+    setUi((prev) => ({ ...prev, isSubmitting: false }));
+    alert("Server connection issues. Please try again.");
+  }
+};   
+      
+      
+         
+      
+      
+      
+      // ==================================================
+  // SECTION 17 — RESEND VERIFICATION HANDLER
+  // ==================================================
+
+  /**
+   * Handles verification email resend flow.
+   */
+
   const handleResendEmail = () => {
+
+    /**
+     * Prevent resend spam during cooldown.
+     */
+
     if (ui.resendCooldown > 0) {
       return;
     }
 
+    /**
+     * Activate cooldown timer.
+     */
+
     setUi((prev) => ({
       ...prev,
+
       resendCooldown: 60,
     }));
 
-    resendTimeoutRef.current = setTimeout(() => {
-      console.log(
-        'Verification email resend triggered.'
-      );
+    /**
+     * Simulated resend request.
+     *
+     * Replace with real backend API
+     * request in production.
+     */
 
-      // Replace with backend API request
-    }, 1000);
+    resendTimeoutRef.current =
+      window.setTimeout(() => {
+
+        try {
+
+          console.log(
+            'Verification email resend triggered.'
+          );
+
+        } catch (error) {
+
+          console.error(
+            'Failed to resend verification email:',
+            error
+          );
+        }
+
+      }, 1000);
   };
       
       
@@ -378,18 +839,45 @@ const handleRoleChange = (role: UserRole) => {
       
       
       
-      
-      
-      // ============ RENDER ============
+      // ==================================================
+  // SECTION 18 — MAIN LAYOUT WRAPPER
+  // ==================================================
+
   return (
-    <main className="form-layout">
+
+    <main
+      className="form-layout"
+      aria-labelledby="mandatory-page-title"
+    >
+
       <div className="form-container">
+        
+        
+        
+        
+        {/* ==================================================
+            SECTION 19 — HEADER / INSTRUCTIONS
+        ================================================== */}
 
-        <h1>Finalize Your Account</h1>
+        <header className="form-header">
 
-        <p className="form-instruction">
-          Complete your account setup to unlock full platform access.
-        </p>
+          <h1 id="mandatory-page-title">
+            Finalize Your Account
+          </h1>
+
+          <p className="form-instruction">
+            Complete your account setup to unlock
+            full platform access.
+          </p>
+
+        </header>
+        
+        
+        
+        
+        {/* ==================================================
+            SECTION 20 — FORM WRAPPER + FULL NAME FIELD
+        ================================================== */}
 
         <form
           className="registration-form"
@@ -399,6 +887,7 @@ const handleRoleChange = (role: UserRole) => {
 
           {/* Full Name */}
           <div className="form-group">
+
             <label htmlFor="fullName">
               Full Name
             </label>
@@ -413,7 +902,9 @@ const handleRoleChange = (role: UserRole) => {
               maxLength={100}
               value={formData.fullName}
               onChange={handleInputChange}
-              aria-invalid={!!errors.fullName}
+              aria-invalid={
+                !!errors.fullName
+              }
               aria-describedby={
                 errors.fullName
                   ? 'fullName-error'
@@ -425,14 +916,24 @@ const handleRoleChange = (role: UserRole) => {
               <small
                 id="fullName-error"
                 className="error-text"
+                role="alert"
               >
                 {errors.fullName}
               </small>
             )}
+
           </div>
 
-          {/* Gender */}
+
+
+
+
+{/* ==================================================
+              SECTION 21 — GENDER FIELD
+          ================================================== */}
+
           <div className="form-group">
+
             <label htmlFor="gender">
               Gender
             </label>
@@ -443,13 +944,16 @@ const handleRoleChange = (role: UserRole) => {
               required
               value={formData.gender}
               onChange={handleInputChange}
-              aria-invalid={!!errors.gender}
+              aria-invalid={
+                !!errors.gender
+              }
               aria-describedby={
                 errors.gender
                   ? 'gender-error'
                   : undefined
               }
             >
+
               <option value="" disabled>
                 Select your gender
               </option>
@@ -461,20 +965,31 @@ const handleRoleChange = (role: UserRole) => {
               <option value="F">
                 Female
               </option>
+
             </select>
 
             {errors.gender && (
               <small
                 id="gender-error"
                 className="error-text"
+                role="alert"
               >
                 {errors.gender}
               </small>
             )}
+
           </div>
 
-          {/* Email */}
+
+
+
+
+{/* ==================================================
+              SECTION 22 — EMAIL FIELD
+          ================================================== */}
+
           <div className="form-group">
+
             <label htmlFor="email">
               Email Address
             </label>
@@ -485,11 +1000,14 @@ const handleRoleChange = (role: UserRole) => {
               name="email"
               placeholder="you@example.com"
               autoComplete="email"
+              inputMode="email"
               required
               maxLength={120}
               value={formData.email}
               onChange={handleInputChange}
-              aria-invalid={!!errors.email}
+              aria-invalid={
+                !!errors.email
+              }
               aria-describedby={
                 errors.email
                   ? 'email-error'
@@ -501,19 +1019,25 @@ const handleRoleChange = (role: UserRole) => {
               <small
                 id="email-error"
                 className="error-text"
+                role="alert"
               >
                 {errors.email}
               </small>
             )}
+
           </div>
 
 
 
 
+        
 
+{/* ==================================================
+              SECTION 23 — PASSWORD FIELD
+          ================================================== */}
 
-{/* Password */}
           <div className="form-group">
+
             <label htmlFor="password">
               Password
             </label>
@@ -535,7 +1059,14 @@ const handleRoleChange = (role: UserRole) => {
                 maxLength={128}
                 value={formData.password}
                 onChange={handleInputChange}
-                aria-invalid={!!errors.password}
+                aria-invalid={
+                  !!errors.password
+                }
+                aria-describedby={
+                  errors.password
+                    ? 'password-error'
+                    : 'strength-text'
+                }
               />
 
               <button
@@ -546,9 +1077,13 @@ const handleRoleChange = (role: UserRole) => {
                     ? 'Hide password'
                     : 'Show password'
                 }
+                aria-pressed={
+                  ui.passwordVisible
+                }
                 onClick={() =>
                   setUi((prev) => ({
                     ...prev,
+
                     passwordVisible:
                       !prev.passwordVisible,
                   }))
@@ -568,7 +1103,12 @@ const handleRoleChange = (role: UserRole) => {
 
             </div>
 
-            <div className="strength-meter">
+            {/* Password Strength Meter */}
+            <div
+              className="strength-meter"
+              aria-hidden="true"
+            >
+
               <div
                 className={`strength-bar ${
                   ui.passwordStrength === 1
@@ -582,11 +1122,11 @@ const handleRoleChange = (role: UserRole) => {
                 }`}
                 style={{
                   width: `${
-                    (ui.passwordStrength / 4) *
-                    100
+                    (ui.passwordStrength / 4) * 100
                   }%`,
                 }}
               ></div>
+
             </div>
 
             <small id="strength-text">
@@ -595,18 +1135,27 @@ const handleRoleChange = (role: UserRole) => {
 
             {errors.password && (
               <small
+                id="password-error"
                 className="error-text"
-                style={{ display: 'block' }}
+                role="alert"
               >
                 {errors.password}
               </small>
             )}
+
           </div>
 
-          {/* Retype Password */}
+
+
+
+{/* ==================================================
+              SECTION 24 — CONFIRM PASSWORD FIELD
+          ================================================== */}
+
           <div className="form-group">
+
             <label htmlFor="retypePassword">
-              Retype Password
+              Confirm Password
             </label>
 
             <div className="password-wrapper">
@@ -629,6 +1178,11 @@ const handleRoleChange = (role: UserRole) => {
                 aria-invalid={
                   !!errors.retypePassword
                 }
+                aria-describedby={
+                  errors.retypePassword
+                    ? 'confirm-password-error'
+                    : undefined
+                }
               />
 
               <button
@@ -639,9 +1193,13 @@ const handleRoleChange = (role: UserRole) => {
                     ? 'Hide password'
                     : 'Show password'
                 }
+                aria-pressed={
+                  ui.confirmVisible
+                }
                 onClick={() =>
                   setUi((prev) => ({
                     ...prev,
+
                     confirmVisible:
                       !prev.confirmVisible,
                   }))
@@ -663,435 +1221,292 @@ const handleRoleChange = (role: UserRole) => {
 
             {errors.retypePassword && (
               <small
+                id="confirm-password-error"
                 className="error-text"
-                style={{ display: 'block' }}
+                role="alert"
               >
                 {errors.retypePassword}
               </small>
             )}
+
           </div>
 
 
 
-{/* Country */}
-          <div className="form-group">
-            <label htmlFor="country">
-              Country of Origin
-            </label>
 
-            <div className="select-wrapper">
+           {/* ==================================================
+              SECTION 25 — SEARCHABLE COUNTRY SELECTOR
+          ================================================== */}
 
-              {/* Flag Preview */}
-<span
-  id="flag-preview"
-  className={`flag-placeholder ${
-    formData.country ? 'show' : ''
-  }`}
-  aria-hidden="true"
->
-  {formData.country && (
-    <ReactCountryFlag
-      countryCode={formData.country}
-      svg
-      style={{
-        width: '24px',
-        height: '24px',
-      }}
-    />
-  )}
-</span>
+          <div className="form-group" ref={countryContainerRef}>
+            <label htmlFor="country-search-input">Country of Origin</label>
 
-              <select
-                id="country"
-                name="country"
-                required
-                value={formData.country}
-                onChange={handleInputChange}
-                aria-invalid={!!errors.country}
-                aria-describedby={
-                  errors.country
-                    ? 'country-error'
-                    : undefined
+            <div className="custom-country-select-wrapper" style={{ position: 'relative' }}>
+              {/* Selected Flag & Input Field */}
+              <div
+                className="country-input-box"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  border: errors.country ? '1px solid #e53e3e' : '1px solid #ccc',
+                  borderRadius: '6px',
+                  padding: '0.5rem 0.75rem',
+                  backgroundColor: '#fff',
+                  cursor: 'text',
+                }}
+                onClick={() =>
+                  setUi((prev) => ({ ...prev, isCountryOpen: true }))
                 }
               >
-                <option value="" disabled>
-                  Select your country
-                </option>
+                {formData.country && (
+                  <span style={{ marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                    <ReactCountryFlag
+                      countryCode={formData.country}
+                      svg
+                      style={{ width: '1.4rem', height: '1.4rem' }}
+                    />
+                  </span>
+                )}
 
-                {/* Frequent Countries */}
-                <option value="US">
-                  United States
-                </option>
+                <input
+                  id="country-search-input"
+                  type="text"
+                  placeholder="Type to search country..."
+                  value={
+                    ui.isCountryOpen
+                      ? ui.countrySearch
+                      : selectedCountryObj?.name || ''
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setUi((prev) => ({
+                      ...prev,
+                      countrySearch: val,
+                      isCountryOpen: true,
+                    }));
+                  }}
+                  onFocus={() =>
+                    setUi((prev) => ({
+                      ...prev,
+                      isCountryOpen: true,
+                      countrySearch: '',
+                    }))
+                  }
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    width: '100%',
+                    background: 'transparent',
+                    fontSize: '1rem',
+                  }}
+                  aria-autocomplete="list"
+                  aria-expanded={ui.isCountryOpen}
+                />
 
-                <option value="GB">
-                  United Kingdom
-                </option>
+                <i
+                  className={`fas ${ui.isCountryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}
+                  style={{ color: '#888', marginLeft: '0.5rem', cursor: 'pointer' }}
+                ></i>
+              </div>
 
-                <option value="CA">
-                  Canada
-                </option>
+              {/* Floating Dropdown List */}
+              {ui.isCountryOpen && (
+                <ul
+                  className="country-dropdown-list"
+                  role="listbox"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    backgroundColor: '#fff',
+                    border: '1px solid #ccc',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 1000,
+                    margin: '4px 0 0 0',
+                    padding: '0',
+                    listStyle: 'none',
+                  }}
+                >
+                  {/* Popular choices header if no search query active */}
+                  {!ui.countrySearch && POPULAR_COUNTRIES.length > 0 && (
+                    <>
+                      <li
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          color: '#888',
+                          backgroundColor: '#f8f9fa',
+                        }}
+                      >
+                        POPULAR CHOICES
+                      </li>
+                      {POPULAR_COUNTRIES.map((c) => (
+                        <li
+                          key={`pop-${c.code}`}
+                          role="option"
+                          aria-selected={formData.country === c.code}
+                          onClick={() => {
+                            setFormData((prev) => ({ ...prev, country: c.code }));
+                            setErrors((prev) => ({ ...prev, country: undefined }));
+                            setUi((prev) => ({ ...prev, isCountryOpen: false, countrySearch: '' }));
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: formData.country === c.code ? '#f0f7ff' : '#fff',
+                          }}
+                        >
+                          <ReactCountryFlag countryCode={c.code} svg style={{ width: '1.2rem', height: '1.2rem' }} />
+                          <span>{c.name}</span>
+                        </li>
+                      ))}
+                      <li
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          color: '#888',
+                          backgroundColor: '#f8f9fa',
+                          borderTop: '1px solid #eee',
+                        }}
+                      >
+                        ALL COUNTRIES
+                      </li>
+                    </>
+                  )}
 
-                <option value="AU">
-                  Australia
-                </option>
-
-                <option value="NG">
-                  Nigeria
-                </option>
-
-                <option value="IN">
-                  India
-                </option>
-
-                <option disabled>
-                  ──────────
-                </option>
-
-                <option disabled>
-                  FULL LIST (ALPHABETICAL)
-                </option>
-
-                {/* Full Country List Continues Below */}
-                
-                
-      <option value="AF">Afghanistan</option>
-      <option value="AL">Albania</option>
-      <option value="DZ">Algeria</option>
-      <option value="AD">Andorra</option>
-      <option value="AO">Angola</option>
-      <option value="AR">Argentina</option>
-      <option value="AM">Armenia</option>
-      <option value="AT">Austria</option>
-      <option value="AZ">Azerbaijan</option>
-      <option value="BS">Bahamas</option>
-      <option value="BH">Bahrain</option>
-      <option value="BD">Bangladesh</option>
-      <option value="BE">Belgium</option>
-      <option value="BZ">Belize</option>
-      <option value="BJ">Benin</option>
-      <option value="BT">Bhutan</option>
-      <option value="BO">Bolivia</option>
-      <option value="BR">Brazil</option>
-      <option value="VG">British Virgin Islands</option>
-      <option value="BN">Brunei</option>
-      <option value="BG">Bulgaria</option>
-      <option value="BF">Burkina Faso</option>
-      <option value="BI">Burundi</option>
-      <option value="KH">Cambodia</option>
-      <option value="CM">Cameroon</option>
-      <option value="CV">Cape Verde</option>
-      <option value="CF">Central African Republic</option>
-      <option value="TD">Chad</option>
-      <option value="CL">Chile</option>
-      <option value="CN">China</option>
-      <option value="CO">Colombia</option>
-      <option value="KM">Comoros</option>
-      <option value="CG">Congo - Brazzaville</option>
-      <option value="CD">Congo - Kinshasa</option>
-      <option value="CR">Costa Rica</option>
-      <option value="CI">Côte d’Ivoire</option>
-      <option value="HR">Croatia</option>
-      <option value="CU">Cuba</option>
-      <option value="CY">Cyprus</option>
-      <option value="CZ">Czech Republic</option>
-      <option value="DK">Denmark</option>
-      <option value="DJ">Djibouti</option>
-      <option value="DM">Dominica</option>
-      <option value="DO">Dominican Republic</option>
-      <option value="EC">Ecuador</option>
-      <option value="EG">Egypt</option>
-      <option value="SV">El Salvador</option>
-      <option value="GQ">Equatorial Guinea</option>
-      <option value="ER">Eritrea</option>
-      <option value="EE">Estonia</option>
-      <option value="ET">Ethiopia</option>
-      <option value="FJ">Fiji</option>
-      <option value="FI">Finland</option>
-      <option value="FR">France</option>
-      <option value="GA">Gabon</option>
-      <option value="GM">Gambia</option>
-      <option value="GE">Georgia</option>
-      <option value="DE">Germany</option>
-      <option value="GR">Greece</option>
-      <option value="GD">Grenada</option>
-      <option value="GT">Guatemala</option>
-      <option value="GN">Guinea</option>
-      <option value="GW">Guinea-Bissau</option>
-      <option value="GY">Guyana</option>
-      <option value="HT">Haiti</option>
-      <option value="HN">Honduras</option>
-      <option value="HK">Hong Kong SAR China</option>
-      <option value="HU">Hungary</option>
-      <option value="IS">Iceland</option>
-      <option value="ID">Indonesia</option>
-      <option value="IR">Iran</option>
-      <option value="IQ">Iraq</option>
-      <option value="IE">Ireland</option>
-      <option value="IL">Israel</option>
-      <option value="IT">Italy</option>
-      <option value="JM">Jamaica</option>
-      <option value="JP">Japan</option>
-      <option value="JO">Jordan</option>
-      <option value="KZ">Kazakhstan</option>
-      <option value="KE">Kenya</option>
-      <option value="KI">Kiribati</option>
-      <option value="KW">Kuwait</option>
-      <option value="KG">Kyrgyzstan</option>
-      <option value="LA">Laos</option>
-      <option value="LV">Latvia</option>
-      <option value="LB">Lebanon</option>
-      <option value="LS">Lesotho</option>
-      <option value="LR">Liberia</option>
-      <option value="LY">Libya</option>
-      <option value="LI">Liechtenstein</option>
-      <option value="LT">Lithuania</option>
-      <option value="LU">Luxembourg</option>
-      <option value="MO">Macau SAR China</option>
-      <option value="MK">Macedonia</option>
-      <option value="MG">Madagascar</option>
-      <option value="MW">Malawi</option>
-      <option value="MY">Malaysia</option>
-      <option value="MV">Maldives</option>
-      <option value="ML">Mali</option>
-      <option value="MT">Malta</option>
-      <option value="MH">Marshall Islands</option>
-      <option value="MR">Mauritania</option>
-      <option value="MU">Mauritius</option>
-      <option value="MX">Mexico</option>
-      <option value="FM">Micronesia</option>
-      <option value="MD">Moldova</option>
-      <option value="MC">Monaco</option>
-      <option value="MN">Mongolia</option>
-      <option value="ME">Montenegro</option>
-      <option value="MA">Morocco</option>
-      <option value="MZ">Mozambique</option>
-      <option value="MM">Myanmar (Burma)</option>
-      <option value="NA">Namibia</option>
-      <option value="NR">Nauru</option>
-      <option value="NP">Nepal</option>
-      <option value="NL">Netherlands</option>
-      <option value="NZ">New Zealand</option>
-      <option value="NI">Nicaragua</option>
-      <option value="NE">Niger</option>
-      <option value="KP">North Korea</option>
-      <option value="NO">Norway</option>
-      <option value="OM">Oman</option>
-      <option value="PK">Pakistan</option>
-      <option value="PW">Palau</option>
-      <option value="PS">Palestinian Territories</option>
-      <option value="PA">Panama</option>
-      <option value="PG">Papua New Guinea</option>
-      <option value="PY">Paraguay</option>
-      <option value="PE">Peru</option>
-      <option value="PH">Philippines</option>
-      <option value="PL">Poland</option>
-      <option value="PT">Portugal</option>
-      <option value="QA">Qatar</option>
-      <option value="RO">Romania</option>
-      <option value="RU">Russia</option>
-      <option value="RW">Rwanda</option>
-      <option value="WS">Samoa</option>
-      <option value="SM">San Marino</option>
-      <option value="ST">São Tomé and Príncipe</option>
-      <option value="SA">Saudi Arabia</option>
-      <option value="SN">Senegal</option>
-      <option value="RS">Serbia</option>
-      <option value="SC">Seychelles</option>
-      <option value="SL">Sierra Leone</option>
-      <option value="SG">Singapore</option>
-      <option value="SK">Slovakia</option>
-      <option value="SI">Slovenia</option>
-      <option value="SB">Solomon Islands</option>
-      <option value="SO">Somalia</option>
-      <option value="ZA">South Africa</option>
-      <option value="KR">South Korea</option>
-      <option value="ES">Spain</option>
-      <option value="LK">Sri Lanka</option>
-      <option value="SD">Sudan</option>
-      <option value="SR">Suriname</option>
-      <option value="SZ">Swaziland</option>
-      <option value="SE">Sweden</option>
-      <option value="CH">Switzerland</option>
-      <option value="SY">Syria</option>
-      <option value="TW">Taiwan</option>
-      <option value="TJ">Tajikistan</option>
-      <option value="TZ">Tanzania</option>
-      <option value="TH">Thailand</option>
-      <option value="TG">Togo</option>
-      <option value="TO">Tonga</option>
-      <option value="TT">Trinidad and Tobago</option>
-      <option value="TN">Tunisia</option>
-      <option value="TR">Turkey</option>
-      <option value="TM">Turkmenistan</option>
-      <option value="TV">Tuvalu</option>
-      <option value="UG">Uganda</option>
-      <option value="UA">Ukraine</option>
-      <option value="AE">United Arab Emirates</option>
-      <option value="UY">Uruguay</option>
-      <option value="UZ">Uzbekistan</option>
-      <option value="VU">Vanuatu</option>
-      <option value="VE">Venezuela</option>
-      <option value="VN">Vietnam</option>
-      <option value="YE">Yemen</option>
-      <option value="ZM">Zambia</option>
-      <option value="ZW">Zimbabwe</option>
-
-
-                
-               </select>
+                  {/* Filtered Country List */}
+                  {filteredCountries.length > 0 ? (
+                    filteredCountries.map((c) => (
+                      <li
+                        key={`all-${c.code}`}
+                        role="option"
+                        aria-selected={formData.country === c.code}
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, country: c.code }));
+                          setErrors((prev) => ({ ...prev, country: undefined }));
+                          setUi((prev) => ({ ...prev, isCountryOpen: false, countrySearch: '' }));
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          backgroundColor: formData.country === c.code ? '#f0f7ff' : '#fff',
+                        }}
+                      >
+                        <ReactCountryFlag countryCode={c.code} svg style={{ width: '1.2rem', height: '1.2rem' }} />
+                        <span>{c.name}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li style={{ padding: '12px', textAlign: 'center', color: '#888', fontSize: '0.9rem' }}>
+                      No countries found
+                    </li>
+                  )}
+                </ul>
+              )}
 
               {errors.country && (
-                <small
-                  id="country-error"
-                  className="error-text"
-                >
+                <small id="country-error" className="error-text" role="alert">
                   {errors.country}
                 </small>
               )}
-
             </div>
           </div>
 
+          {/* ==================================================
+              SECTION 26 — ROLE SELECTION CARDS
+          ================================================== */}
 
-{/* City */}
           <div className="form-group">
-            <label htmlFor="city">
-              City
-            </label>
-
-            <input
-              type="text"
-              id="city"
-              name="city"
-              placeholder="e.g. Accra, Lagos, Nairobi"
-              autoComplete="address-level2"
-              required
-              maxLength={100}
-              value={formData.city}
-              onChange={handleInputChange}
-              aria-invalid={!!errors.city}
-              aria-describedby={
-                errors.city
-                  ? 'city-error'
-                  : undefined
-              }
-            />
-
-            {errors.city && (
-              <small
-                id="city-error"
-                className="error-text"
-              >
-                {errors.city}
-              </small>
-            )}
-          </div>
-
-
-
-{/* Role Selection */}
-          <div className="form-group">
-            <label>
+            <label id="role-selection-label">
               How will you use MyMarketplace?
             </label>
 
-            <div className="role-selection">
-
+            <div
+              className="role-selection"
+              role="radiogroup"
+              aria-labelledby="role-selection-label"
+            >
               {/* Client */}
               <label
-                className="role-card"
+                className={`role-card ${
+                  formData.role === 'client' ? 'active' : ''
+                }`}
               >
                 <input
                   type="radio"
                   name="role"
                   value="client"
-                  
-                  // For Client radio:
-checked={formData.role === 'client'}
-
-                  onChange={() =>
-                    handleRoleChange('client')
-                  }
+                  checked={formData.role === 'client'}
+                  onChange={() => handleRoleChange('client')}
                 />
-
-                <i
-                  className="fas fa-briefcase"
-                  aria-hidden="true"
-                ></i>
-
-                <span>
-                  I want to Hire
-                </span>
-
-                <small>
-                  For clients buying a service.
-                </small>
+                <i className="fas fa-briefcase" aria-hidden="true"></i>
+                <span>I want to Hire</span>
+                <small>For clients buying a service.</small>
               </label>
 
-             {/* Freelancer */}
-<label className="role-card">
-  <input
-    type="radio"
-    name="role"
-    value="freelancer"
-    checked={formData.role === 'freelancer'} // ✅ Reading from formData.role
-    onChange={() => handleRoleChange('freelancer')}
-  />
-                <i
-                  className="fas fa-pen-nib"
-                  aria-hidden="true"
-                ></i>
-
-                <span>
-                  I want to Sell Services
-                </span>
-
-                <small>
-                  For freelancers selling service.
-                </small>
+              {/* Freelancer */}
+              <label
+                className={`role-card ${
+                  formData.role === 'freelancer' ? 'active' : ''
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value="freelancer"
+                  checked={formData.role === 'freelancer'}
+                  onChange={() => handleRoleChange('freelancer')}
+                />
+                <i className="fas fa-pen-nib" aria-hidden="true"></i>
+                <span>I want to Sell Services</span>
+                <small>For freelancers selling services.</small>
               </label>
 
               {/* Affiliate */}
               <label
-                className="role-card"
+                className={`role-card ${
+                  formData.role === 'affiliate' ? 'active' : ''
+                }`}
               >
                 <input
-  type="radio"
-  name="role"
-  value="affiliate"
-  checked={formData.role === 'affiliate'} // ✅ Updated to formData.role
-  onChange={() => handleRoleChange('affiliate')}
-/>
-                <i
-                  className="fas fa-chart-line"
-                  aria-hidden="true"
-                ></i>
-
-                <span>
-                  I am an Affiliate
-                </span>
-
-                <small>
-                  Earn commission by promoting services.
-                </small>
+                  type="radio"
+                  name="role"
+                  value="affiliate"
+                  checked={formData.role === 'affiliate'}
+                  onChange={() => handleRoleChange('affiliate')}
+                />
+                <i className="fas fa-chart-line" aria-hidden="true"></i>
+                <span>I am an Affiliate</span>
+                <small>Earn commission by promoting services.</small>
               </label>
-
             </div>
           </div>
 
+          {/* ==================================================
+              SECTION 27 — REFERRAL FIELD + CONDITIONAL DISPLAY
+          ================================================== */}
 
-
-{/* Referral Code */}
           <div
             id="referral-group"
             className={`form-group hidden-field ${
-              selectedRole === 'affiliate'
-                ? 'show'
-                : ''
+              formData.role === 'affiliate' ? 'show' : ''
             }`}
+            aria-hidden={formData.role !== 'affiliate'}
           >
             <label htmlFor="referralCode">
-              Referral/Invite Code (Optional)
+              Referral / Invite Code (Optional)
             </label>
 
             <input
@@ -1102,26 +1517,52 @@ checked={formData.role === 'client'}
               value={formData.referralCode}
               onChange={handleInputChange}
               maxLength={50}
+              autoComplete="off"
+              spellCheck={false}
+              aria-invalid={!!errors.referralCode}
+              aria-describedby={
+                errors.referralCode ? 'referral-error' : undefined
+              }
             />
+
+            {errors.referralCode && (
+              <small id="referral-error" className="error-text" role="alert">
+                {errors.referralCode}
+              </small>
+            )}
           </div>
 
-          {/* Terms */}
+
+
+        {/* ==================================================
+              SECTION 28 — TERMS & CONDITIONS CHECKBOX
+          ================================================== */}
+
           <div className="form-group terms-check">
-            <label>
+
+            <label htmlFor="agreedToTerms">
 
               <input
                 type="checkbox"
                 id="agreedToTerms"
                 name="agreedToTerms"
-                checked={formData.agreedToTerms}
+                checked={
+                  formData.agreedToTerms
+                }
                 onChange={handleInputChange}
                 required
                 aria-invalid={
                   !!errors.agreedToTerms
                 }
+                aria-describedby={
+                  errors.agreedToTerms
+                    ? 'terms-error'
+                    : undefined
+                }
               />
 
               <span className="terms-text">
+
                 I agree to the{' '}
 
                 <Link
@@ -1138,22 +1579,34 @@ checked={formData.role === 'client'}
                   className="terms-link"
                 >
                   Privacy Policy
-                </Link>.
+                </Link>
+
+                .
+
               </span>
 
             </label>
 
             {errors.agreedToTerms && (
               <small
+                id="terms-error"
                 className="error-text"
-                style={{ display: 'block' }}
+                role="alert"
               >
                 {errors.agreedToTerms}
               </small>
             )}
+
           </div>
 
-          {/* Submit Button */}
+
+
+
+
+{/* ==================================================
+              SECTION 29 — SUBMIT BUTTON + LOGIN LINK
+          ================================================== */}
+
           <button
             type="submit"
             id="submit-btn"
@@ -1161,10 +1614,13 @@ checked={formData.role === 'client'}
             disabled={ui.isSubmitting}
             aria-busy={ui.isSubmitting}
           >
+
             <span className="btn-text">
+
               {ui.isSubmitting
                 ? 'Finalizing...'
                 : 'Create Account'}
+
             </span>
 
             {ui.isSubmitting && (
@@ -1173,34 +1629,48 @@ checked={formData.role === 'client'}
                 aria-hidden="true"
               ></i>
             )}
+
           </button>
 
           {/* Login Link */}
           <p className="login-link">
+
             Already have an account?{' '}
 
             <Link href="/login">
               Sign In
             </Link>
+
           </p>
 
         </form>
-      </div>
 
 
+</div>
 
+      {/* ==================================================
+          SECTION 30 — SUCCESS OVERLAY WRAPPER
+      ================================================== */}
 
-{/* --- E. Success Overlay --- */}
       {ui.showSuccess && (
+
         <div
           id="success-overlay"
           className="overlay show"
           role="dialog"
           aria-modal="true"
           aria-labelledby="success-title"
+          aria-describedby="success-description"
         >
-          <div className="overlay-content">
 
+          <div className="overlay-content">
+            
+            
+            
+            {/* ==================================================
+          SECTION 31 — SUCCESS CONTENT + EMAIL VERIFICATION UI
+      ================================================== */}            
+                        
             <i
               className="fas fa-envelope-open-text success-icon"
               aria-hidden="true"
@@ -1210,10 +1680,14 @@ checked={formData.role === 'client'}
               Check Your Inbox!
             </h2>
 
-            <p>
-              Registration successful. Please visit your
-              email inbox to validate your account before
+            <p id="success-description">
+
+              Registration successful.
+
+              Please visit your email inbox to
+              validate your account before
               logging in.
+
             </p>
 
             <Link
@@ -1223,6 +1697,7 @@ checked={formData.role === 'client'}
               Go to Login
             </Link>
 
+            {/* Resend Verification */}
             <div
               className="resend-container"
               style={{ marginTop: '20px' }}
@@ -1244,8 +1719,12 @@ checked={formData.role === 'client'}
                 disabled={
                   ui.resendCooldown > 0
                 }
+                aria-disabled={
+                  ui.resendCooldown > 0
+                }
                 style={{
                   justifyContent: 'center',
+
                   opacity:
                     ui.resendCooldown > 0
                       ? 0.6
@@ -1258,11 +1737,13 @@ checked={formData.role === 'client'}
                   aria-hidden="true"
                 ></i>
 
-                {' '}Resend Verification Link
+                {' '}
+                Resend Verification Link
 
               </button>
 
               {ui.resendCooldown > 0 && (
+
                 <p
                   id="resend-timer"
                   className="timer-visible"
@@ -1272,6 +1753,7 @@ checked={formData.role === 'client'}
                     marginTop: '5px',
                   }}
                 >
+
                   You can resend again in{' '}
 
                   <span id="timer-seconds">
@@ -1279,15 +1761,33 @@ checked={formData.role === 'client'}
                   </span>
 
                   s
+
                 </p>
+
               )}
 
             </div>
 
-          </div>
+        
+        
+
+
+       {/* ==================================================
+          SECTION 32 — FINAL JSX CLOSURE + COMPONENT EXPORT
+      ================================================== */}           
+
+
+</div>
+
         </div>
+
       )}
 
     </main>
   );
 }
+        
+      
+      
+      
+      

@@ -125,13 +125,13 @@ export default function SearchResultsClient() {
     return services
       .filter((service: Service) => service.isSponsored)
       .map((service: Service) => ({
-        id: service.id ?? "",
+        id: service.id ?? service._id ?? "",
         title: service.title,
-        price: `£${service.price}`,
-        username: service.sellerName ?? "Unknown Seller",
+        price: String(service.price),
+        username: service.sellerName ?? "Freelancer",
         gender: service.sellerGender,
         imageUrl: service.images?.[0] ?? "/default-service.png",
-        linkUrl: `/service-details?id=${service.id}`,
+        linkUrl: `/services/${service.id ?? service._id}`,
       }));
   }, [services]);
 
