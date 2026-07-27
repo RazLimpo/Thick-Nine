@@ -32,6 +32,7 @@ interface RegistrationData {
   password: string;
   retypePassword: string;
   country: string;
+  city: string;
   role: UserRole;
   referralCode: string;
   agreedToTerms: boolean;
@@ -67,6 +68,7 @@ interface FormErrors {
   password?: string;
   retypePassword?: string;
   country?: string;
+  city?: string;
   role?: string;
   referralCode?: string;
   agreedToTerms?: string;
@@ -112,6 +114,7 @@ export default function MandatoryClientPage() {
       password: '',
       retypePassword: '',
       country: '',
+      city: '',
       role: 'client',
       referralCode: '',
       agreedToTerms: false,
@@ -553,6 +556,8 @@ export default function MandatoryClientPage() {
 
     const trimmedEmail =
       formData.email.trim().toLowerCase();
+    
+    const trimmedCity = formData.city.trim(); 
 
     const trimmedReferralCode =
       formData.referralCode.trim();
@@ -646,6 +651,17 @@ export default function MandatoryClientPage() {
         'Please select your country.';
     }
 
+      
+      // --------------------------------------------------
+// CITY VALIDATION
+// --------------------------------------------------
+
+if (!trimmedCity) {
+  newErrors.city = 'City is required.';
+} else if (trimmedCity.length < 2) {
+  newErrors.city = 'City name must be at least 2 characters.';
+}
+      
     // --------------------------------------------------
     // AFFILIATE REFERRAL VALIDATION
     // --------------------------------------------------
@@ -702,6 +718,7 @@ export default function MandatoryClientPage() {
 
   const normalizedFullName = formData.fullName.trim();
   const normalizedEmail = formData.email.trim().toLowerCase();
+  const normalizedCity = formData.city.trim();   
   const normalizedReferralCode = formData.referralCode.trim();
 
   // 1. Build the production request body
@@ -711,6 +728,7 @@ export default function MandatoryClientPage() {
     email: normalizedEmail,
     password: formData.password,
     country: formData.country,
+    city: normalizedCity,
     role: formData.role,
     referralCode: normalizedReferralCode || undefined
   };
@@ -1377,7 +1395,7 @@ export default function MandatoryClientPage() {
                           borderTop: '1px solid #eee',
                         }}
                       >
-                        ALL COUNTRIES
+                        ALL AFRICAN COUNTRIES
                       </li>
                     </>
                   )}
@@ -1422,6 +1440,38 @@ export default function MandatoryClientPage() {
               )}
             </div>
           </div>
+
+
+
+{/* ==================================================
+              SECTION 25.5 — CITY FIELD
+          ================================================== */}
+
+          <div className="form-group">
+            <label htmlFor="city">City</label>
+
+            <input
+              type="text"
+              id="city"
+              name="city"
+              placeholder="e.g. Accra, Lagos, Nairobi"
+              autoComplete="address-level2"
+              required
+              maxLength={100}
+              value={formData.city}
+              onChange={handleInputChange}
+              aria-invalid={!!errors.city}
+              aria-describedby={errors.city ? 'city-error' : undefined}
+            />
+
+            {errors.city && (
+              <small id="city-error" className="error-text" role="alert">
+                {errors.city}
+              </small>
+            )}
+          </div>
+
+
 
           {/* ==================================================
               SECTION 26 — ROLE SELECTION CARDS
