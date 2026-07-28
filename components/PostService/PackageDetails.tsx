@@ -1,4 +1,4 @@
-components/PostService/PackageDetails.tsx
+//components/PostService/PackageDetails.tsx
 
 // ==========================================
 // BLOCK 1: IMPORTS & PROPS INTERFACE
