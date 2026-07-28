@@ -1,13 +1,22 @@
-// components/PostService/FAQSection.tsx
+//components/PostService/FAQSection.tsx
+
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React, { useState } from 'react';
 import { FAQItem } from '../../types/service.types';
 
-interface FAQSectionProps {
+export interface FAQSectionProps {
   faqs: FAQItem[];
   onAddFAQ: (faq: FAQItem) => void;
   onRemoveFAQ: (id: string) => void;
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & FAQ RENDER LOGIC
+// ==========================================
 export const FAQSection: React.FC<FAQSectionProps> = ({ faqs, onAddFAQ, onRemoveFAQ }) => {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');

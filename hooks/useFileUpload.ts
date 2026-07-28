@@ -1,18 +1,33 @@
 // hooks/useFileUpload.ts
+
+// ==========================================
+// BLOCK 1: IMPORTS & HOOK DEFINITION
+// ==========================================
 import { useState, useCallback } from 'react';
 import { PlanType, FileUploadState, UploadedMedia } from '../types/service.types';
 import { PLAN_LIMITS } from '../lib/constants';
 import { validateMediaFile } from '../lib/validation';
 import { useToast } from './useToast';
 
-export function useFileUpload(currentPlan: PlanType = 'free') {
+export interface UseFileUploadReturn {
+  media: FileUploadState;
+  addFiles: (fileList: FileList | File[], category: keyof FileUploadState) => void;
+  removeFile: (category: keyof FileUploadState, id: string) => void;
+  setMedia: React.Dispatch<React.SetStateAction<FileUploadState>>;
+}
+
+export function useFileUpload(currentPlan: PlanType = 'free'): UseFileUploadReturn {
   const { showToast } = useToast();
   const [media, setMedia] = useState<FileUploadState>({
     images: [],
     videos: [],
     audio: []
   });
-
+    
+    
+    // ==========================================
+// BLOCK 2: FILE ADDITION & PLAN QUOTA VALIDATION
+// ==========================================
   const addFiles = useCallback((fileList: FileList | File[], category: keyof FileUploadState) => {
     const filesArray = Array.from(fileList);
     const limit = PLAN_LIMITS[currentPlan][category];
@@ -36,7 +51,7 @@ export function useFileUpload(currentPlan: PlanType = 'free') {
       newMediaItems.push({
         file,
         previewUrl,
-        id: `${category}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        id: `${category}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
       });
     }
 
@@ -48,7 +63,11 @@ export function useFileUpload(currentPlan: PlanType = 'free') {
       showToast(`Added ${newMediaItems.length} file(s) to ${category}.`, 'success');
     }
   }, [currentPlan, media, showToast]);
-
+    
+    
+    // ==========================================
+// BLOCK 3: FILE REMOVAL & CLEANUP
+// ==========================================
   const removeFile = useCallback((category: keyof FileUploadState, id: string) => {
     setMedia(prev => {
       const target = prev[category].find(item => item.id === id);

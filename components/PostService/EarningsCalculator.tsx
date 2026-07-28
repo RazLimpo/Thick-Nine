@@ -1,13 +1,23 @@
-// components/PostService/EarningsCalculator.tsx
+//components/PostService/EarningsCalculator.tsx
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React from 'react';
 import { calculateEarnings } from '../../lib/earnings';
+import { MARKETPLACE_FEE_PERCENTAGE } from '../../lib/constants';
 
-interface EarningsCalculatorProps {
+export interface EarningsCalculatorProps {
   rawPrice: string | number;
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & EARNINGS RENDER LOGIC
+// ==========================================
 export const EarningsCalculator: React.FC<EarningsCalculatorProps> = ({ rawPrice }) => {
   const { grossPrice, feeAmount, netEarnings } = calculateEarnings(rawPrice);
+  const feePercentText = `${(MARKETPLACE_FEE_PERCENTAGE * 100).toFixed(0)}%`;
 
   return (
     <div
@@ -25,7 +35,7 @@ export const EarningsCalculator: React.FC<EarningsCalculatorProps> = ({ rawPrice
         <strong>${grossPrice.toFixed(2)}</strong>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#666' }}>
-        <span>Marketplace Fee (10%):</span>
+        <span>Marketplace Fee ({feePercentText}):</span>
         <span>-${feeAmount.toFixed(2)}</span>
       </div>
       <hr style={{ border: 'none', borderTop: '1px solid #cbd5e1', margin: '6px 0' }} />

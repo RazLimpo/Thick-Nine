@@ -1,14 +1,31 @@
 // hooks/usePackageData.ts
+
+// ==========================================
+// BLOCK 1: IMPORTS & HOOK DEFINITION
+// ==========================================
 import { useState, useCallback } from 'react';
 import { PackageTier, PackagesMap, PackageData } from '../types/service.types';
 import { INITIAL_PACKAGE_STATE } from '../lib/constants';
 
-export function usePackageData(initialData?: PackagesMap) {
+export interface UsePackageDataReturn {
+  activeTier: PackageTier;
+  setActiveTier: (tier: PackageTier) => void;
+  packages: PackagesMap;
+  setPackages: React.Dispatch<React.SetStateAction<PackagesMap>>;
+  currentPackage: PackageData;
+  updatePackageField: (tier: PackageTier, field: keyof PackageData, value: string) => void;
+}
+
+export function usePackageData(initialData?: PackagesMap): UsePackageDataReturn {
   const [activeTier, setActiveTier] = useState<PackageTier>('basic');
   const [packages, setPackages] = useState<PackagesMap>(
     initialData || INITIAL_PACKAGE_STATE
   );
-
+    
+    
+    // ==========================================
+// BLOCK 2: FIELD UPDATES & HOOK RETURN
+// ==========================================
   const updatePackageField = useCallback((
     tier: PackageTier,
     field: keyof PackageData,
@@ -34,3 +51,5 @@ export function usePackageData(initialData?: PackagesMap) {
     updatePackageField
   };
 }
+
+

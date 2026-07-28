@@ -1,12 +1,20 @@
 // components/PostService/PackageSelector.tsx
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React from 'react';
 import { PackageTier } from '../../types/service.types';
 
-interface PackageSelectorProps {
+export interface PackageSelectorProps {
   activeTier: PackageTier;
   onSelectTier: (tier: PackageTier) => void;
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & TAB RENDER LOGIC
+// ==========================================
 export const PackageSelector: React.FC<PackageSelectorProps> = ({
   activeTier,
   onSelectTier

@@ -1,12 +1,18 @@
 // components/PostService/PostService.tsx
+
+// ==========================================
+// BLOCK 1: IMPORTS, HOOKS & COMPONENT SETUP
+// ==========================================
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ServiceFormData, AddOnItem, FAQItem, DesignBrief } from '../../types/service.types';
 import { API_BASE_URL, DEFAULT_DESIGN_BRIEF } from '../../lib/constants';
 import { useFileUpload } from '../../hooks/useFileUpload';
 import { usePackageData } from '../../hooks/usePackageData';
 import { useToast } from '../../hooks/useToast';
+import { validateServiceForm } from '../../lib/validation';
 import {
   PackageSelector,
   MediaUploader,
@@ -19,6 +25,7 @@ import {
 } from './index';
 
 export function PostService() {
+  const router = useRouter();
   const { showToast } = useToast();
   const [plan, setPlan] = useState<'free' | 'silver' | 'gold'>('free');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,6 +46,10 @@ export function PostService() {
   ]);
 
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
+
+  // ==========================================
+  // BLOCK 2: SECTION HANDLERS & SUBMIT LOGIC
+  // ==========================================
 
   // Brief Handlers
   const handleBriefChange = (field: keyof DesignBrief, value: string) => {
@@ -73,70 +84,103 @@ export function PostService() {
     showToast('FAQ removed', 'removed');
   };
 
-  // Form Submission
+  // Form Submission Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim()) {
-      showToast('Please enter a service title.', 'removed');
-      return;
-    }
-
-    if (!currentPackage.price) {
-      showToast('Please specify pricing for the selected package.', 'removed');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const formDataPayload: ServiceFormData = {
+    // Unified validation using lib/validation.ts
+    const validation = validateServiceForm({
       title,
       category,
       description,
+      price: currentPackage.price
+    });
+
+    if (!validation.isValid) {
+      showToast(validation.error || 'Validation failed.', 'removed');
+      return;
+    }
+
+    const priceValue = parseFloat(currentPackage.price);
+    setIsSubmitting(true);
+
+    // Extract raw image URLs from upload state
+    const imageUrls = media.images.map(img => img.url).filter(Boolean);
+
+    // Formulate payload matching your backend expectations
+    const payload = {
+      title: title.trim(),
+      category: category.trim(),
+      description: description.trim(),
+      price: priceValue,
+      images: imageUrls,
       keywords,
-      attributes: [],
-      brief,
-      packages,
-      addOns,
-      faqs,
       plan,
+      packages,
+      brief,
+      addOns: addOns.filter(item => item.isChecked),
+      faqs,
       status: 'available'
     };
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/services`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formDataPayload)
-      });
+      // Get authentication token from storage if available
+      const token = typeof window !== 'undefined' 
+        ? localStorage.getItem('token') || localStorage.getItem('authToken') 
+        : null;
 
-      if (!response.ok) {
-        throw new Error('Failed to create service listing');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
-      showToast('Service created successfully!', 'success');
-    } catch (err) {
-      showToast('Error saving service listing.', 'removed');
+      const response = await fetch(`${API_BASE_URL}/api/services`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(result?.message || 'Failed to create service listing');
+      }
+
+      showToast('Service listing created successfully!', 'success');
+
+      // Redirect after a short pause
+      setTimeout(() => {
+        router.push('/services');
+      }, 1200);
+
+    } catch (err: any) {
+      showToast(err.message || 'Error saving service listing.', 'removed');
     } finally {
       setIsSubmitting(false);
     }
   };
-
+    
+    
+  // ==========================================
+  // BLOCK 3: JSX FORM LAYOUT & SIDEBAR PREVIEW
+  // ==========================================
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="post-service-container">
+      <form onSubmit={handleSubmit} className="post-service-form">
         
         {/* Tier Plan Selector */}
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Select Membership Plan</label>
-          <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="form-card">
+          <label className="form-label">Select Membership Plan</label>
+          <div className="plan-button-group">
             {(['free', 'silver', 'gold'] as const).map(p => (
               <button
                 key={p}
                 type="button"
                 className={`btn ${plan === p ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setPlan(p)}
-                style={{ flex: 1, textTransform: 'capitalize' }}
               >
                 {p}
               </button>
@@ -145,59 +189,59 @@ export function PostService() {
         </div>
 
         {/* Basic Details */}
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ marginBottom: '16px' }}>Service Overview</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="form-card">
+          <h3 className="section-title">Service Overview</h3>
+          <div className="form-group-stack">
             <div>
-              <label style={{ display: 'block', fontWeight: 500, marginBottom: '4px' }}>Service Title</label>
+              <label className="form-label">Service Title</label>
               <input
                 type="text"
                 value={title}
                 placeholder="I will build a high-performing web application..."
                 onChange={e => setTitle(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                className="form-input"
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div className="form-grid-2col">
               <div>
-                <label style={{ display: 'block', fontWeight: 500, marginBottom: '4px' }}>Category</label>
+                <label className="form-label">Category</label>
                 <input
                   type="text"
                   value={category}
                   placeholder="e.g. Web Development"
                   onChange={e => setCategory(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                  className="form-input"
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 500, marginBottom: '4px' }}>Search Keywords</label>
+                <label className="form-label">Search Keywords</label>
                 <input
                   type="text"
                   value={keywords}
                   placeholder="react, nextjs, typescript"
                   onChange={e => setKeywords(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                  className="form-input"
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontWeight: 500, marginBottom: '4px' }}>Description</label>
+              <label className="form-label">Description</label>
               <textarea
                 rows={4}
                 value={description}
                 placeholder="Describe your service offering in detail..."
                 onChange={e => setDescription(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                className="form-input"
               />
             </div>
           </div>
         </div>
 
         {/* Media Uploads */}
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ marginBottom: '16px' }}>Media Gallery</h3>
+        <div className="form-card">
+          <h3 className="section-title">Media Gallery</h3>
           <MediaUploader
             category="images"
             title="Images"
@@ -228,8 +272,8 @@ export function PostService() {
         </div>
 
         {/* Packages Configuration */}
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ marginBottom: '16px' }}>Packages & Pricing</h3>
+        <div className="form-card">
+          <h3 className="section-title">Packages & Pricing</h3>
           <PackageSelector activeTier={activeTier} onSelectTier={setActiveTier} />
           <PackageDetails
             tier={activeTier}
@@ -240,14 +284,14 @@ export function PostService() {
         </div>
 
         {/* Requirements / Brief Builder */}
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ marginBottom: '16px' }}>Buyer Requirements Brief</h3>
+        <div className="form-card">
+          <h3 className="section-title">Buyer Requirements Brief</h3>
           <BriefBuilder brief={brief} onChange={handleBriefChange} />
         </div>
 
         {/* Extra Add-Ons */}
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ marginBottom: '16px' }}>Service Extras & Add-Ons</h3>
+        <div className="form-card">
+          <h3 className="section-title">Service Extras & Add-Ons</h3>
           <AddOnsSection
             addOns={addOns}
             onToggleAddOn={handleToggleAddOn}
@@ -257,23 +301,22 @@ export function PostService() {
         </div>
 
         {/* Frequently Asked Questions */}
-        <div style={{ background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ marginBottom: '16px' }}>Frequently Asked Questions</h3>
+        <div className="form-card">
+          <h3 className="section-title">Frequently Asked Questions</h3>
           <FAQSection faqs={faqs} onAddFAQ={handleAddFAQ} onRemoveFAQ={handleRemoveFAQ} />
         </div>
 
         <button
           type="submit"
-          className="btn btn-primary btn-large"
+          className="btn btn-primary btn-large submit-btn"
           disabled={isSubmitting}
-          style={{ width: '100%', cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
         >
           {isSubmitting ? 'Publishing Service...' : 'Publish Service Listing'}
         </button>
       </form>
 
       {/* Dynamic Live Preview Sidebar */}
-      <div>
+      <div className="preview-sidebar-wrapper">
         <PreviewPanel
           formData={{
             title,

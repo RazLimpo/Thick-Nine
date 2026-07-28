@@ -1,5 +1,9 @@
 // types/service.types.ts
 
+// ==========================================
+// BLOCK 1: PACKAGE & PLAN TIER DEFINITIONS
+// ==========================================
+
 export type PackageTier = 'basic' | 'standard' | 'premium';
 
 export type PlanType = 'free' | 'silver' | 'gold';
@@ -18,6 +22,11 @@ export interface PackagesMap {
   standard: PackageData;
   premium: PackageData;
 }
+
+
+// ==========================================
+// BLOCK 2: ADD-ONS, FAQS & REQUIREMENTS BRIEF
+// ==========================================
 
 export interface AddOnItem {
   id: string;
@@ -42,6 +51,11 @@ export interface DesignBrief {
   req4: string;
 }
 
+
+// ==========================================
+// BLOCK 3: MEDIA UPLOAD & PLAN LIMITS
+// ==========================================
+
 export interface PlanLimitConfig {
   images: number;
   videos: number;
@@ -57,11 +71,18 @@ export interface UploadedMedia {
   id: string;
 }
 
+export type MediaCategory = 'images' | 'videos' | 'audio';
+
 export interface FileUploadState {
   images: UploadedMedia[];
   videos: UploadedMedia[];
   audio: UploadedMedia[];
 }
+  
+  
+  // ==========================================
+// BLOCK 4: SERVICE FORM PAYLOAD
+// ==========================================
 
 export interface ServiceFormData {
   title: string;

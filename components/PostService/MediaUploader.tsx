@@ -1,10 +1,14 @@
-// components/PostService/MediaUploader.tsx
+//components/PostService/MediaUploader.tsx
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React from 'react';
-import { UploadedMedia, PlanType } from '../../types/service.types';
+import { UploadedMedia, PlanType, MediaCategory } from '../../types/service.types';
 import { PLAN_LIMITS } from '../../lib/constants';
 
-interface MediaUploaderProps {
-  category: 'images' | 'videos' | 'audio';
+export interface MediaUploaderProps {
+  category: MediaCategory;
   title: string;
   accept: string;
   items: UploadedMedia[];
@@ -13,6 +17,10 @@ interface MediaUploaderProps {
   onRemoveFile: (id: string) => void;
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & MEDIA GRID RENDER LOGIC
+// ==========================================
 export const MediaUploader: React.FC<MediaUploaderProps> = ({
   category,
   title,

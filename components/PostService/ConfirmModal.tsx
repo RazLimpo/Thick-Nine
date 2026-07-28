@@ -1,7 +1,12 @@
-// components/PostService/ConfirmModal.tsx
+//components/PostService/ConfirmModal.tsx
+
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React from 'react';
 
-interface ConfirmModalProps {
+export interface ConfirmModalProps {
   isOpen: boolean;
   title: string;
   message: string;
@@ -9,6 +14,10 @@ interface ConfirmModalProps {
   onCancel: () => void;
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & OVERLAY RENDER LOGIC
+// ==========================================
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   isOpen,
   title,

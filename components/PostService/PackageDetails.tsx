@@ -1,13 +1,21 @@
-// components/PostService/PackageDetails.tsx
+components/PostService/PackageDetails.tsx
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React from 'react';
 import { PackageTier, PackageData } from '../../types/service.types';
 
-interface PackageDetailsProps {
+export interface PackageDetailsProps {
   tier: PackageTier;
   packageData: PackageData;
   onFieldChange: (tier: PackageTier, field: keyof PackageData, value: string) => void;
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & INPUT RENDER LOGIC
+// ==========================================
 export const PackageDetails: React.FC<PackageDetailsProps> = ({
   tier,
   packageData,

@@ -1,13 +1,22 @@
-// components/PostService/PreviewPanel.tsx
+//components/PostService/PreviewPanel.tsx
+
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React from 'react';
 import { PackageTier, ServiceFormData, UploadedMedia } from '../../types/service.types';
 
-interface PreviewPanelProps {
+export interface PreviewPanelProps {
   formData: ServiceFormData;
   activeTier: PackageTier;
   media: UploadedMedia[];
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & PREVIEW RENDER LOGIC
+// ==========================================
 export const PreviewPanel: React.FC<PreviewPanelProps> = ({ formData, activeTier, media }) => {
   const currentPkg = formData.packages[activeTier];
   const selectedAddOns = formData.addOns.filter(a => a.isChecked);

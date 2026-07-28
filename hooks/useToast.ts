@@ -1,9 +1,21 @@
 // hooks/useToast.ts
+
+// ==========================================
+// BLOCK 1: IMPORTS & TYPE DEFINITIONS
+// ==========================================
 import { useCallback } from 'react';
 
 export type ToastType = 'success' | 'removed' | 'info';
 
-export function useToast() {
+export interface UseToastReturn {
+  showToast: (message: string, type?: ToastType) => void;
+}
+
+
+// ==========================================
+// BLOCK 2: TOAST CREATION & LIFECYCLE MANAGEMENT
+// ==========================================
+export function useToast(): UseToastReturn {
   const showToast = useCallback((message: string, type: ToastType = 'success') => {
     if (typeof window === 'undefined') return;
 
@@ -18,13 +30,12 @@ export function useToast() {
     toast.className = `toast ${type === 'removed' ? 'removed' : ''}`;
 
     const icon = document.createElement('i');
-    if (type === 'removed') {
-      icon.className = 'fa-solid fa-triangle-exclamation';
-    } else if (type === 'info') {
-      icon.className = 'fa-solid fa-circle-info';
-    } else {
-      icon.className = 'fa-solid fa-circle-check';
-    }
+    const iconClassMap: Record<ToastType, string> = {
+      removed: 'fa-solid fa-triangle-exclamation',
+      info: 'fa-solid fa-circle-info',
+      success: 'fa-solid fa-circle-check',
+    };
+    icon.className = iconClassMap[type] || iconClassMap.success;
 
     const textSpan = document.createElement('span');
     textSpan.textContent = message;
@@ -42,3 +53,5 @@ export function useToast() {
 
   return { showToast };
 }
+
+

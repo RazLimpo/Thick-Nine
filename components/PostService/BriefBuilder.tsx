@@ -1,12 +1,21 @@
-// components/PostService/BriefBuilder.tsx
+//components/PostService/BriefBuilder.tsx
+
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React from 'react';
 import { DesignBrief } from '../../types/service.types';
 
-interface BriefBuilderProps {
+export interface BriefBuilderProps {
   brief: DesignBrief;
   onChange: (field: keyof DesignBrief, value: string) => void;
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & BRIEF INPUTS RENDER LOGIC
+// ==========================================
 export const BriefBuilder: React.FC<BriefBuilderProps> = ({ brief, onChange }) => {
   return (
     <div className="brief-builder-section" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

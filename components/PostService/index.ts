@@ -1,4 +1,8 @@
 // components/PostService/index.ts
+
+// ==========================================
+// BLOCK 1: POST SERVICE SUBCOMPONENT EXPORTS
+// ==========================================
 export { PackageSelector } from './PackageSelector';
 export { MediaUploader } from './MediaUploader';
 export { PackageDetails } from './PackageDetails';

@@ -1,14 +1,23 @@
-// components/PostService/AddOnsSection.tsx
+//components/PostService/AddOnsSection.tsx
+
+
+// ==========================================
+// BLOCK 1: IMPORTS & PROPS INTERFACE
+// ==========================================
 import React, { useState } from 'react';
 import { AddOnItem } from '../../types/service.types';
 
-interface AddOnsSectionProps {
+export interface AddOnsSectionProps {
   addOns: AddOnItem[];
   onToggleAddOn: (id: string) => void;
   onAddAddOn: (newItem: AddOnItem) => void;
   onRemoveAddOn: (id: string) => void;
 }
 
+
+// ==========================================
+// BLOCK 2: COMPONENT & ADD-ON RENDER LOGIC
+// ==========================================
 export const AddOnsSection: React.FC<AddOnsSectionProps> = ({
   addOns,
   onToggleAddOn,
