@@ -104,10 +104,12 @@ export function PostService() {
     const priceValue = parseFloat(currentPackage.price);
     setIsSubmitting(true);
 
-    // Extract raw image URLs from upload state
-    const imageUrls = media.images.map(img => img.url).filter(Boolean);
+    // Extract raw image URLs safely from UploadedMedia items
+    const imageUrls = media.images
+      .map(img => img.previewUrl || (img as any).url)
+      .filter(Boolean);
 
-    // Formulate payload matching your backend expectations
+    // Formulate payload matching backend expectations
     const payload = {
       title: title.trim(),
       category: category.trim(),
@@ -161,8 +163,7 @@ export function PostService() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-    
+  };    
     
   // ==========================================
   // BLOCK 3: JSX FORM LAYOUT & SIDEBAR PREVIEW
