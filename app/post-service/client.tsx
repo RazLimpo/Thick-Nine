@@ -2,8 +2,9 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { MARKETPLACE_FEE_PERCENTAGE } from "@/lib/constants";
 import { PlanKey, PLAN_LIMITS, validateMediaFile, validateMediaQuantity } from "@/lib/validation";
@@ -14,6 +15,11 @@ import '../../styles/pages/service-details.css';
 // Component Definition 
 export default function PostServiceClient() {
   // --- All state will go here ---
+  
+  const router = useRouter();
+  
+  // Ref for scrolling to images container without DOM lookup 
+  const imagesSectionRef = useRef<HTMLDivElement>(null);
   
 // --- Package Data ---
 const [packagesData, setPackagesData] = useState({
@@ -30,7 +36,6 @@ const [selectedAudios, setSelectedAudios] = useState<File[]>([]);
 
 // --- View ---
 const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
-const [previewHTML, setPreviewHTML] = useState("");
 
 // --- Form fields (basic info) ---
 const [serviceTitle, setServiceTitle] = useState("");
@@ -238,7 +243,7 @@ const handleSubmit = (e: React.FormEvent) => {
     // 2. Validate essential fields
     if (selectedImages.length === 0) {
       showToast("Please upload at least one image for your service.", "warning");
-      document.getElementById("images")?.scrollIntoView({ behavior: "smooth" });
+      imagesSectionRef.current?.scrollIntoView({ behavior: "smooth" });
       return;
     }
 
@@ -251,16 +256,19 @@ const handleSubmit = (e: React.FormEvent) => {
     if (selectedPlan === "silver" || selectedPlan === "gold") {
       showToast("Redirecting to secure payment page...", "info");
       setTimeout(() => {
-        window.location.href = `/checkout?plan=${selectedPlan}`;
+        // ✅ Smooth Next.js client router redirect without full page reload
+        router.push(`/checkout?plan=${selectedPlan}`);
       }, 2000);
     } else {
       showToast("Publishing your service for free...", "info");
       setTimeout(() => {
         showToast("Success! Your service is now live.", "success");
+        // Optionally redirect to seller dashboard or service listing after free publish:
+        // router.push("/dashboard");
       }, 1500);
     }
   };
-
+  
 const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: number) => {
     setPendingRemove({ type, index });
     setShowConfirmModal(true);
@@ -305,275 +313,34 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
     },
   }));
 
-  // Build and show preview
-  const html = buildPreviewHTML();
-  setPreviewHTML(html);
   setViewMode("preview");
   window.scrollTo(0, 0);
 };
   
   
   
-const buildPreviewHTML = () => {
-    const title = serviceTitle || "Service Title Preview";
-    const catText =
-      category === "design"
-        ? "Graphics & Design"
-        : category === "webdev"
-        ? "Web Development"
-        : "Category";
-    const desc = description.replace(/\n/g, "<br>") || "Detailed description...";
+  
+  // Derive active package data matching buildPreviewHTML logic
+  const activePackage = {
+    ...packagesData[currentEditingTier],
+    title: pkgTitle || packagesData[currentEditingTier].title,
+    desc: pkgDesc || packagesData[currentEditingTier].desc,
+    price: pkgPrice || packagesData[currentEditingTier].price,
+    delivery: pkgDelivery || packagesData[currentEditingTier].delivery,
+    revisions: pkgRevisions || packagesData[currentEditingTier].revisions,
+    features: pkgFeatures || packagesData[currentEditingTier].features,
+  };
 
-    // Active package data
-    const activeData = {
-      ...packagesData[currentEditingTier],
-      title: pkgTitle || packagesData[currentEditingTier].title,
-      desc: pkgDesc || packagesData[currentEditingTier].desc,
-      price: pkgPrice || packagesData[currentEditingTier].price,
-      delivery: pkgDelivery || packagesData[currentEditingTier].delivery,
-      revisions: pkgRevisions || packagesData[currentEditingTier].revisions,
-      features: pkgFeatures || packagesData[currentEditingTier].features,
-    };
-
-    // Features list
-    const activeFeatures = (activeData.features || "")
-      .split("\n")
-      .filter((f) => f.trim())
-      .map((f) => `<li><i class="fas fa-check"></i> ${f.trim()}</li>`)
-      .join("");
-
-    // Tags
-    const tags = keywords
-      .split(",")
-      .filter((t) => t.trim())
-      .map((t) => `<span class="tag">#${t.trim()}</span>`)
-      .join(" ");
-
-    // Media
-    let mediaHTML = "";
-    if (selectedImages.length > 0) {
-      const featuredUrl = URL.createObjectURL(selectedImages[0]);
-      mediaHTML += `
-        <div class="main-image-wrapper">
-          <img src="${featuredUrl}" class="main-image featured-preview" id="main-preview-img">
-        </div>`;
-      if (selectedImages.length > 1) {
-        mediaHTML += `<div class="thumbnail-grid">`;
-        selectedImages.forEach((file, idx) => {
-          const thumbUrl = URL.createObjectURL(file);
-          mediaHTML += `
-            <div class="thumb-item ${idx === 0 ? "active" : ""}">
-              <img src="${thumbUrl}" 
-                   onclick="document.getElementById('main-preview-img').src='${thumbUrl}'; 
-                            document.querySelectorAll('.thumb-item').forEach(t=>t.classList.remove('active'));
-                            this.parentElement.classList.add('active');">
-            </div>`;
-        });
-        mediaHTML += `</div>`;
-      }
-    } else {
-      mediaHTML = `<div class="main-image-wrapper">
-        <img src="https://picsum.photos/id/201/900/550" class="main-image">
-      </div>`;
-    }
-
-    selectedVideos.forEach((file) => {
-      const url = URL.createObjectURL(file);
-      mediaHTML += `<div class="preview-media-item video-block"><video controls><source src="${url}"></video></div>`;
-    });
-    selectedAudios.forEach((file) => {
-      const url = URL.createObjectURL(file);
-      mediaHTML += `<div class="preview-media-item audio-block"><audio controls><source src="${url}"></audio></div>`;
-    });
-
-    // Design Brief Requirements
-    const reqs = [req1, req2, req3, req4]
-      .map((val, i) =>
-        val
-          ? `<div class="requirement-item"><h4>Requirement ${i + 1}</h4><p>${val}</p></div>`
-          : ""
-      )
-      .join("");
-
-    // Attributes
-    const attributes = (selectedAttributes || [])
-      .map(
-        (attr) =>
-          `<div class="attribute-pill"><i class="fas fa-star"></i> ${attr
-            .replace(/-/g, " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase())}</div>`
-      )
-      .join("");
-
-    // Package cards (all tiers)
-    let tiersHTML = "";
-    (["basic", "standard", "premium"] as const).forEach((tier) => {
-      const data = packagesData[tier];
-      if (data.title || data.price || tier === currentEditingTier) {
-        const d = tier === currentEditingTier ? activeData : data;
-        const featuresFormatted = (d.features || "")
-          .split("\n")
-          .filter((f) => f.trim())
-          .map(
-            (f) =>
-              `<li style="margin-bottom:5px;"><i class="fas fa-check" style="color:var(--primary); margin-right:8px;"></i>${f}</li>`
-          )
-          .join("");
-
-        tiersHTML += `
-          <div class="package-card ${tier === currentEditingTier ? "active" : ""}" 
-               style="border:1px solid #e2e8f0; padding:20px; border-radius:8px; flex:1; min-width:250px; display:flex; flex-direction:column; background:#fff;">
-            <div class="package-header" style="display:flex; justify-content:space-between; align-items:center;">
-              <span class="package-badge" style="background:${
-                tier === currentEditingTier ? "var(--primary)" : "#64748b"
-              }; color:white; padding:4px 10px; border-radius:4px; text-transform:uppercase; font-size:0.7rem;">${tier}</span>
-              <div class="package-price" style="font-weight:bold; font-size:1.2rem;">$${d.price || "0"}</div>
-            </div>
-            <strong style="display:block; margin:15px 0 5px; font-size:1rem;">${d.title || "Untitled"}</strong>
-            <p style="font-size:0.85rem; color:#666; margin-bottom:15px; flex-grow:1;">${d.desc || ""}</p>
-            <ul style="list-style:none; padding:0; font-size:0.85rem; margin-bottom:15px;">
-              ${featuresFormatted}
-            </ul>
-            <button class="btn-primary" style="width:100%; margin-top:auto;">Select ${
-              tier.charAt(0).toUpperCase() + tier.slice(1)
-            }</button>
-          </div>`;
-      }
-    });
-
-    // Add-ons (only checked)
-    const addonsHTML = (addons || [])
-      .filter((a) => a.checked)
-      .map(
-        (a) => `
-        <label class="addon-item">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <input type="checkbox" class="preview-addon-chk" data-price="${a.price}" data-label="${a.label}">
-            <span>${a.label}</span>
-          </div>
-          <span class="addon-price">+$${a.price}</span>
-        </label>`
-      )
-      .join("");
-
-    // FAQs
-    const faqsHTML = (faqs || [])
-      .filter((f) => f.question)
-      .map(
-        (f) => `
-        <div class="faq-item">
-          <div class="faq-question" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
-            ${f.question}
-          </div>
-          <div class="faq-answer">${f.answer}</div>
-        </div>`
-      )
-      .join("");
-
-    // Final HTML Output
-    return `
-      <div class="service-details-main" style="background:#fff">
-        <div class="container">
-          <nav class="breadcrumb">Home > ${catText} > <span>${title}</span></nav>
-          <div class="service-header"><h1 class="service-title">${title}</h1></div>
-          <div class="content-grid">
-            <div class="main-column">
-              <section class="gallery-section"><div class="preview-gallery-grid">${mediaHTML}</div></section>
-              <section class="description-section">
-                <h2>About This Service</h2>
-                <p>${desc}</p>
-                <div class="tags-row" style="margin-top:20px">${tags}</div>
-              </section>
-
-              <section class="requirements-section">
-                <h2>Design Brief</h2>
-                <p class="intro-text">${briefIntro}</p>
-                <div class="requirements-list">${reqs}</div>
-                <div class="tip-box">
-                  <i class="fas fa-lightbulb"></i>
-                  <p><strong>Tip:</strong> The more detailed your brief, the faster the result will be.</p>
-                </div>
-              </section>
-
-              <section class="attributes-section">
-                <h2>Why Choose Me</h2>
-                <div class="attributes-grid">${attributes || "No attributes selected"}</div>
-              </section>
-
-              <section class="packages-section" id="packages-grid" style="margin-top:40px; border-top:1px solid #eee; padding-top:30px;">
-                <h3 style="margin-bottom:20px;">Service Packages</h3>
-                <div style="display:flex; gap:20px; flex-wrap:wrap;">
-                  ${tiersHTML || "<p>Fill in package details to see them here.</p>"}
-                </div>
-              </section>
-
-              <section class="addons-section">
-                <h2>Available Add-ons</h2>
-                <div class="addons-list">${addonsHTML || "<p>No add-ons selected.</p>"}</div>
-              </section>
-
-              <section class="faq-section">
-                <h2>FAQ</h2>
-                <div class="faq-accordion">${faqsHTML || "No FAQs added."}</div>
-              </section>
-            </div>
-
-            <div class="sidebar-column">
-              <div class="order-card sticky">
-                <div class="order-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                  <div style="display:flex; align-items:baseline; gap:10px;">
-                    <span class="package-badge" style="background:var(--primary-color); color:white; padding:2px 8px; border-radius:4px; font-size:0.7rem; text-transform:uppercase;">
-                      ${currentEditingTier}
-                    </span>
-                    <a href="#packages-grid" style="text-decoration:none;">
-                      <span style="font-size:0.75rem; color:#94a3b8; cursor:pointer;">select package</span>
-                    </a>
-                  </div>
-                  <div class="order-price" style="font-size:1.4rem; font-weight:800; color:var(--primary-color);">
-                    $<span id="preview-total-price">${activeData.price || "0"}</span>
-                  </div>
-                </div>
-
-                <div style="display:block; width:100%; margin:15px 0; border-bottom:1px solid #f1f5f9; padding-bottom:15px; text-align:left;">
-                  <strong style="display:block; width:100%; white-space:normal; font-size:1.1rem; color:#1e293b;">
-                    ${activeData.title || "Untitled Package"}
-                  </strong>
-                  <p class="order-desc" style="display:block; width:100%; white-space:normal; margin-top:5px; color:#62646a; font-size:0.9rem;">
-                    ${activeData.desc || "No description provided."}
-                  </p>
-                </div>
-
-                <div class="order-delivery" style="display:flex; flex-direction:column; gap:12px; border-top:1px solid #eee; padding-top:15px; margin-top:10px;">
-                  <div class="delivery-item" style="display:flex; align-items:center;">
-                    <span style="width:25px; display:flex; justify-content:center; margin-right:10px; color:var(--primary-color);">
-                      <i class="fas fa-clock"></i>
-                    </span>
-                    <span style="font-weight:600; font-size:0.9rem;">${activeData.delivery} Days Delivery</span>
-                  </div>
-                  <div class="delivery-item" style="display:flex; align-items:center;">
-                    <span style="width:25px; display:flex; justify-content:center; margin-right:10px; color:var(--primary-color);">
-                      <i class="fas fa-sync-alt"></i>
-                    </span>
-                    <span style="font-weight:600; font-size:0.9rem;">${activeData.revisions} Revisions</span>
-                  </div>
-                </div>
-
-                <ul class="package-features" style="list-style:none; padding:15px 0; font-size:0.85rem; border-bottom:1px solid #eee;">
-                  ${activeFeatures}
-                </ul>
-
-                <div id="summary-addons" style="padding:10px 0; font-size:0.85rem; color:#666;"></div>
-
-                <button class="btn-primary full-width" style="margin-top:20px; width:100%;">
-                  Continue ($<span id="btn-total">${activeData.price || "0"}</span>)
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  };    
+  const categoryText =
+    category === "design"
+      ? "Graphics & Design"
+      : category === "webdev"
+      ? "Web Development"
+      : "Category";
+  
+  
+  
+  
 
   return (
     <>
@@ -598,10 +365,342 @@ const buildPreviewHTML = () => {
   </div>
 </div>
 
+
+
+
 {viewMode === "preview" && (
-  <div id="live-preview-wrapper" dangerouslySetInnerHTML={{ __html: previewHTML }} />
+  <div id="live-preview-wrapper" className="service-details-main" style={{ background: "#fff" }}>
+    <div className="container">
+      {/* Breadcrumb */}
+      <nav className="breadcrumb">
+        Home &gt; {categoryText} &gt; <span>{serviceTitle || "Service Title Preview"}</span>
+      </nav>
+
+      {/* Service Header */}
+      <div className="service-header">
+        <h1 className="service-title">{serviceTitle || "Service Title Preview"}</h1>
+      </div>
+
+      <div className="content-grid">
+        {/* LEFT / MAIN COLUMN */}
+        <div className="main-column">
+          {/* Gallery Section */}
+          <section className="gallery-section">
+            <div className="preview-gallery-grid">
+              <PreviewMediaGallery
+                images={selectedImages}
+                videos={selectedVideos}
+                audios={selectedAudios}
+              />
+            </div>
+          </section>
+
+          {/* Description Section */}
+          <section className="description-section">
+            <h2>About This Service</h2>
+            <p style={{ whiteSpace: "pre-wrap" }}>
+              {description || "Detailed description..."}
+            </p>
+            {keywords && (
+              <div className="tags-row" style={{ marginTop: "20px" }}>
+                {keywords
+                  .split(",")
+                  .filter((t) => t.trim())
+                  .map((t, idx) => (
+                    <span key={idx} className="tag">
+                      #{t.trim()}
+                    </span>
+                  ))}
+              </div>
+            )}
+          </section>
+
+          {/* Design Brief Section */}
+          {(briefIntro || req1 || req2 || req3 || req4) && (
+            <section className="requirements-section">
+              <h2>Design Brief</h2>
+              {briefIntro && <p className="intro-text">{briefIntro}</p>}
+              <div className="requirements-list">
+                {[req1, req2, req3, req4].map((val, i) =>
+                  val ? (
+                    <div key={i} className="requirement-item">
+                      <h4>Requirement {i + 1}</h4>
+                      <p>{val}</p>
+                    </div>
+                  ) : null
+                )}
+              </div>
+              <div className="tip-box">
+                <i className="fas fa-lightbulb"></i>
+                <p>
+                  <strong>Tip:</strong> The more detailed your brief, the faster the result will be.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* Attributes Section */}
+          <section className="attributes-section">
+            <h2>Why Choose Me</h2>
+            <div className="attributes-grid">
+              {selectedAttributes.length > 0 ? (
+                selectedAttributes.map((attr) => (
+                  <div key={attr} className="attribute-pill">
+                    <i className="fas fa-star"></i>{" "}
+                    {attr
+                      .replace(/-/g, " ")
+                      .replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </div>
+                ))
+              ) : (
+                <p>No attributes selected</p>
+              )}
+            </div>
+          </section>
+
+          {/* Packages Section */}
+          <section
+            className="packages-section"
+            id="packages-grid"
+            style={{ marginTop: "40px", borderTop: "1px solid #eee", paddingTop: "30px" }}
+          >
+            <h3 style={{ marginBottom: "20px" }}>Service Packages</h3>
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+              {(["basic", "standard", "premium"] as const).map((tier) => {
+                const data = packagesData[tier];
+                if (data.title || data.price || tier === currentEditingTier) {
+                  const d = tier === currentEditingTier ? activePackage : data;
+                  const featureList = (d.features || "")
+                    .split("\n")
+                    .filter((f) => f.trim());
+
+                  return (
+                    <div
+                      key={tier}
+                      className={`package-card ${tier === currentEditingTier ? "active" : ""}`}
+                      style={{
+                        border: "1px solid #e2e8f0",
+                        padding: "20px",
+                        borderRadius: "8px",
+                        flex: "1",
+                        minWidth: "250px",
+                        display: "flex",
+                        flexDirection: "column",
+                        background: "#fff",
+                      }}
+                    >
+                      <div
+                        className="package-header"
+                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                      >
+                        <span
+                          className="package-badge"
+                          style={{
+                            background: tier === currentEditingTier ? "var(--primary)" : "#64748b",
+                            color: "white",
+                            padding: "4px 10px",
+                            borderRadius: "4px",
+                            textTransform: "uppercase",
+                            fontSize: "0.7rem",
+                          }}
+                        >
+                          {tier}
+                        </span>
+                        <div className="package-price" style={{ fontWeight: "bold", fontSize: "1.2rem" }}>
+                          ${d.price || "0"}
+                        </div>
+                      </div>
+                      <strong style={{ display: "block", margin: "15px 0 5px", fontSize: "1rem" }}>
+                        {d.title || "Untitled"}
+                      </strong>
+                      <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "15px", flexGrow: 1 }}>
+                        {d.desc || ""}
+                      </p>
+                      <ul style={{ listStyle: "none", padding: 0, fontSize: "0.85rem", marginBottom: "15px" }}>
+                        {featureList.map((f, i) => (
+                          <li key={i} style={{ marginBottom: "5px" }}>
+                            <i className="fas fa-check" style={{ color: "var(--primary)", marginRight: "8px" }}></i>
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                      <button className="btn-primary" style={{ width: "100%", marginTop: "auto" }}>
+                        Select {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                      </button>
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          </section>
+
+          {/* Addons Section */}
+          <section className="addons-section">
+            <h2>Available Add-ons</h2>
+            <div className="addons-list">
+              {addons.filter((a) => a.checked).length > 0 ? (
+                addons
+                  .filter((a) => a.checked)
+                  .map((a, i) => (
+                    <label key={i} className="addon-item">
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <input type="checkbox" className="preview-addon-chk" />
+                        <span>{a.label}</span>
+                      </div>
+                      <span className="addon-price">+${a.price}</span>
+                    </label>
+                  ))
+              ) : (
+                <p>No add-ons selected.</p>
+              )}
+            </div>
+          </section>
+
+          {/* FAQ Section */}
+          <section className="faq-section">
+            <h2>FAQ</h2>
+            <div className="faq-accordion">
+              {faqs.filter((f) => f.question).length > 0 ? (
+                faqs
+                  .filter((f) => f.question)
+                  .map((f, i) => (
+                    <div key={i} className="faq-item">
+                      <div className="faq-question">
+                        {f.question}
+                      </div>
+                      <div className="faq-answer">{f.answer}</div>
+                    </div>
+                  ))
+              ) : (
+                <p>No FAQs added.</p>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* RIGHT / SIDEBAR COLUMN (Order Sticky Card) */}
+        <div className="sidebar-column">
+          <div className="order-card sticky">
+            <div
+              className="order-header"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}
+            >
+              <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+                <span
+                  className="package-badge"
+                  style={{
+                    background: "var(--primary-color)",
+                    color: "white",
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                    fontSize: "0.7rem",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {currentEditingTier}
+                </span>
+                <a href="#packages-grid" style={{ textDecoration: "none" }}>
+                  <span style={{ fontSize: "0.75rem", color: "#94a3b8", cursor: "pointer" }}>
+                    select package
+                  </span>
+                </a>
+              </div>
+              <div className="order-price" style={{ fontSize: "1.4rem", fontWeight: "800", color: "var(--primary-color)" }}>
+                ${activePackage.price || "0"}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "block",
+                width: "100%",
+                margin: "15px 0",
+                borderBottom: "1px solid #f1f5f9",
+                paddingBottom: "15px",
+                textAlign: "left",
+              }}
+            >
+              <strong
+                style={{
+                  display: "block",
+                  width: "100%",
+                  whiteSpace: "normal",
+                  fontSize: "1.1rem",
+                  color: "#1e293b",
+                }}
+              >
+                {activePackage.title || "Untitled Package"}
+              </strong>
+              <p
+                className="order-desc"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  whiteSpace: "normal",
+                  marginTop: "5px",
+                  color: "#62646a",
+                  fontSize: "0.9rem",
+                }}
+              >
+                {activePackage.desc || "No description provided."}
+              </p>
+            </div>
+
+            <div
+              className="order-delivery"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+                borderTop: "1px solid #eee",
+                paddingTop: "15px",
+                marginTop: "10px",
+              }}
+            >
+              <div className="delivery-item" style={{ display: "flex", alignItems: "center" }}>
+                <span style={{ width: "25px", display: "flex", justifyContent: "center", marginRight: "10px", color: "var(--primary-color)" }}>
+                  <i className="fas fa-clock"></i>
+                </span>
+                <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                  {activePackage.delivery} Days Delivery
+                </span>
+              </div>
+              <div className="delivery-item" style={{ display: "flex", alignItems: "center" }}>
+                <span style={{ width: "25px", display: "flex", justifyContent: "center", marginRight: "10px", color: "var(--primary-color)" }}>
+                  <i className="fas fa-sync-alt"></i>
+                </span>
+                <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                  {activePackage.revisions} Revisions
+                </span>
+              </div>
+            </div>
+
+            <ul className="package-features" style={{ listStyle: "none", padding: "15px 0", fontSize: "0.85rem", borderBottom: "1px solid #eee" }}>
+              {(activePackage.features || "")
+                .split("\n")
+                .filter((f) => f.trim())
+                .map((feature, idx) => (
+                  <li key={idx} style={{ marginBottom: "5px" }}>
+                    <i className="fas fa-check" style={{ color: "var(--primary)", marginRight: "8px" }}></i>
+                    {feature}
+                  </li>
+                ))}
+            </ul>
+
+            <button className="btn-primary full-width" style={{ marginTop: "20px", width: "100%" }}>
+              Continue (${activePackage.price || "0"})
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 )}
 
+
+
+        
 {viewMode === "edit" && (
   <div className="form-container wide-container">
     <h1><i className="fas fa-clipboard-list"></i> Create Your Service (Gig)</h1>
@@ -740,7 +839,7 @@ const buildPreviewHTML = () => {
 </p>
 
 {/* Images */}
-<div className="form-group media-upload-group">
+<div ref={imagesSectionRef} className="form-group media-upload-group">
   <label htmlFor="images">Images (Required, up to 3)</label>
   <input
     type="file"
@@ -753,20 +852,16 @@ const buildPreviewHTML = () => {
     Formats: JPG, PNG. Max size: 5MB per file.{" "}
     <strong>Plan Limit: Up to {planLimits[selectedPlan].images} images.</strong>
   </small>
-  <div id="image-preview-grid" className="media-preview-grid">
+ <div id="image-preview-grid" className="media-preview-grid">
   {selectedImages.map((file, index) => (
-    <div key={index} className="preview-item">
-      <img src={URL.createObjectURL(file)} alt="preview" />
-      <button
-        type="button"
-        className="remove-btn"
-        onClick={() => requestRemoveItem("images", index)}
-      >
-        &times;
-      </button>
-    </div>
+    <ImagePreviewItem 
+      key={index} 
+      file={file} 
+      onRemove={() => requestRemoveItem("images", index)} 
+    />
   ))}
 </div>
+  
 </div>
 
 {/* Video */}
@@ -1059,19 +1154,19 @@ const buildPreviewHTML = () => {
   {faqs.map((faq, index) => (
     <div key={index} className="faq-item-new">
       <div className="form-group">
+        
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <label>Question {index + 1}</label>
-          {faqs.length > 1 && (
-            <button
-              type="button"
-              className="remove-item"
-              style={{ color: "#d9534f", border: "none", background: "none", cursor: "pointer" }}
-              onClick={() => requestRemoveItem("faq", index)}
-            >
-              <i className="fas fa-trash"></i>
-            </button>
-          )}
-        </div>
+  <label>Question {index + 1}</label>
+  <button
+    type="button"
+    className="remove-item"
+    style={{ color: "#d9534f", border: "none", background: "none", cursor: "pointer" }}
+    onClick={() => requestRemoveItem("faq", index)}
+  >
+    <i className="fas fa-trash"></i>
+  </button>
+</div>
+        
         <input
           type="text"
           placeholder="e.g., Do you provide unlimited revisions?"
@@ -1243,42 +1338,185 @@ const buildPreviewHTML = () => {
       
   </div>
 )}
-      </main>
       
-      
-      {/* Toast Container */}
-<div id="toast-container">
-  {toasts.map((toast) => (
-    <div
-      key={toast.id}
-      className={`toast ${toast.type === "warning" ? "removed" : ""} ${toast.type === "info" ? "info-toast" : ""}`}
-    >
-      <i className={`fas ${toast.type === "success" ? "fa-check-circle" : toast.type === "warning" ? "fa-exclamation-triangle" : "fa-info-circle"}`}></i>
-      <span>{toast.message}</span>
-    </div>
-  ))}
-</div>
+  
+  
+  {/* Toast Container */}
+        <div id="toast-container">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`toast ${
+                toast.type === "warning" ? "removed" : ""
+              } ${toast.type === "info" ? "info-toast" : ""}`}
+            >
+              <i
+                className={`fas ${
+                  toast.type === "success"
+                    ? "fa-check-circle"
+                    : toast.type === "warning"
+                    ? "fa-exclamation-triangle"
+                    : "fa-info-circle"
+                }`}
+              ></i>
+              <span>{toast.message}</span>
+            </div>
+          ))}
+        </div>
 
-{/* Confirm Modal */}
-{showConfirmModal && (
-  <div id="custom-confirm-modal" className="modal-overlay" style={{ display: "flex" }}>
-    <div className="modal-content">
-      <div className="modal-header">
-        <i className="fas fa-exclamation-circle"></i>
-        <h3>Are you sure?</h3>
-      </div>
-      <p>This action cannot be undone. Do you really want to remove this item?</p>
-      <div className="modal-actions">
-        <button id="modal-cancel" className="btn-secondary" onClick={() => setShowConfirmModal(false)}>
-          Cancel
-        </button>
-        <button id="modal-confirm" className="btn-danger" onClick={confirmRemove}>
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+        {/* Confirm Modal */}
+        {showConfirmModal && (
+          <div
+            id="custom-confirm-modal"
+            className="modal-overlay"
+            style={{ display: "flex" }}
+          >
+            <div className="modal-content">
+              <div className="modal-header">
+                <i className="fas fa-exclamation-circle"></i>
+                <h3>Are you sure?</h3>
+              </div>
+              <p>
+                This action cannot be undone. Do you really want to remove this
+                item?
+              </p>
+              <div className="modal-actions">
+                <button
+                  id="modal-cancel"
+                  className="btn-secondary"
+                  onClick={() => setShowConfirmModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  id="modal-confirm"
+                  className="btn-danger"
+                  onClick={confirmRemove}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </>
+  );
+      }
+
+// ==========================================
+// HELPER COMPONENTS (Placed OUTSIDE main component)
+// ==========================================
+
+function ImagePreviewItem({
+  file,
+  onRemove,
+}: {
+  file: File;
+  onRemove: () => void;
+}) {
+  const [objectUrl, setObjectUrl] = useState<string>("");
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setObjectUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
+
+  if (!objectUrl) return null;
+
+  return (
+    <div className="preview-item">
+      <img src={objectUrl} alt="preview" />
+      <button type="button" className="remove-btn" onClick={onRemove}>
+        &times;
+      </button>
+    </div>
+  );
+}
+
+
+      
+      function PreviewMediaGallery({
+  images,
+  videos,
+  audios,
+}: {
+  images: File[];
+  videos: File[];
+  audios: File[];
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Safely memoize object URLs so they are only recreated when files change
+  const imageUrls = useMemo(() => images.map((file) => URL.createObjectURL(file)), [images]);
+  const videoUrls = useMemo(() => videos.map((file) => URL.createObjectURL(file)), [videos]);
+  const audioUrls = useMemo(() => audios.map((file) => URL.createObjectURL(file)), [audios]);
+
+  // Cleanup object URLs when media lists change or component unmounts
+  useEffect(() => {
+    return () => {
+      [...imageUrls, ...videoUrls, ...audioUrls].forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imageUrls, videoUrls, audioUrls]);
+
+  // Reset active thumbnail index if selected image list shrinks
+  useEffect(() => {
+    if (activeIndex >= imageUrls.length) {
+      setActiveIndex(0);
+    }
+  }, [imageUrls.length, activeIndex]);
+
+  return (
+    <div className="preview-media-container">
+      {/* Main Image View */}
+      <div className="main-image-wrapper">
+        <img
+          src={
+            imageUrls.length > 0
+              ? imageUrls[activeIndex]
+              : "https://picsum.photos/id/201/900/550"
+          }
+          className="main-image featured-preview"
+          alt="Main Preview"
+        />
+      </div>
+
+      {/* Thumbnails */}
+      {imageUrls.length > 1 && (
+        <div className="thumbnail-grid">
+          {imageUrls.map((url, idx) => (
+            <div
+              key={idx}
+              className={`thumb-item ${idx === activeIndex ? "active" : ""}`}
+              onClick={() => setActiveIndex(idx)}
+            >
+              <img src={url} alt={`Thumbnail ${idx + 1}`} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Videos */}
+      {videoUrls.map((url, idx) => (
+        <div key={idx} className="preview-media-item video-block">
+          <video controls>
+            <source src={url} />
+          </video>
+        </div>
+      ))}
+
+      {/* Audio Samples */}
+      {audioUrls.map((url, idx) => (
+        <div key={idx} className="preview-media-item audio-block">
+          <audio controls>
+            <source src={url} />
+          </audio>
+        </div>
+      ))}
+    </div>
   );
 }
