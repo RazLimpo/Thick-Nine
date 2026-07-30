@@ -1,4 +1,8 @@
 // lib/validation.ts
+import { PLAN_LIMITS } from './constants';
+
+export type PlanKey = 'free' | 'silver' | 'gold';
+export { PLAN_LIMITS };
 
 export interface ValidationResult {
   isValid: boolean;
@@ -31,11 +35,31 @@ export function validateMediaFile(file: File, fileType: 'images' | 'videos' | 'a
   return { isValid: true };
 }
 
+/**
+ * Validates whether adding incoming files exceeds the limit for the selected plan.
+ */
+export function validateMediaQuantity(
+  currentCount: number,
+  incomingCount: number,
+  fileType: 'images' | 'videos' | 'audio',
+  plan: PlanKey
+): ValidationResult {
+  const max = PLAN_LIMITS[plan][fileType];
+  if (currentCount + incomingCount > max) {
+    return {
+      isValid: false,
+      error: `Total ${fileType} cannot exceed ${max} on the ${PLAN_LIMITS[plan].label}.`,
+    };
+  }
+  return { isValid: true };
+}
+
 export interface ServiceFormFields {
   title: string;
   category: string;
   description: string;
   price: number | string;
+  plan?: PlanKey;
   images?: string[];
 }
 

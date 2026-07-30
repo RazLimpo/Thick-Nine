@@ -4,11 +4,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+
+import { MARKETPLACE_FEE_PERCENTAGE } from "@/lib/constants";
+import { PlanKey, PLAN_LIMITS, validateMediaFile, validateMediaQuantity } from "@/lib/validation";
+
 import '../../styles/pages/post-service.css';
 import '../../styles/pages/service-details.css';
-
-// Custom Type Definitions directly below imports 
-type PlanKey = "free" | "silver" | "gold"; 
 
 // Component Definition 
 export default function PostServiceClient() {
@@ -121,14 +122,11 @@ const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 };
 
 
-  
-  const COMMISSION_RATE = 0.12;
-
 const priceNum = parseFloat(pkgPrice) || 0;
 const gross = priceNum;
-const fee = priceNum * COMMISSION_RATE;
-const net = priceNum - fee;
-
+const fee = Number((priceNum * MARKETPLACE_FEE_PERCENTAGE).toFixed(2));
+const net = Number((gross - fee).toFixed(2));
+  
 const switchPackageTier = (tier: "basic" | "standard" | "premium") => {
   // Save current inputs into packagesData
   setPackagesData((prev) => ({
