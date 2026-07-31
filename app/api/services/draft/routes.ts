@@ -6,10 +6,9 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
 
-    // Forward the full FormData payload to the Express backend endpoint
     const response = await fetch(`${BACKEND_URL}/api/services/draft`, {
       method: "POST",
-      body: formData,
+      body: formData, // Automatic boundary generation for multipart/form-data
     });
 
     const data = await response.json();
@@ -20,7 +19,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(data, { status: 201 });
   } catch (error: any) {
-    console.error("Error proxying draft payload to Express server:", error);
+    console.error("Error proxying draft payload:", error);
     return NextResponse.json(
       { success: false, error: error?.message || "Internal server error" },
       { status: 500 }

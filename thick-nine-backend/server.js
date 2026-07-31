@@ -12,7 +12,8 @@ try { morgan = require('morgan'); } catch (_) {}
 // ====================== DATABASE MODELS & SUB-ROUTERS ======================
 const Service = require('./models/Service'); 
 const User = require('./models/User'); 
-const authRoutes = require('./routes/authRoutes'); 
+const authRoutes = require('./routes/authRoutes');
+const uploadMedia = require('./middleware/upload'); 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -295,7 +296,7 @@ app.post('/api/services', auth, async (req, res) => {
 
 
 // Draft Endpoint for Service Posting
-app.post('/api/services/draft', async (req, res) => {
+app.post('/api/services/draft', uploadMedia, async (req, res) => {
   if (skipDatabase) {
     return res.status(201).json({
       success: true,
@@ -319,7 +320,11 @@ app.post('/api/services/draft', async (req, res) => {
       price,
     } = req.body;
 
-    // Use user ID if authenticated, or a dummy fallback during dev
+    // Extract Cloudinary secure URLs populated by Multer
+    const imageUrls = req.files?.images ? req.files.images.map((f) => f.path) : [];
+    const videoUrls = req.files?.videos ? req.files.videos.map((f) => f.path) : [];
+    const audioUrls = req.files?.audio ? req.files.audio.map((f) => f.path) : [];
+
     const sellerId = req.user?.id || "60c72b2f9b1d8b2b88888888";
 
     const draft = new Service({
@@ -329,12 +334,15 @@ app.post('/api/services/draft', async (req, res) => {
       description: description || "",
       tags: keywords ? keywords.split(",").map((k) => k.trim()) : [],
       selectedPlan: selectedPlan || "free",
-      packages: packages ? JSON.parse(packages) : {},
-      attributes: attributes ? JSON.parse(attributes) : [],
-      addons: addons ? JSON.parse(addons) : [],
-      faqs: faqs ? JSON.parse(faqs) : [],
-      requirements: requirements ? JSON.parse(requirements) : [],
+      packages: packages ? (typeof packages === 'string' ? JSON.parse(packages) : packages) : {},
+      attributes: attributes ? (typeof attributes === 'string' ? JSON.parse(attributes) : attributes) : [],
+      addons: addons ? (typeof addons === 'string' ? JSON.parse(addons) : addons) : [],
+      faqs: faqs ? (typeof faqs === 'string' ? JSON.parse(faqs) : faqs) : [],
+      requirements: requirements ? (typeof requirements === 'string' ? JSON.parse(requirements) : requirements) : [],
       price: price ? Number(price) : 5,
+      images: imageUrls,
+      videos: videoUrls,
+      audio: audioUrls,
       status: "draft",
     });
 
@@ -354,7 +362,6 @@ app.post('/api/services/draft', async (req, res) => {
     });
   }
 });
-
 
 
 // ====================== GLOBAL ERROR & UNHANDLED ROUTE HANDLERS ======================
