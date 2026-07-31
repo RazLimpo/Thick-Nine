@@ -291,6 +291,72 @@ app.post('/api/services', auth, async (req, res) => {
   }
 });
 
+
+
+
+// Draft Endpoint for Service Posting
+app.post('/api/services/draft', async (req, res) => {
+  if (skipDatabase) {
+    return res.status(201).json({
+      success: true,
+      draftId: `mock-draft-${Math.random().toString(36).substring(2, 9)}`,
+      message: "Draft saved successfully (Sandbox Mode)",
+    });
+  }
+
+  try {
+    const {
+      title,
+      category,
+      description,
+      keywords,
+      selectedPlan,
+      packages,
+      attributes,
+      addons,
+      faqs,
+      requirements,
+      price,
+    } = req.body;
+
+    // Use user ID if authenticated, or a dummy fallback during dev
+    const sellerId = req.user?.id || "60c72b2f9b1d8b2b88888888";
+
+    const draft = new Service({
+      sellerId,
+      title: title || "Untitled Draft",
+      category: category || "General",
+      description: description || "",
+      tags: keywords ? keywords.split(",").map((k) => k.trim()) : [],
+      selectedPlan: selectedPlan || "free",
+      packages: packages ? JSON.parse(packages) : {},
+      attributes: attributes ? JSON.parse(attributes) : [],
+      addons: addons ? JSON.parse(addons) : [],
+      faqs: faqs ? JSON.parse(faqs) : [],
+      requirements: requirements ? JSON.parse(requirements) : [],
+      price: price ? Number(price) : 5,
+      status: "draft",
+    });
+
+    const savedDraft = await draft.save();
+
+    res.status(201).json({
+      success: true,
+      draftId: savedDraft._id.toString(),
+      message: "Draft saved successfully to database",
+    });
+  } catch (err) {
+    console.error("Error saving draft to MongoDB:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to save draft to database",
+      error: err.message,
+    });
+  }
+});
+
+
+
 // ====================== GLOBAL ERROR & UNHANDLED ROUTE HANDLERS ======================
 
 // 404 Fallback

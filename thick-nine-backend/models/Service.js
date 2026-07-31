@@ -23,13 +23,14 @@ const ServiceSchema = new mongoose.Schema(
 
     price: {
       type: Number,
-      required: true,
-      min: 5,
+      required: false, // Optional on initial draft save
+      default: 5,
+      min: 0,
     },
 
     description: {
       type: String,
-      required: true,
+      default: "",
       maxlength: 2000,
     },
 
@@ -51,13 +52,65 @@ const ServiceSchema = new mongoose.Schema(
       default: [],
     },
 
+    // ----------------------------------------------------
+    // SECTION 2: Media Files (URLs / Paths)
+    // ----------------------------------------------------
     images: {
       type: [String],
       default: ["/default-service.png"],
     },
 
+    videos: {
+      type: [String],
+      default: [],
+    },
+
+    audio: {
+      type: [String],
+      default: [],
+    },
+
     // ----------------------------------------------------
-    // SECTION 2: Fulfillment & Performance
+    // SECTION 3: Service Packages & Details
+    // ----------------------------------------------------
+    packages: {
+      type: mongoose.Schema.Types.Mixed, // Stores basic, standard, premium tier objects
+      default: {},
+    },
+
+    attributes: {
+      type: [String],
+      default: [],
+    },
+
+    addons: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+
+    faqs: {
+      type: [
+        {
+          question: String,
+          answer: String,
+        },
+      ],
+      default: [],
+    },
+
+    requirements: {
+      type: [String],
+      default: [],
+    },
+
+    selectedPlan: {
+      type: String,
+      enum: ["free", "silver", "gold"],
+      default: "free",
+    },
+
+    // ----------------------------------------------------
+    // SECTION 4: Fulfillment & Performance
     // ----------------------------------------------------
     deliveryTime: {
       type: Number, // In days
@@ -77,7 +130,6 @@ const ServiceSchema = new mongoose.Schema(
       min: 0,
     },
 
-    // Rating aggregations (for search and sorting)
     rating: {
       type: Number,
       default: 0,
@@ -92,7 +144,7 @@ const ServiceSchema = new mongoose.Schema(
     },
 
     // ----------------------------------------------------
-    // SECTION 3: Flags & Status
+    // SECTION 5: Flags & Status
     // ----------------------------------------------------
     featured: {
       type: Boolean,
@@ -109,7 +161,7 @@ const ServiceSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["active", "paused", "draft"],
-      default: "active",
+      default: "draft",
       index: true,
     },
   },
@@ -120,14 +172,10 @@ const ServiceSchema = new mongoose.Schema(
   }
 );
 
-// ----------------------------------------------------
-// SECTION 4: Compound Indexes for Common Queries
-// ----------------------------------------------------
-// Compound index for category listings with pagination & price filtering
 ServiceSchema.index({ category: 1, status: 1, price: 1 });
-
-// Compound index for sponsored and featured marketplace carousels
 ServiceSchema.index({ sponsored: 1, status: 1, createdAt: -1 });
 ServiceSchema.index({ featured: 1, status: 1, rating: -1 });
 
-module.exports = mongoose.model("Service", ServiceSchema);
+module.exports = (mongoose.models && mongoose.models.Service) 
+  ? mongoose.models.Service 
+  : mongoose.model("Service", ServiceSchema);
