@@ -1,3 +1,6 @@
+//server.js
+
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -360,6 +363,39 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
       message: "Failed to save draft to database",
       error: err.message,
     });
+  }
+});
+
+
+// GET Draft Endpoint for Hydrating Form
+app.get('/api/services/draft/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (skipDatabase) {
+    return res.json({
+      _id: id,
+      title: "SEO Audit and Keyword Research",
+      category: "design",
+      description: "Draft service description retrieved from sandbox memory.",
+      keywords: "seo, audit, marketing",
+      selectedPlan: "free",
+      packages: {
+        basic: { title: "Basic SEO", desc: "Audit report", price: "50", delivery: "3", revisions: "1", features: "Full report" }
+      }
+    });
+  }
+
+  try {
+    const draft = await Service.findById(id);
+
+    if (!draft) {
+      return res.status(404).json({ success: false, message: 'Draft not found' });
+    }
+
+    res.json(draft);
+  } catch (error) {
+    console.error("Error retrieving draft:", error);
+    res.status(500).json({ success: false, message: 'Server error retrieving draft', error: error.message });
   }
 });
 
