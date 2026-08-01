@@ -15,14 +15,18 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
     let folder = "services/misc";
-    let resource_type = "auto"; // Automatically detects image, video, or raw/audio
+    let resource_type = "auto"; 
 
     if (file.fieldname === "images") {
       folder = "services/images";
+      resource_type = "image";
     } else if (file.fieldname === "videos") {
       folder = "services/videos";
+      resource_type = "video";
     } else if (file.fieldname === "audio") {
       folder = "services/audio";
+      // 💡 CRITICAL: Cloudinary handles audio files under the "video" resource type
+      resource_type = "video"; 
     }
 
     return {
