@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { MARKETPLACE_FEE_PERCENTAGE } from "@/lib/constants";
 import { PlanKey, PLAN_LIMITS, validateMediaFile, validateMediaQuantity } from "@/lib/validation";
@@ -17,6 +17,80 @@ export default function PostServiceClient() {
   // --- All state will go here ---
   
   const router = useRouter();
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0); // Default first item open
+  
+  const searchParams = useSearchParams();
+  const draftId = searchParams.get('draftId');
+    
+    
+    // For Edit mode (Seller toggles if this add-on is available for this gig)
+const toggleAddonEnabled = (index: number) => {
+  setAddons((prev) =>
+    prev.map((a, i) => (i === index ? { ...a, enabled: !a.enabled } : a))
+  );
+};
+
+// For Preview mode (Buyer checks/unchecks to add to their order total)
+const toggleAddonSelected = (index: number) => {
+  setAddons((prev) =>
+    prev.map((a, i) => (i === index ? { ...a, selected: !a.selected } : a))
+  );
+};
+
+  
+  // Hydrate form fields if editing an existing draft
+useEffect(() => {
+  if (!draftId) return;
+
+  async function loadDraft() {
+    try {
+      showToast("Loading saved draft...", "info");
+      const response = await fetch(`http://localhost:5000/api/services/draft/${draftId}`);
+      if (!response.ok) throw new Error("Failed to fetch draft");
+
+      const data = await response.json();
+
+      // Populate your existing form states
+      if (data.title) setServiceTitle(data.title);
+      if (data.description) setDescription(data.description);
+      if (data.category) setCategory(data.category);
+      if (data.keywords) setKeywords(Array.isArray(data.keywords) ? data.keywords.join(", ") : data.keywords);
+      if (data.selectedPlan) setSelectedPlan(data.selectedPlan);
+      
+      // Hydrate FAQs array
+      if (data.faqs && Array.isArray(data.faqs) && data.faqs.length > 0) {
+        setFaqs(data.faqs);
+      }
+
+      // 👈 ADD THIS: Hydrate Add-ons array
+      if (data.addons && Array.isArray(data.addons) && data.addons.length > 0) {
+        setAddons(
+          data.addons.map((addon: any) => ({
+            ...addon,
+            // Ensure checked is explicitly boolean (defaults to false if missing/undefined)
+            checked: Boolean(addon.checked),
+          }))
+        );
+      }
+
+      // Populate package data if returned
+      if (data.packages) {
+        setPackagesData(data.packages);
+        setPkgTitle(data.packages.basic?.title || "");
+        setPkgDesc(data.packages.basic?.desc || "");
+        setPkgPrice(data.packages.basic?.price || "");
+      }
+
+      showToast("Draft loaded successfully!", "success");
+    } catch (err) {
+      console.error("Error loading draft:", err);
+      showToast("Failed to load draft details.", "warning");
+    }
+  }
+
+  loadDraft();
+}, [draftId]);  
+  
   
   // Ref for scrolling to images container without DOM lookup 
   const imagesSectionRef = useRef<HTMLDivElement>(null);
@@ -36,6 +110,8 @@ const [selectedAudios, setSelectedAudios] = useState<File[]>([]);
 
 // --- View ---
 const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 // --- Form fields (basic info) ---
 const [serviceTitle, setServiceTitle] = useState("");
@@ -163,9 +239,9 @@ const switchPackageTier = (tier: "basic" | "standard" | "premium") => {
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
 
 const [addons, setAddons] = useState([
-  { label: "Extra Fast Delivery (1 Day)", desc: "Get your order in 24 hour express.", price: "25", checked: false },
-  { label: "Include Source Files", desc: "The original, editable files for the design/code.", price: "15", checked: false },
-  { label: "Extra Revision Round", desc: "One additional opportunity to request changes.", price: "10", checked: false },
+  { label: "Extra Fast Delivery (1 Day)", desc: "Get your order in 24 hour express.", price: "25", enabled: true, selected: false },
+  { label: "Include Source Files", desc: "The original, editable files for the design/code.", price: "15", enabled: true, selected: false },
+  { label: "Extra Revision Round", desc: "One additional opportunity to request changes.", price: "10", enabled: true, selected: false },
 ]);
 
 const [faqs, setFaqs] = useState([
@@ -185,11 +261,18 @@ const toggleAddon = (index: number) => {
   );
 };
 
-const updateAddonPrice = (index: number, price: string) => {
+const updateAddonField = (index: number, field: "label" | "desc" | "price", value: string) => {
   setAddons((prev) =>
-    prev.map((a, i) => (i === index ? { ...a, price } : a))
+    prev.map((a, i) => (i === index ? { ...a, [field]: value } : a))
   );
 };
+    
+    
+    const removeAddon = (index: number) => {
+  setAddons((prev) => prev.filter((_, i) => i !== index));
+  showToast("Add-on removed", "warning");
+};
+    
 
 const addMoreAddon = () => {
   setAddons((prev) => [
@@ -218,56 +301,136 @@ const addMoreFaq = () => {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 const [pendingRemove, setPendingRemove] = useState<{ type: string; index: number } | null>(null);
 
-const handleSaveDraft = () => {
-  showToast("Saving progress to drafts...", "info");
-  setTimeout(() => showToast("Service saved successfully", "success"), 1200);
+  
+  // Helper to aggregate all form state into a single FormData payload
+const buildServiceFormData = () => {
+  const updatedPackagesData = {
+    ...packagesData,
+    [currentEditingTier]: {
+      title: pkgTitle,
+      desc: pkgDesc,
+      price: pkgPrice,
+      delivery: pkgDelivery,
+      revisions: pkgRevisions,
+      features: pkgFeatures,
+    },
+  };
+
+  const formData = new FormData();
+  formData.append("title", serviceTitle);
+  formData.append("category", category);
+  formData.append("description", description);
+  formData.append("keywords", keywords);
+  formData.append("selectedPlan", selectedPlan);
+  formData.append("briefIntro", briefIntro);
+  formData.append("requirements", JSON.stringify([req1, req2, req3, req4].filter(Boolean)));
+  formData.append("packages", JSON.stringify(updatedPackagesData));
+  formData.append("attributes", JSON.stringify(selectedAttributes));
+  formData.append("addons", JSON.stringify(addons.filter((a) => a.checked)));
+  formData.append("faqs", JSON.stringify(faqs.filter((f) => f.question.trim())));
+
+  // Append binary media files
+  selectedImages.forEach((file) => formData.append("images", file));
+  selectedVideos.forEach((file) => formData.append("videos", file));
+  selectedAudios.forEach((file) => formData.append("audio", file));
+
+  return formData;
 };
 
-const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSaveDraft = async () => {
+  try {
+    setIsSubmitting(true);
+    showToast("Saving progress to drafts...", "info");
 
-    // 1. Ensure latest inputs are synced into packagesData
-    const updatedPackagesData = {
-      ...packagesData,
-      [currentEditingTier]: {
-        title: pkgTitle,
-        desc: pkgDesc,
-        price: pkgPrice,
-        delivery: pkgDelivery,
-        revisions: pkgRevisions,
-        features: pkgFeatures,
-      },
-    };
-    setPackagesData(updatedPackagesData);
-
-    // 2. Validate essential fields
-    if (selectedImages.length === 0) {
-      showToast("Please upload at least one image for your service.", "warning");
-      imagesSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-      return;
+    const payload = buildServiceFormData();
+    payload.append("status", "draft");
+    
+    if (draftId) {
+      payload.append("draftId", draftId);
     }
 
-    if (!updatedPackagesData.basic.title || !updatedPackagesData.basic.price) {
-      showToast("Please fill in at least the Basic package title and price.", "warning");
-      return;
+    const endpoint = draftId ? `/api/services/draft/update` : `/api/services/draft`;
+    const method = draftId ? "PUT" : "POST";
+
+    const response = await fetch(endpoint, {
+      method,
+      body: payload,
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to save draft");
     }
 
-    // 3. Handle routing / plan actions
-    if (selectedPlan === "silver" || selectedPlan === "gold") {
-      showToast("Redirecting to secure payment page...", "info");
-      setTimeout(() => {
-        // ✅ Smooth Next.js client router redirect without full page reload
-        router.push(`/checkout?plan=${selectedPlan}`);
-      }, 2000);
-    } else {
-      showToast("Publishing your service for free...", "info");
-      setTimeout(() => {
-        showToast("Success! Your service is now live.", "success");
-        // Optionally redirect to seller dashboard or service listing after free publish:
-        // router.push("/dashboard");
-      }, 1500);
-    }
+    const data = await response.json();
+    showToast(draftId ? "Draft updated successfully!" : "Service draft saved successfully!", "success");
+    return data.draftId || draftId;
+  } catch (err) {
+    showToast("Failed to save draft. Please try again.", "warning");
+    return null;
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+  
+  
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // 1. Ensure current package tab inputs are synced
+  const updatedPackagesData = {
+    ...packagesData,
+    [currentEditingTier]: {
+      title: pkgTitle,
+      desc: pkgDesc,
+      price: pkgPrice,
+      delivery: pkgDelivery,
+      revisions: pkgRevisions,
+      features: pkgFeatures,
+    },
   };
+  setPackagesData(updatedPackagesData);
+
+  // 2. Validate essential fields
+  if (selectedImages.length === 0) {
+    showToast("Please upload at least one image for your service.", "warning");
+    imagesSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+
+  if (!updatedPackagesData.basic.title || !updatedPackagesData.basic.price) {
+    showToast("Please fill in at least the Basic package title and price.", "warning");
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  // 3. Save draft to backend first to get draftId
+  const draftId = await handleSaveDraft();
+
+  if (!draftId) {
+    setIsSubmitting(false);
+    return; // Stop if draft saving failed
+  }
+
+  // 4. Branch based on selected plan
+  if (selectedPlan === "silver" || selectedPlan === "gold") {
+    showToast("Draft saved! Redirecting to secure plan checkout...", "info");
+    setTimeout(() => {
+      
+      // NEW: Redirecting to new seller plan upgrade route
+router.push(`/checkout/plan?plan=${selectedPlan}&draftId=${draftId}`);
+    }, 1500);
+  } else {
+    // Free Plan - direct publish
+    showToast("Publishing your service for free...", "info");
+    setTimeout(() => {
+      showToast("Success! Your service is now live.", "success");
+      setIsSubmitting(false);
+      // router.push("/freelancer-dashboard");
+    }, 1500);
+  }
+};  
+  
   
 const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: number) => {
     setPendingRemove({ type, index });
@@ -330,6 +493,14 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
     revisions: pkgRevisions || packagesData[currentEditingTier].revisions,
     features: pkgFeatures || packagesData[currentEditingTier].features,
   };
+  
+  // 👈 ADD THESE CALCULATIONS HERE
+  const selectedAddonsTotal = addons
+  .filter((a) => a.enabled && a.selected)
+  .reduce((sum, a) => sum + (parseFloat(a.price) || 0), 0);
+
+  const basePackagePrice = parseFloat(activePackage.price) || 0;
+  const grandTotalPrice = basePackagePrice + selectedAddonsTotal;
 
   const categoryText =
     category === "design"
@@ -337,6 +508,7 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
       : category === "webdev"
       ? "Web Development"
       : "Category";
+
   
   
   
@@ -535,28 +707,58 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
             </div>
           </section>
 
-          {/* Addons Section */}
-          <section className="addons-section">
-            <h2>Available Add-ons</h2>
-            <div className="addons-list">
-              {addons.filter((a) => a.checked).length > 0 ? (
-                addons
-                  .filter((a) => a.checked)
-                  .map((a, i) => (
-                    <label key={i} className="addon-item">
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <input type="checkbox" className="preview-addon-chk" />
-                        <span>{a.label}</span>
-                      </div>
-                      <span className="addon-price">+${a.price}</span>
-                    </label>
-                  ))
-              ) : (
-                <p>No add-ons selected.</p>
-              )}
-            </div>
-          </section>
+          {/* Addons Section (PREVIEW MODE) */}
+<section className="addons-section">
+  <h2>Available Add-ons</h2>
+  <div className="addons-list">
+    {addons.filter((a) => a.enabled).length > 0 ? (
+      addons
+        .filter((a) => a.enabled)
+        .map((a, index) => {
+          // Find original index in addons array to update state correctly
+          const originalIdx = addons.findIndex((item) => item === a);
 
+          return (
+            <label 
+              key={index} 
+              className="addon-item"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px",
+                border: "1px solid #e2e8f0",
+                borderRadius: "6px",
+                marginBottom: "10px",
+                cursor: "pointer",
+                background: a.selected ? "#f8fafc" : "#fff",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <input
+                  type="checkbox"
+                  className="preview-addon-chk"
+                  checked={a.selected || false}
+                  onChange={() => toggleAddonSelected(originalIdx)}
+                />
+                <div>
+                  <span style={{ fontWeight: "600", display: "block" }}>{a.label}</span>
+                  {a.desc && <small style={{ color: "#64748b" }}>{a.desc}</small>}
+                </div>
+              </div>
+              <span className="addon-price" style={{ fontWeight: "700", color: "var(--primary-color)" }}>
+                +${a.price}
+              </span>
+            </label>
+          );
+        })
+    ) : (
+      <p>No add-ons available.</p>
+    )}
+  </div>
+</section>
+          
+          
           {/* FAQ Section */}
           <section className="faq-section">
             <h2>FAQ</h2>
@@ -564,14 +766,51 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
               {faqs.filter((f) => f.question).length > 0 ? (
                 faqs
                   .filter((f) => f.question)
-                  .map((f, i) => (
-                    <div key={i} className="faq-item">
-                      <div className="faq-question">
-                        {f.question}
+                  .map((f, i) => {
+                    const isOpen = openFaqIndex === i;
+                    return (
+                      <div
+                        key={i}
+                        className={`faq-item ${isOpen ? "active" : ""}`}
+                        style={{
+                          borderBottom: "1px solid #e2e8f0",
+                          padding: "12px 0",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setOpenFaqIndex(isOpen ? null : i)}
+                      >
+                        <div
+                          className="faq-question"
+                          style={{
+                            fontWeight: "600",
+                            display: "flex",
+                            justify: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <span>{f.question}</span>
+                          
+                        </div>
+
+                        <div
+                          className="faq-answer"
+                          style={{
+                            display: isOpen ? "block" : "none",
+                            marginTop: "8px",
+                            color: "#475569",
+                            fontSize: "0.95rem",
+                            lineHeight: "1.5",
+                          }}
+                        >
+                          {f.answer || (
+                            <em style={{ color: "#94a3b8" }}>
+                              No answer provided yet.
+                            </em>
+                          )}
+                        </div>
                       </div>
-                      <div className="faq-answer">{f.answer}</div>
-                    </div>
-                  ))
+                    );
+                  })
               ) : (
                 <p>No FAQs added.</p>
               )}
@@ -607,7 +846,7 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
                 </a>
               </div>
               <div className="order-price" style={{ fontSize: "1.4rem", fontWeight: "800", color: "var(--primary-color)" }}>
-                ${activePackage.price || "0"}
+                ${grandTotalPrice}
               </div>
             </div>
 
@@ -675,6 +914,50 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
                 </span>
               </div>
             </div>
+            
+            
+            {/* SELECTED ADD-ONS SUMMARY IN SIDEBAR */}
+{addons.some((a) => a.enabled && a.selected) && (
+  <div
+    className="order-addons-summary"
+    style={{
+      padding: "12px 0",
+      borderTop: "1px solid #eee",
+      margin: "10px 0 0 0",
+    }}
+  >
+    <div
+      style={{
+        fontSize: "0.85rem",
+        fontWeight: "700",
+        marginBottom: "8px",
+        color: "#945325",
+      }}
+    >
+      Selected Add-ons
+    </div>
+    {addons
+      .filter((a) => a.enabled && a.selected)
+      .map((addon, idx) => (
+        <div
+          key={idx}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: "0.85rem",
+            color: "#64748b",
+            marginBottom: "6px",
+          }}
+        >
+          <span>+ {addon.label}</span>
+          <span style={{ fontWeight: "600", color: "#1e293b" }}>
+            ${addon.price}
+          </span>
+        </div>
+      ))}
+  </div>
+)}
+                        
 
             <ul className="package-features" style={{ listStyle: "none", padding: "15px 0", fontSize: "0.85rem", borderBottom: "1px solid #eee" }}>
               {(activePackage.features || "")
@@ -689,7 +972,7 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
             </ul>
 
             <button className="btn-primary full-width" style={{ marginTop: "20px", width: "100%" }}>
-              Continue (${activePackage.price || "0"})
+              Continue (${grandTotalPrice})
             </button>
           </div>
         </div>
@@ -1107,7 +1390,8 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
   <small>Clients can see these highlighted qualities on your service page.</small>
 </div>
 
-{/* ===== ADD-ONS ===== */}
+    
+{/* ===== ADD-ONS (EDIT MODE) ===== */}
 <h2 className="section-heading">Service Customization & Add-Ons</h2>
 <p className="section-subheading">
   Offer extra services (e.g., faster delivery, source files) for an additional fee.
@@ -1115,25 +1399,64 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
 
 <div className="feature-section-container add-ons-section">
   {addons.map((addon, index) => (
-    <div key={index} className="add-on-item-new">
-      <div className="add-on-details">
-        <label>
+    <div key={index} className="add-on-item-new" style={{ flexDirection: "column", gap: "10px", padding: "15px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "15px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+        <label style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
           <input
             type="checkbox"
-            checked={addon.checked}
-            onChange={() => toggleAddon(index)}
-          />{" "}
-          {addon.label}
+            checked={addon.enabled}
+            onChange={() => toggleAddonEnabled(index)}
+          />
+          Enable Option
         </label>
-        <small>{addon.desc}</small>
+        
+        {/* Delete Button */}
+        <button
+          type="button"
+          onClick={() => removeAddon(index)}
+          style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem" }}
+        >
+          <i className="fas fa-trash"></i> Delete
+        </button>
       </div>
-      <div className="add-on-price">
-        <span className="price-prefix">$</span>
+
+      <div style={{ display: "flex", gap: "15px", width: "100%", flexWrap: "wrap" }}>
+        {/* Editable Title */}
+        <div style={{ flex: "2", minWidth: "200px" }}>
+          <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Add-on Title</label>
+          <input
+            type="text"
+            placeholder="e.g., Extra Fast Delivery"
+            value={addon.label}
+            onChange={(e) => updateAddonField(index, "label", e.target.value)}
+            style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+          />
+        </div>
+
+        {/* Editable Price */}
+        <div style={{ flex: "1", minWidth: "120px" }}>
+          <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Price ($)</label>
+          <div className="add-on-price" style={{ marginTop: "0" }}>
+            <span className="price-prefix">$</span>
+            <input
+              type="number"
+              min={5}
+              value={addon.price}
+              onChange={(e) => updateAddonField(index, "price", e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Editable Description */}
+      <div style={{ width: "100%" }}>
+        <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Description (Optional)</label>
         <input
-          type="number"
-          min={5}
-          value={addon.price}
-          onChange={(e) => updateAddonPrice(index, e.target.value)}
+          type="text"
+          placeholder="Brief details about this add-on..."
+          value={addon.desc}
+          onChange={(e) => updateAddonField(index, "desc", e.target.value)}
+          style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
         />
       </div>
     </div>
@@ -1142,8 +1465,9 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
   <button type="button" className="btn-secondary btn-add-more" onClick={addMoreAddon}>
     + Add More Add-Ons
   </button>
-</div>
-
+</div>    
+    
+    
 {/* ===== FAQ ===== */}
 <h2 className="section-heading">Frequently Asked Questions (FAQ)</h2>
 <p className="section-subheading">
@@ -1402,7 +1726,7 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
       </main>
     </>
   );
-      }
+}
 
 // ==========================================
 // HELPER COMPONENTS (Placed OUTSIDE main component)
