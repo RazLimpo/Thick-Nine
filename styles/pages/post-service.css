@@ -5,6 +5,7 @@
   max-width: var(--max-width);
   margin: 30px auto;
   padding: 0 30px;
+  position: relative;
 }
 
 
@@ -16,6 +17,15 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
+
+
+/* Add top margin to the main container rendered directly beneath the toggle bar */
+.form-container,
+#live-preview-wrapper {
+/* Height of toggle bar (~50px) + spacing from top (15px) + gap below bar (25px) */
+margin-top: calc(var(--header-height) + 30px);
+}
+
 
 .form-container h1 {
   font-size: 2em;
@@ -430,9 +440,7 @@
 
 
 /* --- E. Package Plan Upgrade Styling (from original Section 20) --- */
-.package-plan-selection-container {
-  /* Uses .feature-section-container for overall styling */
-}
+
 
 .plan-options {
   display: flex;
@@ -552,9 +560,6 @@
 
 
 /* --- B. Job Summary Grid --- */
-.job-summary-section {
-  /* Inherits general section styling */
-}
 
 .summary-grid {
   display: grid;
@@ -571,7 +576,7 @@
 }
 
 .summary-item:nth-child(2n), .summary-item:last-child {
-  border-bottom: ; /* set to "none" to remove border on last row items */
+  border-bottom: none; /* set to "none" to remove border on last row items */
 }
 
 .summary-label {
@@ -640,10 +645,7 @@
   font-weight: 700;
 }
 
-/* Styling for the Primary Submit Button */
-.btn-primary.publish-button {
-  /* Inherits main btn-primary styles but ensures sizing is correct */
-}
+
 
 /* Styling for the Secondary Draft Button */
 .btn-secondary.draft-button {
@@ -821,56 +823,112 @@
 
 .input-help {
   display: block;
-  margin-top: px;
+  margin-top: 4px;
   margin-bottom: 10px;
   font-size: 0.85rem;
   color: #64748b;
 }
 
-
-
-
-
-
-
+/* ---------------------------------------------------- */
+/* Violet/Indigo Glassmorphism Sticky Bar & Progress   */
+/* ---------------------------------------------------- */
 .view-toggle-container {
+  position: fixed;
+  top: var(--header-height); /* top: calc(var(--header-height) + 15px); */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--max-width);
+  z-index: 1000;
   display: flex;
-  justify-content: center;
-  margin-bottom: 30px;
-  position: sticky;
-  top: 10px;
-  z-index: 100;
+  align-items: center;
+  gap: 15px;
+  padding: 10px 16px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
+/* Icon-Only Toggle Buttons Group */
 .toggle-group {
-  background: #f1f5f9;
-  padding: 5px;
-  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 3px;
+  border-radius: 8px;
   display: flex;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  gap: 4px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .toggle-btn {
-  padding: 10px 24px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border: none;
-  border-radius: 9999px;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
-  color: #64748b;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  transition: all 0.25s ease;
+}
+
+.toggle-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .toggle-btn.active {
-  background: white;
-  color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
 }
 
+/* Compact Sticky Bar Track & Fill */
+.sticky-progress-container {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0; /* Prevents flex children from pushing container wide */
+}
 
+.sticky-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+}
 
+.sticky-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+  border-radius: 99px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.7);
+}
 
+/* Mobile Screen Adjustments */
+@media (max-width: 768px) {
+  .view-toggle-container {
+      top: var(--header-height);
+      margin: 0 0 15px 0;
+      padding: 8px 10px;
+      gap: 8px;
+      border-radius: 8px;
+  }
 
+  .toggle-btn {
+      width: 30px;
+      height: 30px;
+      font-size: 0.8rem;
+  }
+}
 
 /* Container for all media types */
 .media-preview-grid {
@@ -1065,16 +1123,7 @@
 
 /* Styling for the stacked delivery/revision items in preview */
 /* --- ENHANCED UNIFIED ORDER CARD --- */
-/* 1. Main Card Container */
-.order-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
-  position: sticky;
-  top: 24px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-}
+/* 1. Main Card Container from service-details.css */
 
 /* 2. SHARED TEXT WRAPPING LOGIC (Title & Description) */
 .order-card strong, 
@@ -1227,10 +1276,6 @@
   line-height: 1.4;
   margin-bottom: 15px;
 }
-
-/* Ensure the Order Card Link is visible */
-
-
 
 
 /* Ensure the active card in preview stands out */

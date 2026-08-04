@@ -45,8 +45,7 @@ html, body {
     padding: 0;
     width: 100%;
     /* Changed to min-height to allow content to grow */
-    min-height: 100vh; 
-    overflow-x: hidden;
+    min-height: 100vh;
 }
 
 body { 
@@ -56,8 +55,9 @@ body {
     color: var(--secondary-color); 
     font-size: 15px; 
 
-    /* ZONE RULE: Automatically reserves space for the fixed header */
-    
+    /* ZONE RULE: Automatically reserves space for the fixed header 
+    padding-top: var(--header-height) !important;
+*/
 }
 
 /* ---------------------------------------------------- */    
@@ -281,19 +281,13 @@ a:hover {
 }
 
 
-
-
-
-
-
-
-
 .main-content-wrapper {
   /* This pushes the entire page content down */
   padding-top: var(--header-height); 
   display: flex;
   flex-direction: column;
   min-height: 100vh; /* Keeps footer at bottom even on short pages */
+  overflow-x: hidden;
 }
 
 main {

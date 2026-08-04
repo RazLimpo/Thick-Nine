@@ -62,17 +62,19 @@ useEffect(() => {
         setFaqs(data.faqs);
       }
 
-      // 👈 ADD THIS: Hydrate Add-ons array
+    
+      // Hydrate Add-ons array
       if (data.addons && Array.isArray(data.addons) && data.addons.length > 0) {
         setAddons(
           data.addons.map((addon: any) => ({
             ...addon,
-            // Ensure checked is explicitly boolean (defaults to false if missing/undefined)
-            checked: Boolean(addon.checked),
+            enabled: addon.enabled !== undefined ? Boolean(addon.enabled) : true,
+            selected: Boolean(addon.selected),
           }))
         );
       }
-
+      
+      
       // Populate package data if returned
       if (data.packages) {
         setPackagesData(data.packages);
@@ -108,10 +110,54 @@ const [selectedImages, setSelectedImages] = useState<File[]>([]);
 const [selectedVideos, setSelectedVideos] = useState<File[]>([]);
 const [selectedAudios, setSelectedAudios] = useState<File[]>([]);
 
-// --- View ---
+
+// --- View & Pagination ---
 const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
+const [currentStep, setCurrentStep] = useState<number>(1);
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
+
+const nextStep = () => {
+  // Validate Step 1 before proceeding
+  if (currentStep === 1) {
+    if (!serviceTitle.trim()) {
+      showToast("Please enter a service title.", "warning");
+      return;
+    }
+    if (!category) {
+      showToast("Please select a category.", "warning");
+      return;
+    }
+    if (!description.trim()) {
+      showToast("Please enter a service description.", "warning");
+      return;
+    }
+  }
+
+  // Validate Step 2 before proceeding
+  if (currentStep === 2) {
+    if (!pkgTitle.trim() || !pkgPrice) {
+      showToast("Please fill in the package title and price.", "warning");
+      return;
+    }
+  }
+
+  // Validate Step 3 before proceeding
+  if (currentStep === 3) {
+    if (selectedImages.length === 0) {
+      showToast("Please upload at least one image.", "warning");
+      return;
+    }
+  }
+
+  setCurrentStep((prev) => Math.min(prev + 1, 4));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+const prevStep = () => {
+  setCurrentStep((prev) => Math.max(prev - 1, 1));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
 
 // --- Form fields (basic info) ---
 const [serviceTitle, setServiceTitle] = useState("");
@@ -249,15 +295,10 @@ const [faqs, setFaqs] = useState([
 ]);
     
     
-    const toggleAttribute = (value: string) => {
+
+const toggleAttribute = (value: string) => {
   setSelectedAttributes((prev) =>
     prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
-  );
-};
-
-const toggleAddon = (index: number) => {
-  setAddons((prev) =>
-    prev.map((a, i) => (i === index ? { ...a, checked: !a.checked } : a))
   );
 };
 
@@ -277,7 +318,7 @@ const updateAddonField = (index: number, field: "label" | "desc" | "price", valu
 const addMoreAddon = () => {
   setAddons((prev) => [
     ...prev,
-    { label: "Extra Service", desc: "", price: "10", checked: false },
+    { label: "Extra Service", desc: "", price: "10", enabled: true, selected: false },
   ]);
   showToast("New Add-on block created");
 };
@@ -326,7 +367,7 @@ const buildServiceFormData = () => {
   formData.append("requirements", JSON.stringify([req1, req2, req3, req4].filter(Boolean)));
   formData.append("packages", JSON.stringify(updatedPackagesData));
   formData.append("attributes", JSON.stringify(selectedAttributes));
-  formData.append("addons", JSON.stringify(addons.filter((a) => a.checked)));
+  formData.append("addons", JSON.stringify(addons.filter((a) => a.enabled)));
   formData.append("faqs", JSON.stringify(faqs.filter((f) => f.question.trim())));
 
   // Append binary media files
@@ -502,12 +543,22 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
   const basePackagePrice = parseFloat(activePackage.price) || 0;
   const grandTotalPrice = basePackagePrice + selectedAddonsTotal;
 
-  const categoryText =
-    category === "design"
-      ? "Graphics & Design"
-      : category === "webdev"
-      ? "Web Development"
-      : "Category";
+  const categoryLabels: Record<string, string> = {
+  "ai-services": "AI Services",
+  "business-services": "Business Services",
+  "data-science": "Data Science",
+  "digital-marketing": "Digital Marketing",
+  "graphics-design": "Graphics & Design",
+  "music-audio": "Music and Audio",
+  "photography": "Photography",
+  "programming-tech": "Programming & Tech",
+  "travel-lifestyle": "Travel & Lifestyle",
+  "video-animation": "Video & Animation",
+  "writing-translation": "Writing & Translation",
+  "miscellaneous": "Miscellaneous (General)",
+};
+
+const categoryText = categoryLabels[category] || "Category";
 
   
   
@@ -518,31 +569,45 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
     <>
           
       <main className="form-layout">
+        {/* Violet/Indigo Glassmorphism Sticky Bar */}
         <div className="view-toggle-container">
-  <div className="toggle-group">
-    <button
-      type="button"
-      className={`toggle-btn ${viewMode === "edit" ? "active" : ""}`}
-      onClick={() => setViewMode("edit")}
-    >
-      <i className="fas fa-edit"></i> Edit Details
-    </button>
-    <button
-      type="button"
-      className={`toggle-btn ${viewMode === "preview" ? "active" : ""}`}
-      onClick={handlePreviewClick}
-    >
-      <i className="fas fa-eye"></i> Live Preview
-    </button>
-  </div>
-</div>
+          {/* Icon-Only Toggle Group */}
+          <div className="toggle-group">
+            <button
+              type="button"
+              className={`toggle-btn ${viewMode === "edit" ? "active" : ""}`}
+              onClick={() => setViewMode("edit")}
+              title="Edit Details"
+            >
+              <i className="fas fa-edit"></i>
+            </button>
+            <button
+              type="button"
+              className={`toggle-btn ${viewMode === "preview" ? "active" : ""}`}
+              onClick={handlePreviewClick}
+              title="Live Preview"
+            >
+              <i className="fas fa-external-link-alt"></i>
+            </button>
+          </div>
 
-
+          {/* Integrated Slim Progress Bar (Edit mode only) */}
+          {viewMode === "edit" && (
+            <div className="sticky-progress-container">
+              <div className="sticky-progress-track">
+                <div 
+                  className="sticky-progress-fill" 
+                  style={{ width: `${(currentStep / 4) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
 
 {viewMode === "preview" && (
   <div id="live-preview-wrapper" className="service-details-main" style={{ background: "#fff" }}>
-    <div className="container">
+    <div className="preview-container">
       {/* Breadcrumb */}
       <nav className="breadcrumb">
         Home &gt; {categoryText} &gt; <span>{serviceTitle || "Service Title Preview"}</span>
@@ -931,7 +996,7 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
         fontSize: "0.85rem",
         fontWeight: "700",
         marginBottom: "8px",
-        color: "#945325",
+        color: "#475569",
       }}
     >
       Selected Add-ons
@@ -983,686 +1048,781 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
 
 
 
-        
 {viewMode === "edit" && (
   <div className="form-container wide-container">
-    <h1><i className="fas fa-clipboard-list"></i> Create Your Service (Gig)</h1>
-    <p className="form-instruction">Define your service details and create up to three packages.</p>
-
     <form className="service-post-form" onSubmit={handleSubmit}>
-      {/* ===== BASIC INFO ===== */}
-<div className="form-group">
-  <label htmlFor="service-title">Service Title</label>
-  <input
-    type="text"
-    id="service-title"
-    maxLength={80}
-    placeholder="e.g., I will design a modern logo for you..."
-    value={serviceTitle}
-    onChange={(e) => setServiceTitle(e.target.value)}
-    required
-  />
-  <small className="char-counter">
-    <span id="title-count">{serviceTitle.length}</span>/80
-  </small>
-</div>
-
-<div className="form-group">
-  <label htmlFor="category">Service Category</label>
-  <select
-    id="category"
-    value={category}
-    onChange={(e) => setCategory(e.target.value)}
-    required
-  >
-    <option value="">Select a Category</option>
-    <option value="design">Graphics & Design</option>
-    <option value="webdev">Web Development</option>
-  </select>
-</div>
-
-<div className="form-group">
-  <label htmlFor="description">Detailed Service Description</label>
-  <textarea
-    id="description"
-    rows={6}
-    maxLength={1200}
-    placeholder="Outline what the buyer will receive..."
-    value={description}
-    onChange={(e) => setDescription(e.target.value)}
-    required
-  />
-  <small className="char-counter">
-    <span id="desc-count">{description.length}</span>/1200
-  </small>
-</div>
-
-<div className="form-group">
-  <label htmlFor="keywords">Search Keywords (Tags)</label>
-  <input
-    type="text"
-    id="keywords"
-    placeholder="e.g., logo design, minimal, brand..."
-    value={keywords}
-    onChange={(e) => setKeywords(e.target.value)}
-    required
-  />
-  <small>Separate each keyword with a comma. Max 5 keywords.</small>
-</div>
-  
-  {/* ===== DESIGN BRIEF ===== */}
-<section className="form-section">
-  <h3>Define Your Design Brief</h3>
-  <p className="section-help">
-    Specify what information you need from the client to start the project.
-  </p>
-
-  <div className="brief-builder">
-    <div className="input-group full-width">
-      <label>Brief Introduction</label>
-      <textarea
-        name="brief_intro"
-        className="brief-intro-textarea"
-        placeholder="e.g., To deliver the best possible result..."
-        value={briefIntro}
-        onChange={(e) => setBriefIntro(e.target.value)}
-      />
-      <small className="input-help">
-        This intro appears at the top of your design brief section.
-      </small>
-    </div>
-
-    <div className="requirement-input-item">
-      <label>Requirement 1: Project Overview</label>
-      <textarea
-        name="req_1"
-        placeholder="Describe your brand/business..."
-        value={req1}
-        onChange={(e) => setReq1(e.target.value)}
-      />
-    </div>
-
-    <div className="requirement-input-item">
-      <label>Requirement 2: Preferred Style & Inspiration</label>
-      <textarea
-        name="req_2"
-        placeholder="Style preferences, colors, fonts..."
-        value={req2}
-        onChange={(e) => setReq2(e.target.value)}
-      />
-    </div>
-
-    <div className="requirement-input-item">
-      <label>Requirement 3: Files & References</label>
-      <textarea
-        name="req_3"
-        placeholder="Upload existing assets, moodboards..."
-        value={req3}
-        onChange={(e) => setReq3(e.target.value)}
-      />
-    </div>
-
-    <div className="requirement-input-item">
-      <label>Requirement 4: Additional Details</label>
-      <textarea
-        name="req_4"
-        placeholder="Target audience, timeline, etc..."
-        value={req4}
-        onChange={(e) => setReq4(e.target.value)}
-      />
-    </div>
-  </div>
-</section>
       
-      
-      {/* ===== SHOWCASE YOUR WORK (MEDIA) ===== */}
-<h2 className="section-heading">Showcase Your Work</h2>
-<p className="form-instruction">
-  Upload high-quality images and a short video (up to 60 seconds) that best represent your service.
-</p>
+      {/* ==================== PAGE 1: OVERVIEW & BASIC INFO ==================== */}
+      {currentStep === 1 && (
+        <div className="step-page">
+          <h2><i className="fas fa-info-circle"></i> Step 1: Service Overview</h2>
+          <p className="form-instruction">Provide basic information about your service so buyers can find it.</p>
 
-{/* Images */}
-<div ref={imagesSectionRef} className="form-group media-upload-group">
-  <label htmlFor="images">Images (Required, up to 3)</label>
-  <input
-    type="file"
-    id="images"
-    accept="image/*"
-    multiple
-    onChange={handleImageUpload}
-  />
-  <small>
-    Formats: JPG, PNG. Max size: 5MB per file.{" "}
-    <strong>Plan Limit: Up to {planLimits[selectedPlan].images} images.</strong>
-  </small>
- <div id="image-preview-grid" className="media-preview-grid">
-  {selectedImages.map((file, index) => (
-    <ImagePreviewItem 
-      key={index} 
-      file={file} 
-      onRemove={() => requestRemoveItem("images", index)} 
-    />
-  ))}
-</div>
-  
-</div>
-
-{/* Video */}
-<div className="form-group media-upload-group">
-  <label htmlFor="video">Video (Optional, 60s max)</label>
-  <input
-    type="file"
-    id="video"
-    accept="video/mp4,video/quicktime"
-    multiple
-    onChange={handleVideoUpload}
-  />
-  <small>
-    Format: MP4 recommended. Max size: 50MB.{" "}
-    <strong>Plan Limit: Up to {planLimits[selectedPlan].videos} video(s).</strong>
-  </small>
-  <div id="video-preview-list" className="media-preview-grid">
-    {selectedVideos.map((file, index) => (
-      <div key={index} className="preview-item">
-        <div className="file-info">
-          <i className="fas fa-video"></i>
-          <span>{file.name}</span>
-        </div>
-        <button
-          type="button"
-          className="remove-btn"
-          onClick={() => requestRemoveItem("videos", index)}
-        >
-          &times;
-        </button>
-      </div>
-    ))}
-  </div>
-</div>
-      
-{/* Audio */}
-<div className="form-group media-upload-group">
-  <label htmlFor="audio">Audio Sample (Optional, 30s max)</label>
-  <input
-    type="file"
-    id="audio"
-    accept="audio/*"
-    multiple
-    onChange={handleAudioUpload}
-  />
-  <small>
-    Formats: MP3, WAV recommended. Max size: 10MB.{" "}
-    <strong>Plan Limit: Up to {planLimits[selectedPlan].audio} audio(s).</strong>
-  </small>
-  <div id="audio-preview-list" className="media-preview-grid">
-    {selectedAudios.map((file, index) => (
-      <div key={index} className="preview-item">
-        <div className="file-info">
-          <i className="fas fa-music"></i>
-          <span>{file.name}</span>
-        </div>
-        <button
-          type="button"
-          className="remove-btn"
-          onClick={() => requestRemoveItem("audio", index)}
-        >
-          &times;
-        </button>
-      </div>
-    ))}
-  </div>
-</div>      
-      
-      {/* ===== DEFINE YOUR PACKAGES ===== */}
-<h2 className="section-heading">Define Your Packages</h2>
-<p className="section-subheading">
-  Create up to three packages (Basic, Standard, Premium) with different pricing and features.
-</p>
-
-{/* Package Selector Cards */}
-<div className="package-selection-cards">
-  <div
-    className={`package-selector-card ${currentEditingTier === "basic" ? "active" : ""}`}
-    data-tier="basic"
-    onClick={() => switchPackageTier("basic")}
-  >
-    <i className="fas fa-ribbon"></i>
-    <h4>Basic</h4>
-  </div>
-  <div
-    className={`package-selector-card ${currentEditingTier === "standard" ? "active" : ""}`}
-    data-tier="standard"
-    onClick={() => switchPackageTier("standard")}
-  >
-    <i className="fas fa-trophy"></i>
-    <h4>Standard</h4>
-  </div>
-  <div
-    className={`package-selector-card ${currentEditingTier === "premium" ? "active" : ""}`}
-    data-tier="premium"
-    onClick={() => switchPackageTier("premium")}
-  >
-    <i className="far fa-star"></i>
-    <h4>Premium</h4>
-  </div>
-</div>
-
-{/* Package Details Block */}
-<div className="package-details-block">
-  <div className="form-group">
-    <label htmlFor="package-title">Package Title</label>
-    <input
-      type="text"
-      id="package-title"
-      maxLength={50}
-      placeholder="e.g., Basic Logo Design"
-      value={pkgTitle}
-      onChange={(e) => setPkgTitle(e.target.value)}
-    />
-    <small className="char-counter">
-      <span id="pkg-title-count">{pkgTitle.length}</span>/50
-    </small>
-  </div>
-
-  <div className="form-group">
-    <label htmlFor="package-description">Description</label>
-    <textarea
-      id="package-description"
-      rows={3}
-      maxLength={100}
-      placeholder="Briefly describe what this package includes..."
-      value={pkgDesc}
-      onChange={(e) => setPkgDesc(e.target.value)}
-    />
-    <small className="char-counter">
-      <span id="pkg-desc-count">{pkgDesc.length}</span>/100
-    </small>
-  </div>
-
-  <div className="form-group inline-group price-delivery-row">
-    <div className="form-group-item price-input">
-      <label htmlFor="package-price">Price</label>
-      <div className="input-with-icon">
-        <span>$</span>
-        <input
-          type="number"
-          id="package-price"
-          placeholder="20"
-          min={5}
-          value={pkgPrice}
-          onChange={(e) => setPkgPrice(e.target.value)}
-          required
-        />
-      </div>
-    </div>
-
-    {/* Earnings Breakdown */}
-    <div className="earnings-breakdown" id="earnings-calc">
-      <div className="earnings-row">
-        <span>Selling Price</span>
-        <span id="calc-gross">${gross.toFixed(2)}</span>
-      </div>
-      <div className="earnings-row fee-row">
-        <span>Marketplace Fee (12%)</span>
-        <span id="calc-fee">-${fee.toFixed(2)}</span>
-      </div>
-      <div className="earnings-row total-row">
-        <span>You&apos;ll Receive</span>
-        <span id="calc-net">${net.toFixed(2)}</span>
-      </div>
-    </div>
-
-    <div className="form-group-item select-input">
-      <label htmlFor="package-delivery">Complete in</label>
-      <select
-        id="package-delivery"
-        value={pkgDelivery}
-        onChange={(e) => setPkgDelivery(e.target.value)}
-        required
-      >
-        <option value="1">1 day</option>
-        <option value="2">2 days</option>
-        <option value="3">3 days</option>
-        <option value="5">5 days</option>
-        <option value="7">7 days</option>
-        <option value="10">10 days</option>
-      </select>
-    </div>
-  </div>
-
-  <div className="form-group">
-    <label htmlFor="package-revisions">Revisions Included</label>
-    <input
-      type="number"
-      id="package-revisions"
-      min={0}
-      value={pkgRevisions}
-      onChange={(e) => setPkgRevisions(e.target.value)}
-      placeholder="Number of revisions"
-    />
-  </div>
-
-  <div className="form-group">
-    <label htmlFor="package-features-list">What&apos;s Included? Key Features (One per line)</label>
-    <textarea
-      id="package-features-list"
-      rows={4}
-      placeholder={"List key deliverables\ne.g., - High-resolution JPG\n- Unlimited color options"}
-      value={pkgFeatures}
-      onChange={(e) => setPkgFeatures(e.target.value)}
-    />
-  </div>
-</div>
-    
-    
-    {/* ===== WHY CHOOSE ME (ATTRIBUTES) ===== */}
-<h2 className="section-heading">Why Choose Me? (Key Attributes)</h2>
-<p className="section-subheading">
-  Select the attributes that best describe your professional work ethic and profile.
-</p>
-
-<div className="form-group attribute-selection-group">
-  <div className="attribute-list">
-    {[
-      { value: "certified", label: "Certified" },
-      { value: "expert", label: "Expert" },
-      { value: "experienced", label: "Experienced" },
-      { value: "punctual", label: "Punctual" },
-      { value: "organized", label: "Organized" },
-      { value: "creative", label: "Creative" },
-      { value: "professional", label: "Professional" },
-      { value: "flexible", label: "Flexible" },
-      { value: "emotional-intelligent", label: "Emotionally Intelligent" },
-      { value: "proficient", label: "Proficient" },
-    ].map((attr) => (
-      <label key={attr.value}>
-        <input
-          type="checkbox"
-          name="attribute"
-          value={attr.value}
-          checked={selectedAttributes.includes(attr.value)}
-          onChange={() => toggleAttribute(attr.value)}
-        />{" "}
-        {attr.label}
-      </label>
-    ))}
-  </div>
-  <small>Clients can see these highlighted qualities on your service page.</small>
-</div>
-
-    
-{/* ===== ADD-ONS (EDIT MODE) ===== */}
-<h2 className="section-heading">Service Customization & Add-Ons</h2>
-<p className="section-subheading">
-  Offer extra services (e.g., faster delivery, source files) for an additional fee.
-</p>
-
-<div className="feature-section-container add-ons-section">
-  {addons.map((addon, index) => (
-    <div key={index} className="add-on-item-new" style={{ flexDirection: "column", gap: "10px", padding: "15px", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "15px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-        <label style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
-          <input
-            type="checkbox"
-            checked={addon.enabled}
-            onChange={() => toggleAddonEnabled(index)}
-          />
-          Enable Option
-        </label>
-        
-        {/* Delete Button */}
-        <button
-          type="button"
-          onClick={() => removeAddon(index)}
-          style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem" }}
-        >
-          <i className="fas fa-trash"></i> Delete
-        </button>
-      </div>
-
-      <div style={{ display: "flex", gap: "15px", width: "100%", flexWrap: "wrap" }}>
-        {/* Editable Title */}
-        <div style={{ flex: "2", minWidth: "200px" }}>
-          <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Add-on Title</label>
-          <input
-            type="text"
-            placeholder="e.g., Extra Fast Delivery"
-            value={addon.label}
-            onChange={(e) => updateAddonField(index, "label", e.target.value)}
-            style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
-          />
-        </div>
-
-        {/* Editable Price */}
-        <div style={{ flex: "1", minWidth: "120px" }}>
-          <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Price ($)</label>
-          <div className="add-on-price" style={{ marginTop: "0" }}>
-            <span className="price-prefix">$</span>
+          <div className="form-group">
+            <label htmlFor="service-title">Service Title</label>
             <input
-              type="number"
-              min={5}
-              value={addon.price}
-              onChange={(e) => updateAddonField(index, "price", e.target.value)}
+              type="text"
+              id="service-title"
+              maxLength={80}
+              placeholder="e.g., I will design a modern logo for you..."
+              value={serviceTitle}
+              onChange={(e) => setServiceTitle(e.target.value)}
+              required
             />
+            <small className="char-counter">
+              <span id="title-count">{serviceTitle.length}</span>/80
+            </small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="category">Service Category</label>
+            <select
+              id="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              required
+            >
+              <option value="">Select a Category</option>
+              <option value="ai-services">AI Services</option>
+              <option value="business-services">Business Services</option>
+              <option value="data-science">Data Science</option>
+              <option value="digital-marketing">Digital Marketing</option>
+              <option value="graphics-design">Graphics & Design</option>
+              <option value="music-audio">Music & Audio</option>
+              <option value="photography">Photography</option>
+              <option value="programming-tech">Programming & Tech</option>
+              <option value="travel-lifestyle">Travel & Lifestyle</option>
+              <option value="video-animation">Video & Animation</option>
+              <option value="writing-translation">Writing & Translation</option>
+              <option value="miscellaneous">Miscellaneous (General)</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="description">Detailed Service Description</label>
+            <textarea
+              id="description"
+              rows={6}
+              maxLength={1200}
+              placeholder="Outline what the buyer will receive..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+            />
+            <small className="char-counter">
+              <span id="desc-count">{description.length}</span>/1200
+            </small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="keywords">Search Keywords (Tags)</label>
+            <input
+              type="text"
+              id="keywords"
+              placeholder="e.g., logo design, minimal, brand..."
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+              required
+            />
+            <small>Separate each keyword with a comma. Max 5 keywords.</small>
+          </div>
+
+          {/* PAGE 1 NAVIGATION */}
+          <div className="step-navigation-footer" style={{ display: "flex", justifyContent: "space-between", marginTop: "30px", gap: "10px" }}>
+            <button type="button" className="btn-secondary draft-button" onClick={handleSaveDraft}>
+              Save Draft
+            </button>
+            <button type="button" className="btn-primary" onClick={nextStep}>
+              Next: Packages & Pricing <i className="fas fa-arrow-right"></i>
+            </button>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Editable Description */}
-      <div style={{ width: "100%" }}>
-        <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Description (Optional)</label>
-        <input
-          type="text"
-          placeholder="Brief details about this add-on..."
-          value={addon.desc}
-          onChange={(e) => updateAddonField(index, "desc", e.target.value)}
-          style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
-        />
-      </div>
-    </div>
-  ))}
 
-  <button type="button" className="btn-secondary btn-add-more" onClick={addMoreAddon}>
-    + Add More Add-Ons
-  </button>
-</div>    
+
+
+
+
+ 
+      {/* ==================== PAGE 2: PRICING, PACKAGES & ADD-ONS ==================== */}
+      {currentStep === 2 && (
+        <div className="step-page">
+          <h2><i className="fas fa-tags"></i> Step 2: Pricing & Packages</h2>
+          <p className="form-instruction">Create up to three packages with transparent pricing, delivery times, and optional add-ons.</p>
+
+          {/* ===== DEFINE YOUR PACKAGES ===== */}
+          <h3 className="section-heading">Define Your Packages</h3>
+          <p className="section-subheading">
+            Create up to three packages (Basic, Standard, Premium) with different pricing and features.
+          </p>
+
+          {/* Package Selector Cards */}
+          <div className="package-selection-cards">
+            <div
+              className={`package-selector-card ${currentEditingTier === "basic" ? "active" : ""}`}
+              data-tier="basic"
+              onClick={() => switchPackageTier("basic")}
+            >
+              <i className="fas fa-ribbon"></i>
+              <h4>Basic</h4>
+            </div>
+            <div
+              className={`package-selector-card ${currentEditingTier === "standard" ? "active" : ""}`}
+              data-tier="standard"
+              onClick={() => switchPackageTier("standard")}
+            >
+              <i className="fas fa-trophy"></i>
+              <h4>Standard</h4>
+            </div>
+            <div
+              className={`package-selector-card ${currentEditingTier === "premium" ? "active" : ""}`}
+              data-tier="premium"
+              onClick={() => switchPackageTier("premium")}
+            >
+              <i className="far fa-star"></i>
+              <h4>Premium</h4>
+            </div>
+          </div>
+
+          {/* Package Details Block */}
+          <div className="package-details-block">
+            <div className="form-group">
+              <label htmlFor="package-title">Package Title</label>
+              <input
+                type="text"
+                id="package-title"
+                maxLength={50}
+                placeholder="e.g., Basic Logo Design"
+                value={pkgTitle}
+                onChange={(e) => setPkgTitle(e.target.value)}
+              />
+              <small className="char-counter">
+                <span id="pkg-title-count">{pkgTitle.length}</span>/50
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="package-description">Description</label>
+              <textarea
+                id="package-description"
+                rows={3}
+                maxLength={100}
+                placeholder="Briefly describe what this package includes..."
+                value={pkgDesc}
+                onChange={(e) => setPkgDesc(e.target.value)}
+              />
+              <small className="char-counter">
+                <span id="pkg-desc-count">{pkgDesc.length}</span>/100
+              </small>
+            </div>
+
+            <div className="form-group inline-group price-delivery-row">
+              <div className="form-group-item price-input">
+                <label htmlFor="package-price">Price</label>
+                <div className="input-with-icon">
+                  <span>$</span>
+                  <input
+                    type="number"
+                    id="package-price"
+                    placeholder="20"
+                    min={5}
+                    value={pkgPrice}
+                    onChange={(e) => setPkgPrice(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Earnings Breakdown */}
+              <div className="earnings-breakdown" id="earnings-calc">
+                <div className="earnings-row">
+                  <span>Selling Price</span>
+                  <span id="calc-gross">${gross.toFixed(2)}</span>
+                </div>
+                <div className="earnings-row fee-row">
+                  <span>Marketplace Fee (12%)</span>
+                  <span id="calc-fee">-${fee.toFixed(2)}</span>
+                </div>
+                <div className="earnings-row total-row">
+                  <span>You&apos;ll Receive</span>
+                  <span id="calc-net">${net.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="form-group-item select-input">
+                <label htmlFor="package-delivery">Complete in</label>
+                <select
+                  id="package-delivery"
+                  value={pkgDelivery}
+                  onChange={(e) => setPkgDelivery(e.target.value)}
+                  required
+                >
+                  <option value="1">1 day</option>
+                  <option value="2">2 days</option>
+                  <option value="3">3 days</option>
+                  <option value="5">5 days</option>
+                  <option value="7">7 days</option>
+                  <option value="10">10 days</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="package-revisions">Revisions Included</label>
+              <input
+                type="number"
+                id="package-revisions"
+                min={0}
+                value={pkgRevisions}
+                onChange={(e) => setPkgRevisions(e.target.value)}
+                placeholder="Number of revisions"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="package-features-list">What&apos;s Included? Key Features (One per line)</label>
+              <textarea
+                id="package-features-list"
+                rows={4}
+                placeholder={"List key deliverables\ne.g., - High-resolution JPG\n- Unlimited color options"}
+                value={pkgFeatures}
+                onChange={(e) => setPkgFeatures(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* ===== ADD-ONS (EDIT MODE) ===== */}
+          <h3 className="section-heading" style={{ marginTop: "40px" }}>Service Customization & Add-Ons</h3>
+          <p className="section-subheading">
+            Offer extra services (e.g., faster delivery, source files) for an additional fee.
+          </p>
+
+          <div className="feature-section-container add-ons-section">
+            {addons.map((addon, index) => (
+              <div 
+                key={index} 
+                className="add-on-item-new" 
+                style={{ 
+                  flexDirection: "column", 
+                  gap: "10px", 
+                  padding: "15px", 
+                  border: "1px solid #e2e8f0", 
+                  borderRadius: "8px", 
+                  marginBottom: "15px", 
+                  background: "#f1f5f9"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <label style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      type="checkbox"
+                      checked={addon.enabled}
+                      onChange={() => toggleAddonEnabled(index)}
+                    />
+                    Enable Option
+                  </label>
+                  
+                  <button
+                    type="button"
+                    onClick={() => removeAddon(index)}
+                    style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem" }}
+                  >
+                    <i className="fas fa-trash"></i> Delete
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", gap: "15px", width: "100%", flexWrap: "wrap" }}>
+                  <div style={{ flex: "2", minWidth: "200px" }}>
+                    <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Add-on Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Extra Fast Delivery"
+                      value={addon.label}
+                      onChange={(e) => updateAddonField(index, "label", e.target.value)}
+                      style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+                    />
+                  </div>
+
+                  <div style={{ flex: "1", minWidth: "120px" }}>
+                    <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Price ($)</label>
+                    <div className="add-on-price" style={{ marginTop: "0" }}>
+                      <span className="price-prefix">$</span>
+                      <input
+                        type="number"
+                        min={5}
+                        value={addon.price}
+                        onChange={(e) => updateAddonField(index, "price", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ width: "100%" }}>
+                  <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Description (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="Brief details about this add-on..."
+                    value={addon.desc}
+                    onChange={(e) => updateAddonField(index, "desc", e.target.value)}
+                    style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+                  />
+                </div>
+              </div>
+            ))}
+
+            <button type="button" className="btn-secondary btn-add-more" onClick={addMoreAddon}>
+              + Add More Add-Ons
+            </button>
+          </div>
+
+          {/* PAGE 2 NAVIGATION */}
+          <div className="step-navigation-footer" style={{ display: "flex", justifyContent: "space-between", marginTop: "30px", gap: "10px" }}>
+            <button type="button" className="btn-secondary" onClick={prevStep}>
+              <i className="fas fa-arrow-left"></i> Previous
+            </button>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button type="button" className="btn-secondary draft-button" onClick={handleSaveDraft}>
+                Save Draft
+              </button>
+              <button type="button" className="btn-primary" onClick={nextStep}>
+                Next: Media & Brief <i className="fas fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+        
+      
+      
+      
+    
+      {/* ==================== PAGE 3: MEDIA & DESIGN BRIEF ==================== */}
+      {currentStep === 3 && (
+        <div className="step-page">
+          <h2><i className="fas fa-photo-video"></i> Step 3: Media & Client Brief</h2>
+          <p className="form-instruction">Upload media showcasing your work and set requirements for your buyers.</p>
+
+          {/* ===== SHOWCASE YOUR WORK (MEDIA) ===== */}
+          <h3 className="section-heading">Showcase Your Work</h3>
+          <p className="form-instruction">
+            Upload high-quality images and a short video (up to 60 seconds) that best represent your service.
+          </p>
+
+          {/* Images */}
+          <div ref={imagesSectionRef} className="form-group media-upload-group">
+            <label htmlFor="images">Images (Required, up to 3)</label>
+            <input
+              type="file"
+              id="images"
+              accept="image/*"
+              multiple
+              onChange={handleImageUpload}
+            />
+            <small>
+              Formats: JPG, PNG. Max size: 5MB per file.{" "}
+              <strong>Plan Limit: Up to {planLimits[selectedPlan].images} images.</strong>
+            </small>
+            <div id="image-preview-grid" className="media-preview-grid">
+              {selectedImages.map((file, index) => (
+                <ImagePreviewItem 
+                  key={index} 
+                  file={file} 
+                  onRemove={() => requestRemoveItem("images", index)} 
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Video */}
+          <div className="form-group media-upload-group">
+            <label htmlFor="video">Video (Optional, 60s max)</label>
+            <input
+              type="file"
+              id="video"
+              accept="video/mp4,video/quicktime"
+              multiple
+              onChange={handleVideoUpload}
+            />
+            <small>
+              Format: MP4 recommended. Max size: 50MB.{" "}
+              <strong>Plan Limit: Up to {planLimits[selectedPlan].videos} video(s).</strong>
+            </small>
+            <div id="video-preview-list" className="media-preview-grid">
+              {selectedVideos.map((file, index) => (
+                <div key={index} className="preview-item">
+                  <div className="file-info">
+                    <i className="fas fa-video"></i>
+                    <span>{file.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="remove-btn"
+                    onClick={() => requestRemoveItem("videos", index)}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+                
+          {/* Audio */}
+          <div className="form-group media-upload-group">
+            <label htmlFor="audio">Audio Sample (Optional, 30s max)</label>
+            <input
+              type="file"
+              id="audio"
+              accept="audio/*"
+              multiple
+              onChange={handleAudioUpload}
+            />
+            <small>
+              Formats: MP3, WAV recommended. Max size: 10MB.{" "}
+              <strong>Plan Limit: Up to {planLimits[selectedPlan].audio} audio(s).</strong>
+            </small>
+            <div id="audio-preview-list" className="media-preview-grid">
+              {selectedAudios.map((file, index) => (
+                <div key={index} className="preview-item">
+                  <div className="file-info">
+                    <i className="fas fa-music"></i>
+                    <span>{file.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="remove-btn"
+                    onClick={() => requestRemoveItem("audio", index)}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ===== DESIGN BRIEF ===== */}
+          <section className="form-section" style={{ marginTop: "40px" }}>
+            <h3>Define Your Design Brief</h3>
+            <p className="section-help">
+              Specify what information you need from the client to start the project.
+            </p>
+
+            <div className="brief-builder">
+              <div className="input-group full-width">
+                <label>Brief Introduction</label>
+                <textarea
+                  name="brief_intro"
+                  className="brief-intro-textarea"
+                  placeholder="e.g., To deliver the best possible result..."
+                  value={briefIntro}
+                  onChange={(e) => setBriefIntro(e.target.value)}
+                />
+                <small className="input-help">
+                  This intro appears at the top of your design brief section.
+                </small>
+              </div>
+
+              <div className="requirement-input-item">
+                <label>Requirement 1: Project Overview</label>
+                <textarea
+                  name="req_1"
+                  placeholder="Describe your brand/business..."
+                  value={req1}
+                  onChange={(e) => setReq1(e.target.value)}
+                />
+              </div>
+
+              <div className="requirement-input-item">
+                <label>Requirement 2: Preferred Style & Inspiration</label>
+                <textarea
+                  name="req_2"
+                  placeholder="Style preferences, colors, fonts..."
+                  value={req2}
+                  onChange={(e) => setReq2(e.target.value)}
+                />
+              </div>
+
+              <div className="requirement-input-item">
+                <label>Requirement 3: Files & References</label>
+                <textarea
+                  name="req_3"
+                  placeholder="Upload existing assets, moodboards..."
+                  value={req3}
+                  onChange={(e) => setReq3(e.target.value)}
+                />
+              </div>
+
+              <div className="requirement-input-item">
+                <label>Requirement 4: Additional Details</label>
+                <textarea
+                  name="req_4"
+                  placeholder="Target audience, timeline, etc..."
+                  value={req4}
+                  onChange={(e) => setReq4(e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* PAGE 3 NAVIGATION */}
+          <div className="step-navigation-footer" style={{ display: "flex", justifyContent: "space-between", marginTop: "30px", gap: "10px" }}>
+            <button type="button" className="btn-secondary" onClick={prevStep}>
+              <i className="fas fa-arrow-left"></i> Previous
+            </button>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button type="button" className="btn-secondary draft-button" onClick={handleSaveDraft}>
+                Save Draft
+              </button>
+              <button type="button" className="btn-primary" onClick={nextStep}>
+                Next: Options & Publish <i className="fas fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+         
     
     
-{/* ===== FAQ ===== */}
-<h2 className="section-heading">Frequently Asked Questions (FAQ)</h2>
-<p className="section-subheading">
-  Anticipate customer queries to save time and increase bookings.
-</p>
+      {/* ==================== PAGE 4: ATTRIBUTES, FAQ & PUBLISH ==================== */}
+      {currentStep === 4 && (
+        <div className="step-page">
+          <h2><i className="fas fa-rocket"></i> Step 4: Final Options & Publish</h2>
+          <p className="form-instruction">Add finishing details, choose your visibility plan, and publish your service.</p>
 
-<div className="feature-section-container faq-section">
-  {faqs.map((faq, index) => (
-    <div key={index} className="faq-item-new">
-      <div className="form-group">
-        
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-  <label>Question {index + 1}</label>
-  <button
-    type="button"
-    className="remove-item"
-    style={{ color: "#d9534f", border: "none", background: "none", cursor: "pointer" }}
-    onClick={() => requestRemoveItem("faq", index)}
-  >
-    <i className="fas fa-trash"></i>
-  </button>
-</div>
-        
-        <input
-          type="text"
-          placeholder="e.g., Do you provide unlimited revisions?"
-          value={faq.question}
-          onChange={(e) => updateFaq(index, "question", e.target.value)}
-        />
-      </div>
-      <div className="form-group">
-        <label>Answer {index + 1}</label>
-        <textarea
-          rows={2}
-          placeholder="My standard package includes 1 revision..."
-          value={faq.answer}
-          onChange={(e) => updateFaq(index, "answer", e.target.value)}
-        />
-      </div>
-    </div>
-  ))}
+          {/* ===== WHY CHOOSE ME (ATTRIBUTES) ===== */}
+          <h3 className="section-heading">Why Choose Me? (Key Attributes)</h3>
+          <p className="section-subheading">
+            Select the attributes that best describe your professional work ethic and profile.
+          </p>
 
-  {/* Button is placed inside the container wrapper */}
-  <button type="button" className="btn-secondary btn-add-more" onClick={addMoreFaq}>
-    + Add More FAQ
-  </button>
-</div>
-  
-  {/* ===== PACKAGE PLAN UPGRADE ===== */}
-<h2 className="section-heading">Package Plan Upgrade</h2>
-<p className="section-subheading">
-  Increase your visibility by upgrading your plan to add more images and videos to your service post.
-</p>
+          <div className="form-group attribute-selection-group">
+            <div className="attribute-list">
+              {[
+                { value: "certified", label: "Certified" },
+                { value: "expert", label: "Expert" },
+                { value: "experienced", label: "Experienced" },
+                { value: "punctual", label: "Punctual" },
+                { value: "organized", label: "Organized" },
+                { value: "creative", label: "Creative" },
+                { value: "professional", label: "Professional" },
+                { value: "flexible", label: "Flexible" },
+                { value: "emotional-intelligent", label: "Emotionally Intelligent" },
+                { value: "proficient", label: "Proficient" },
+              ].map((attr) => (
+                <label key={attr.value}>
+                  <input
+                    type="checkbox"
+                    name="attribute"
+                    value={attr.value}
+                    checked={selectedAttributes.includes(attr.value)}
+                    onChange={() => toggleAttribute(attr.value)}
+                  />{" "}
+                  {attr.label}
+                </label>
+              ))}
+            </div>
+            <small>Clients can see these highlighted qualities on your service page.</small>
+          </div>
 
-<div className="feature-section-container package-plan-selection-container">
-  <div className="plan-options">
-    {/* Free Plan */}
-    <div className={`plan-card ${selectedPlan === "free" ? "active" : ""}`}>
-      <input
-        type="radio"
-        id="plan-free"
-        name="package-plan"
-        value="free"
-        checked={selectedPlan === "free"}
-        onChange={() => handlePlanChange("free")}
-      />
-      <label htmlFor="plan-free">
-        <h4>Free Plan (Default)</h4>
-        <p className="plan-limit">Images: 3 / Videos: 1</p>
-        <p className="plan-duration">Lifetime Access</p>
-        <p className="plan-price">$0/mon</p>
-      </label>
-    </div>
+          {/* ===== FAQ ===== */}
+          <h3 className="section-heading" style={{ marginTop: "30px" }}>Frequently Asked Questions (FAQ)</h3>
+          <p className="section-subheading">
+            Anticipate customer queries to save time and increase bookings.
+          </p>
 
-    {/* Silver Plan */}
-    <div className={`plan-card ${selectedPlan === "silver" ? "active" : ""}`}>
-      <input
-        type="radio"
-        id="plan-silver"
-        name="package-plan"
-        value="silver"
-        checked={selectedPlan === "silver"}
-        onChange={() => handlePlanChange("silver")}
-      />
-      <label htmlFor="plan-silver">
-        <h4>Silver Plan</h4>
-        <p className="plan-limit">Images: 5 / Videos: 2</p>
-        <p className="plan-duration">Expires in 30 days</p>
-        <p className="plan-price">$5/mon</p>
-      </label>
-    </div>
+          <div className="feature-section-container faq-section">
+            {faqs.map((faq, index) => (
+              <div key={index} className="faq-item-new">
+                <div className="form-group">
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <label>Question {index + 1}</label>
+                    <button
+                      type="button"
+                      className="remove-item"
+                      style={{ color: "#d9534f", border: "none", background: "none", cursor: "pointer" }}
+                      onClick={() => requestRemoveItem("faq", index)}
+                    >
+                      <i className="fas fa-trash"></i>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g., Do you provide unlimited revisions?"
+                    value={faq.question}
+                    onChange={(e) => updateFaq(index, "question", e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Answer {index + 1}</label>
+                  <textarea
+                    rows={2}
+                    placeholder="My standard package includes 1 revision..."
+                    value={faq.answer}
+                    onChange={(e) => updateFaq(index, "answer", e.target.value)}
+                  />
+                </div>
+              </div>
+            ))}
 
-    {/* Gold Plan */}
-    <div className={`plan-card ${selectedPlan === "gold" ? "active" : ""}`}>
-      <input
-        type="radio"
-        id="plan-gold"
-        name="package-plan"
-        value="gold"
-        checked={selectedPlan === "gold"}
-        onChange={() => handlePlanChange("gold")}
-      />
-      <label htmlFor="plan-gold">
-        <h4>Gold Plan</h4>
-        <p className="plan-limit">Images: 8 / Videos: 4</p>
-        <p className="plan-duration">Expires in 90 days</p>
-        <p className="plan-price">$8/mon</p>
-      </label>
-    </div>
-  </div>
-  <small className="plan-note">
-    Switching plans may change the media limits applied to your service.
-  </small>
-</div>
+            <button type="button" className="btn-secondary btn-add-more" onClick={addMoreFaq}>
+              + Add More FAQ
+            </button>
+          </div>
 
-{/* ===== SERVICE AVAILABILITY ===== */}
-<h2 className="section-heading">Service Availability</h2>
-<p className="section-subheading">
-  Control whether your service is currently available and visible on the marketplace.
-</p>
+          {/* ===== PACKAGE PLAN UPGRADE ===== */}
+          <h3 className="section-heading" style={{ marginTop: "30px" }}>Package Plan Upgrade</h3>
+          <p className="section-subheading">
+            Increase your visibility by upgrading your plan to add more images and videos to your service post.
+          </p>
 
-<div className="feature-section-container job-availability-section">
-  <div className="form-group status-select-group">
-    <label htmlFor="service-status">Availability Status</label>
-    <select
-      id="service-status"
-      value={serviceStatus}
-      onChange={(e) => setServiceStatus(e.target.value)}
-      required
-    >
-      <option value="available">Available (Go Live)</option>
-      <option value="unavailable">Unavailable (Paused)</option>
-    </select>
-    <small>Set to &apos;Available&apos; to publish your service on the marketplace.</small>
-  </div>
-</div>
+          <div className="feature-section-container package-plan-selection-container">
+            <div className="plan-options">
+              {/* Free Plan */}
+              <div className={`plan-card ${selectedPlan === "free" ? "active" : ""}`}>
+                <input
+                  type="radio"
+                  id="plan-free"
+                  name="package-plan"
+                  value="free"
+                  checked={selectedPlan === "free"}
+                  onChange={() => handlePlanChange("free")}
+                />
+                <label htmlFor="plan-free">
+                  <h4>Free Plan (Default)</h4>
+                  <p className="plan-limit">Images: 3 / Videos: 1</p>
+                  <p className="plan-duration">Lifetime Access</p>
+                  <p className="plan-price">$0/mon</p>
+                </label>
+              </div>
 
-{/* ===== SERVICE SUMMARY (Read Only) ===== */}
-<h2 className="section-heading">Service Summary & Metrics</h2>
-<p className="section-subheading">
-  A quick overview of this service&apos;s performance and plan status (Read Only).
-</p>
+              {/* Silver Plan */}
+              <div className={`plan-card ${selectedPlan === "silver" ? "active" : ""}`}>
+                <input
+                  type="radio"
+                  id="plan-silver"
+                  name="package-plan"
+                  value="silver"
+                  checked={selectedPlan === "silver"}
+                  onChange={() => handlePlanChange("silver")}
+                />
+                <label htmlFor="plan-silver">
+                  <h4>Silver Plan</h4>
+                  <p className="plan-limit">Images: 5 / Videos: 2</p>
+                  <p className="plan-duration">Expires in 30 days</p>
+                  <p className="plan-price">$5/mon</p>
+                </label>
+              </div>
 
-<div className="feature-section-container job-summary-section">
-  <div className="summary-grid">
-    <div className="summary-item">
-      <span className="summary-label">Date Created:</span>
-      <span className="summary-value">October 25, 2025</span>
-    </div>
-    <div className="summary-item">
-      <span className="summary-label">Current Plan:</span>
-      <span className={`summary-value plan-${selectedPlan}`}>
-        {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
-      </span>
-    </div>
-    <div className="summary-item">
-      <span className="summary-label">Plan Expiry:</span>
-      <span className="summary-value">November 24, 2025</span>
-    </div>
-    <div className="summary-item">
-      <span className="summary-label">Total Views:</span>
-      <span className="summary-value metric-views">1,452</span>
-    </div>
-    <div className="summary-item">
-      <span className="summary-label">Category:</span>
-      <span className="summary-value">
-        {category === "design" ? "Graphics & Design" : category === "webdev" ? "Web Development" : "—"}
-      </span>
-    </div>
-    <div className="summary-item">
-      <span className="summary-label">Current Status:</span>
-      <span className={`summary-value ${serviceStatus === "available" ? "status-active" : ""}`}>
-        {serviceStatus === "available" ? "Available" : "Unavailable"}
-      </span>
-    </div>
-  </div>
-</div>
-  
-  
-  {/* ===== SAVE & PUBLISH BUTTONS ===== */}
-<div className="form-button-group">
-  <button type="button" className="btn-secondary draft-button" onClick={handleSaveDraft}>
-    Save as Draft
-  </button>
-  <button type="submit" className="btn-primary publish-button">
-    Publish Service
-  </button>
-</div>
+              {/* Gold Plan */}
+              <div className={`plan-card ${selectedPlan === "gold" ? "active" : ""}`}>
+                <input
+                  type="radio"
+                  id="plan-gold"
+                  name="package-plan"
+                  value="gold"
+                  checked={selectedPlan === "gold"}
+                  onChange={() => handlePlanChange("gold")}
+                />
+                <label htmlFor="plan-gold">
+                  <h4>Gold Plan</h4>
+                  <p className="plan-limit">Images: 8 / Videos: 4</p>
+                  <p className="plan-duration">Expires in 90 days</p>
+                  <p className="plan-price">$8/mon</p>
+                </label>
+              </div>
+            </div>
+            <small className="plan-note">
+              Switching plans may change the media limits applied to your service.
+            </small>
+          </div>
+
+          {/* ===== SERVICE AVAILABILITY ===== */}
+          <h3 className="section-heading" style={{ marginTop: "30px" }}>Service Availability</h3>
+          <p className="section-subheading">
+            Control whether your service is currently available and visible on the marketplace.
+          </p>
+
+          <div className="feature-section-container job-availability-section">
+            <div className="form-group status-select-group">
+              <label htmlFor="service-status">Availability Status</label>
+              <select
+                id="service-status"
+                value={serviceStatus}
+                onChange={(e) => setServiceStatus(e.target.value)}
+                required
+              >
+                <option value="available">Available (Go Live)</option>
+                <option value="unavailable">Unavailable (Paused)</option>
+              </select>
+              <small>Set to &apos;Available&apos; to publish your service on the marketplace.</small>
+            </div>
+          </div>
+
+          {/* ===== SERVICE SUMMARY (Read Only) ===== */}
+          <h3 className="section-heading" style={{ marginTop: "30px" }}>Service Summary & Metrics</h3>
+          <p className="section-subheading">
+            A quick overview of this service&apos;s performance and plan status (Read Only).
+          </p>
+
+          <div className="feature-section-container job-summary-section">
+            <div className="summary-grid">
+              <div className="summary-item">
+                <span className="summary-label">Date Created:</span>
+                <span className="summary-value">October 25, 2025</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Current Plan:</span>
+                <span className={`summary-value plan-${selectedPlan}`}>
+                  {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
+                </span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Plan Expiry:</span>
+                <span className="summary-value">November 24, 2025</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Total Views:</span>
+                <span className="summary-value metric-views">1,452</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Category:</span>
+                <span className="summary-value">
+                  {category === "design" ? "Graphics & Design" : category === "webdev" ? "Web Development" : "—"}
+                </span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label">Current Status:</span>
+                <span className={`summary-value ${serviceStatus === "available" ? "status-active" : ""}`}>
+                  {serviceStatus === "available" ? "Available" : "Unavailable"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* PAGE 4 NAVIGATION & SUBMIT */}
+          <div className="step-navigation-footer" style={{ display: "flex", justifyContent: "space-between", marginTop: "30px", gap: "10px" }}>
+            <button type="button" className="btn-secondary" onClick={prevStep}>
+              <i className="fas fa-arrow-left"></i> Previous
+            </button>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button type="button" className="btn-secondary draft-button" onClick={handleSaveDraft} disabled={isSubmitting}>
+                Save as Draft
+              </button>
+              <button type="submit" className="btn-primary publish-button" disabled={isSubmitting}>
+                {isSubmitting ? "Publishing..." : "Publish Service"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </form>
-      
-      
-      
   </div>
-)}
-      
+)}      
   
   
   {/* Toast Container */}
@@ -1687,7 +1847,10 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
             </div>
           ))}
         </div>
-
+    
+                
+                
+                
         {/* Confirm Modal */}
         {showConfirmModal && (
           <div
