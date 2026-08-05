@@ -9,6 +9,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { MARKETPLACE_FEE_PERCENTAGE } from "@/lib/constants";
 import { PlanKey, PLAN_LIMITS, validateMediaFile, validateMediaQuantity } from "@/lib/validation";
 
+import CategorySelect from "@/components/PostService/CategorySelect";
+import { CATEGORIES, CategoryKey } from "@/lib/categories";
+
 import '../../styles/pages/post-service.css';
 import '../../styles/pages/service-details.css';
 
@@ -54,6 +57,7 @@ useEffect(() => {
       if (data.title) setServiceTitle(data.title);
       if (data.description) setDescription(data.description);
       if (data.category) setCategory(data.category);
+      if (data.subCategory) setSubCategory(data.subCategory);
       if (data.keywords) setKeywords(Array.isArray(data.keywords) ? data.keywords.join(", ") : data.keywords);
       if (data.selectedPlan) setSelectedPlan(data.selectedPlan);
       
@@ -162,6 +166,7 @@ const prevStep = () => {
 // --- Form fields (basic info) ---
 const [serviceTitle, setServiceTitle] = useState("");
 const [category, setCategory] = useState("");
+const [subCategory, setSubCategory] = useState("");
 const [description, setDescription] = useState("");
 const [keywords, setKeywords] = useState("");
 
@@ -360,6 +365,7 @@ const buildServiceFormData = () => {
   const formData = new FormData();
   formData.append("title", serviceTitle);
   formData.append("category", category);
+  formData.append("subCategory", subCategory);
   formData.append("description", description);
   formData.append("keywords", keywords);
   formData.append("selectedPlan", selectedPlan);
@@ -543,23 +549,12 @@ const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: n
   const basePackagePrice = parseFloat(activePackage.price) || 0;
   const grandTotalPrice = basePackagePrice + selectedAddonsTotal;
 
-  const categoryLabels: Record<string, string> = {
-  "ai-services": "AI Services",
-  "business-services": "Business Services",
-  "data-science": "Data Science",
-  "digital-marketing": "Digital Marketing",
-  "graphics-design": "Graphics & Design",
-  "music-audio": "Music and Audio",
-  "photography": "Photography",
-  "programming-tech": "Programming & Tech",
-  "travel-lifestyle": "Travel & Lifestyle",
-  "video-animation": "Video & Animation",
-  "writing-translation": "Writing & Translation",
-  "miscellaneous": "Miscellaneous (General)",
-};
+  
 
-const categoryText = categoryLabels[category] || "Category";
-
+const categoryText =
+  category && category in CATEGORIES
+    ? CATEGORIES[category as CategoryKey].label
+    : "Category";
   
   
   
@@ -1074,30 +1069,14 @@ const categoryText = categoryLabels[category] || "Category";
             </small>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="category">Service Category</label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-            >
-              <option value="">Select a Category</option>
-              <option value="ai-services">AI Services</option>
-              <option value="business-services">Business Services</option>
-              <option value="data-science">Data Science</option>
-              <option value="digital-marketing">Digital Marketing</option>
-              <option value="graphics-design">Graphics & Design</option>
-              <option value="music-audio">Music & Audio</option>
-              <option value="photography">Photography</option>
-              <option value="programming-tech">Programming & Tech</option>
-              <option value="travel-lifestyle">Travel & Lifestyle</option>
-              <option value="video-animation">Video & Animation</option>
-              <option value="writing-translation">Writing & Translation</option>
-              <option value="miscellaneous">Miscellaneous (General)</option>
-            </select>
-          </div>
-
+      <CategorySelect
+  category={category}
+  subCategory={subCategory}
+  onCategoryChange={setCategory}
+  onSubCategoryChange={setSubCategory}
+/>    
+      
+      
           <div className="form-group">
             <label htmlFor="description">Detailed Service Description</label>
             <textarea
