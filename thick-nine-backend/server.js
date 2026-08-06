@@ -323,6 +323,9 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
       price,
     } = req.body;
 
+    // Read subCategory (frontend may send camelCase) or subcategory
+    const subCategory = req.body.subCategory || req.body.subcategory || "";
+
     // Extract Cloudinary secure URLs populated by Multer
     const imageUrls = req.files?.images ? req.files.images.map((f) => f.path) : [];
     const videoUrls = req.files?.videos ? req.files.videos.map((f) => f.path) : [];
@@ -334,6 +337,8 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
       sellerId,
       title: title || "Untitled Draft",
       category: category || "General",
+      // Save subCategory into the schema's subcategory field so it persists
+      subcategory: subCategory || "",
       description: description || "",
       tags: keywords ? keywords.split(",").map((k) => k.trim()) : [],
       selectedPlan: selectedPlan || "free",
@@ -363,6 +368,84 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
       message: "Failed to save draft to database",
       error: err.message,
     });
+  }
+});
+
+
+// PUT: Update existing draft by draftId
+app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
+  if (skipDatabase) {
+    return res.status(200).json({
+      success: true,
+      draftId: req.body.draftId || `mock-draft-${Math.random().toString(36).substring(2, 9)}`,
+      message: 'Draft update simulated (Sandbox Mode)'
+    });
+  }
+
+  try {
+    const { draftId } = req.body;
+    if (!draftId) {
+      return res.status(400).json({ success: false, message: 'draftId is required for updating a draft' });
+    }
+
+    const draft = await Service.findById(draftId);
+    if (!draft) {
+      return res.status(404).json({ success: false, message: 'Draft not found' });
+    }
+
+    // Parse incoming fields
+    const {
+      title,
+      category,
+      description,
+      keywords,
+      selectedPlan,
+      packages,
+      attributes,
+      addons,
+      faqs,
+      requirements,
+      price,
+    } = req.body;
+
+    const subCategory = req.body.subCategory || req.body.subcategory || undefined;
+
+    // Update scalar fields when provided (allow empty-string values explicitly sent)
+    if (typeof title !== 'undefined') draft.title = title;
+    if (typeof category !== 'undefined') draft.category = category;
+    if (typeof subCategory !== 'undefined') draft.subcategory = subCategory || "";
+    if (typeof description !== 'undefined') draft.description = description;
+    if (typeof keywords !== 'undefined') draft.tags = keywords ? String(keywords).split(',').map(k => k.trim()) : [];
+    if (typeof selectedPlan !== 'undefined') draft.selectedPlan = selectedPlan;
+    if (typeof price !== 'undefined') draft.price = price ? Number(price) : draft.price;
+
+    // JSON fields (packages, attributes, addons, faqs, requirements)
+    if (typeof packages !== 'undefined') draft.packages = typeof packages === 'string' ? JSON.parse(packages) : packages;
+    if (typeof attributes !== 'undefined') draft.attributes = typeof attributes === 'string' ? JSON.parse(attributes) : attributes;
+    if (typeof addons !== 'undefined') draft.addons = typeof addons === 'string' ? JSON.parse(addons) : addons;
+    if (typeof faqs !== 'undefined') draft.faqs = typeof faqs === 'string' ? JSON.parse(faqs) : faqs;
+    if (typeof requirements !== 'undefined') draft.requirements = typeof requirements === 'string' ? JSON.parse(requirements) : requirements;
+
+    // Media: if new files uploaded, replace the arrays; otherwise preserve existing
+    if (req.files?.images && req.files.images.length > 0) {
+      draft.images = req.files.images.map(f => f.path);
+    }
+    if (req.files?.videos && req.files.videos.length > 0) {
+      draft.videos = req.files.videos.map(f => f.path);
+    }
+    if (req.files?.audio && req.files.audio.length > 0) {
+      draft.audio = req.files.audio.map(f => f.path);
+    }
+
+    // Keep status as 'draft' (unless client explicitly changed it)
+    if (typeof req.body.status !== 'undefined') draft.status = req.body.status;
+
+    await draft.save();
+
+    res.json({ success: true, draftId: draft._id.toString(), message: 'Draft updated successfully' });
+  } catch (err) {
+    console.error('Error updating draft:', err);
+    res.status(500).json({ success: false, message: 'Failed to update draft', error: err.message });
   }
 });
 
