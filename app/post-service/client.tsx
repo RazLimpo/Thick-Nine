@@ -844,7 +844,7 @@ const categoryText =
                           style={{
                             fontWeight: "600",
                             display: "flex",
-                            justify: "space-between",
+                            justifyContent: "space-between",
                             alignItems: "center",
                           }}
                         >
