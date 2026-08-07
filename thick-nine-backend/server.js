@@ -225,6 +225,8 @@ app.get('/api/services', async (req, res) => {
 
 // 2. Protected Service Creator Endpoint
 app.post('/api/services', auth, async (req, res) => {
+  console.log("--> DRAFT ENDPOINT HIT! Request body:", req.body);
+  
   const { title, price, description, category, images } = req.body;
 
   if (!title || !price || !description || !category) {
