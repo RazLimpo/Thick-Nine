@@ -4,26 +4,31 @@
 .form-layout {
   max-width: var(--max-width);
   margin: 30px auto;
-  padding: 0 30px;
+  padding: 0 20px;
   position: relative;
+}
+
+.form-layout::before {
+  content: "";
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  right: 0;              /* Better than width: 100% */
+  height: 15px;
+  background: #fff;
+  z-index: 999;
+  pointer-events: none;  /* Never blocks clicks */
 }
 
 
 .form-container {
   max-width: 800px; /* Center the form content */
   margin: 0 auto;
+  margin-top: calc(var(--header-height) + 40px);
   background: white;
   padding: 40px;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-
-/* Add top margin to the main container rendered directly beneath the toggle bar */
-.form-container,
-#live-preview-wrapper {
-/* Height of toggle bar (~50px) + spacing from top (15px) + gap below bar (25px) */
-margin-top: calc(var(--header-height) + 30px);
 }
 
 
@@ -88,6 +93,22 @@ margin-top: calc(var(--header-height) + 30px);
   outline: none;
 }
 
+
+
+.preview-container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+#live-preview-wrapper {
+  width: 100%;
+  max-width: var(--max-width);
+  margin: calc(var(--header-height) + 40px) auto 40px;
+  box-sizing: border-box;
+}
 
 
 
@@ -834,7 +855,7 @@ margin-top: calc(var(--header-height) + 30px);
 /* ---------------------------------------------------- */
 .view-toggle-container {
   position: fixed;
-  top: var(--header-height); /* top: calc(var(--header-height) + 15px); */
+  top: calc(var(--header-height) + 15px);
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
@@ -916,7 +937,7 @@ margin-top: calc(var(--header-height) + 30px);
 /* Mobile Screen Adjustments */
 @media (max-width: 768px) {
   .view-toggle-container {
-      top: var(--header-height);
+      top: calc(var(--header-height) + 15px);
       margin: 0 0 15px 0;
       padding: 8px 10px;
       gap: 8px;
@@ -1240,10 +1261,20 @@ margin-top: calc(var(--header-height) + 30px);
   flex: 2;
 }
 
+
 .sidebar-column {
   flex: 1;
   min-width: 320px;
 }
+
+@media (max-width: 1024px) {
+  .sidebar-column {
+      min-width: 0;
+      width: 100%;
+  }
+}
+
+
 
 /* Ensure the order card looks like a card */
 .order-card.sticky {

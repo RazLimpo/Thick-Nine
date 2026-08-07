@@ -1,6 +1,5 @@
 //server.js
 
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -295,9 +294,6 @@ app.post('/api/services', auth, async (req, res) => {
   }
 });
 
-
-
-
 // Draft Endpoint for Service Posting
 app.post('/api/services/draft', uploadMedia, async (req, res) => {
   if (skipDatabase) {
@@ -338,7 +334,7 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
       title: title || "Untitled Draft",
       category: category || "General",
       // Save subCategory into the schema's subcategory field so it persists
-      subcategory: subCategory || "",
+      subCategory: subCategory || "",
       description: description || "",
       tags: keywords ? keywords.split(",").map((k) => k.trim()) : [],
       selectedPlan: selectedPlan || "free",
@@ -370,7 +366,6 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
     });
   }
 });
-
 
 // PUT: Update existing draft by draftId
 app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
@@ -413,7 +408,7 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
     // Update scalar fields when provided (allow empty-string values explicitly sent)
     if (typeof title !== 'undefined') draft.title = title;
     if (typeof category !== 'undefined') draft.category = category;
-    if (typeof subCategory !== 'undefined') draft.subcategory = subCategory || "";
+    if (typeof subCategory !== 'undefined') draft.subCategory = subCategory || "";
     if (typeof description !== 'undefined') draft.description = description;
     if (typeof keywords !== 'undefined') draft.tags = keywords ? String(keywords).split(',').map(k => k.trim()) : [];
     if (typeof selectedPlan !== 'undefined') draft.selectedPlan = selectedPlan;
@@ -449,7 +444,6 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
   }
 });
 
-
 // GET Draft Endpoint for Hydrating Form
 app.get('/api/services/draft/:id', async (req, res) => {
   const { id } = req.params;
@@ -481,7 +475,6 @@ app.get('/api/services/draft/:id', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error retrieving draft', error: error.message });
   }
 });
-
 
 // ====================== GLOBAL ERROR & UNHANDLED ROUTE HANDLERS ======================
 

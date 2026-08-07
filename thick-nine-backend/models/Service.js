@@ -41,7 +41,7 @@ const ServiceSchema = new mongoose.Schema(
       index: true,
     },
 
-    subcategory: {
+    subCategory: {
       type: String,
       trim: true,
       default: "",
