@@ -193,7 +193,7 @@ const Header = () => {
     // Setup safe context directories accessible without active registration tokens
     const safePages = [
       '/', '/search-results', '/about', '/terms', '/privacy',
-      '/service-details', '/freelancer-profile', '/verify-email', '/mandatory', '/post-service', '/checkout/plan'
+      '/service-details', '/freelancer-profile', '/verify-email', '/mandatory', '/post-service', '/checkout/plan', '/services'
     ];
     const isSafePage = safePages.includes(currentPath || '');
 

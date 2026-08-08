@@ -25,15 +25,15 @@ export default function Footer() {
         </div>
 
         {/* Explore Column */}
-        <div className="footer-column">
-          <h3>Explore</h3>
-          <ul>
-            <li><Link href="/services/graphics">Graphics & Design</Link></li>
-            <li><Link href="/services/web-dev">Web Development</Link></li>
-            <li><Link href="/services/marketing">Digital Marketing</Link></li>
-            <li><Link href="/services/writing">Writing & Translation</Link></li>
-          </ul>
-        </div>
+       <div className="footer-column">
+  <h3>Explore</h3>
+  <ul>
+    <li><Link href="/services/graphics-design">Graphics & Design</Link></li>
+    <li><Link href="/services/programming-tech">Programming & Tech</Link></li>
+    <li><Link href="/services/digital-marketing">Digital Marketing</Link></li>
+    <li><Link href="/services">All Categories &rarr;</Link></li>
+  </ul>
+</div>
 
         {/* About Column */}
         <div className="footer-column">
