@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CATEGORIES } from "@/lib/categories";
 
 export interface CategoryOption {
   label: string;
@@ -13,18 +14,25 @@ interface CategoriesFilterProps {
   onToggleCategory?: (category: string) => void;
 }
 
-const FALLBACK_CATEGORIES: CategoryOption[] = [
-  { label: "Web Development", value: "Web Development" },
-  { label: "UI/UX Design", value: "UI/UX Design" },
-  { label: "Digital Marketing", value: "Digital Marketing" },
-  { label: "Content Writing", value: "Content Writing" },
-];
+const DYNAMIC_CATEGORIES: CategoryOption[] = Object.entries(CATEGORIES).map(
+  ([key, category]) => ({
+    label: category.label,
+    value: key, // Uses the exact slug key from categories.ts
+  })
+);
+
+
 
 export default function CategoriesFilter({
-  availableCategories = FALLBACK_CATEGORIES,
+  availableCategories = DYNAMIC_CATEGORIES, // Updated fallback
   selectedCategories: controlledSelected,
   onToggleCategory,
 }: CategoriesFilterProps) {
+  
+
+  
+
+
   const [isOpen, setIsOpen] = useState(false);
 
   // Local state fallback so checkboxes check interactively when isolated/uncontrolled
@@ -34,8 +42,10 @@ export default function CategoriesFilter({
   const isControlled = controlledSelected !== undefined;
   const currentSelected = isControlled ? controlledSelected : localSelected;
 
-  const categoriesToDisplay =
-    availableCategories.length > 0 ? availableCategories : FALLBACK_CATEGORIES;
+  
+    const categoriesToDisplay =
+    availableCategories.length > 0 ? availableCategories : DYNAMIC_CATEGORIES;
+
 
   const handleToggle = (categoryValue: string) => {
     if (onToggleCategory) {
