@@ -15,6 +15,7 @@ try { morgan = require('morgan'); } catch (_) {}
 const Service = require('./models/Service'); 
 const User = require('./models/User'); 
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes'); // <-- ADDED: User profile routes
 const uploadMedia = require('./middleware/upload'); 
 
 const app = express();
@@ -34,7 +35,7 @@ const allowedOriginsRegExp = [
   /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,                    // Automated Vercel Deploy Previews
   /^https:\/\/[a-zA-Z0-9-]+\.webcontainer\.io$/,               // StackBlitz Dev Containers
   /^https:\/\/[a-zA-Z0-9-]+--\d+--[a-zA-Z0-9-]+\.local-credentialless\.webcontainer\.io$/, // Dynamic credentialless previews
-  /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,                 // StackBlitz Sandboxes
+  /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,                  // StackBlitz Sandboxes
   /^https:\/\/[a-zA-Z0-9-]+\.[a-z-]+\.staticblitz\.com$/,     // Matches StackBlitz Static Previews
   /^https:\/\/osindoworks\.com$/                               // Production Domain
 ];
@@ -89,7 +90,8 @@ if (skipDatabase) {
 }
 
 // ====================== REST ROUTE SUB-ROUTERS ======================
-app.use('/api/auth', authRoutes); 
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes); // <-- ADDED: Handles /api/users/profile updates
 
 app.get('/', (req, res) => {
   res.send(`OsinoWorks Engine Server API is Live, Secured, and Running smoothly.`);
@@ -225,7 +227,7 @@ app.get('/api/services', async (req, res) => {
 
 // 2. Protected Service Creator Endpoint
 app.post('/api/services', auth, async (req, res) => {
-  console.log("--> DRAFT ENDPOINT HIT! Request body:", req.body);
+  console.log("--> SERVICE CREATION HIT! Request body:", req.body);
   
   const { title, price, description, category, images } = req.body;
 
@@ -296,8 +298,8 @@ app.post('/api/services', auth, async (req, res) => {
   }
 });
 
-// Draft Endpoint for Service Posting
-app.post('/api/services/draft', uploadMedia, async (req, res) => {
+// Draft Endpoint for Service Posting (Protected with auth)
+app.post('/api/services/draft', auth, uploadMedia, async (req, res) => {
   if (skipDatabase) {
     return res.status(201).json({
       success: true,
@@ -321,21 +323,18 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
       price,
     } = req.body;
 
-    // Read subCategory (frontend may send camelCase) or subcategory
     const subCategory = req.body.subCategory || req.body.subcategory || "";
 
-    // Extract Cloudinary secure URLs populated by Multer
     const imageUrls = req.files?.images ? req.files.images.map((f) => f.path) : [];
     const videoUrls = req.files?.videos ? req.files.videos.map((f) => f.path) : [];
     const audioUrls = req.files?.audio ? req.files.audio.map((f) => f.path) : [];
 
-    const sellerId = req.user?.id || "60c72b2f9b1d8b2b88888888";
+    const sellerId = req.user?.id;
 
     const draft = new Service({
       sellerId,
       title: title || "Untitled Draft",
       category: category || "General",
-      // Save subCategory into the schema's subcategory field so it persists
       subCategory: subCategory || "",
       description: description || "",
       tags: keywords ? keywords.split(",").map((k) => k.trim()) : [],
@@ -370,7 +369,7 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
 });
 
 // PUT: Update existing draft by draftId
-app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
+app.put('/api/services/draft/update', auth, uploadMedia, async (req, res) => {
   if (skipDatabase) {
     return res.status(200).json({
       success: true,
@@ -390,7 +389,6 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Draft not found' });
     }
 
-    // Parse incoming fields
     const {
       title,
       category,
@@ -407,7 +405,6 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
 
     const subCategory = req.body.subCategory || req.body.subcategory || undefined;
 
-    // Update scalar fields when provided (allow empty-string values explicitly sent)
     if (typeof title !== 'undefined') draft.title = title;
     if (typeof category !== 'undefined') draft.category = category;
     if (typeof subCategory !== 'undefined') draft.subCategory = subCategory || "";
@@ -416,14 +413,12 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
     if (typeof selectedPlan !== 'undefined') draft.selectedPlan = selectedPlan;
     if (typeof price !== 'undefined') draft.price = price ? Number(price) : draft.price;
 
-    // JSON fields (packages, attributes, addons, faqs, requirements)
     if (typeof packages !== 'undefined') draft.packages = typeof packages === 'string' ? JSON.parse(packages) : packages;
     if (typeof attributes !== 'undefined') draft.attributes = typeof attributes === 'string' ? JSON.parse(attributes) : attributes;
     if (typeof addons !== 'undefined') draft.addons = typeof addons === 'string' ? JSON.parse(addons) : addons;
     if (typeof faqs !== 'undefined') draft.faqs = typeof faqs === 'string' ? JSON.parse(faqs) : faqs;
     if (typeof requirements !== 'undefined') draft.requirements = typeof requirements === 'string' ? JSON.parse(requirements) : requirements;
 
-    // Media: if new files uploaded, replace the arrays; otherwise preserve existing
     if (req.files?.images && req.files.images.length > 0) {
       draft.images = req.files.images.map(f => f.path);
     }
@@ -434,7 +429,6 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
       draft.audio = req.files.audio.map(f => f.path);
     }
 
-    // Keep status as 'draft' (unless client explicitly changed it)
     if (typeof req.body.status !== 'undefined') draft.status = req.body.status;
 
     await draft.save();

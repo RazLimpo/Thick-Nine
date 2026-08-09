@@ -1,3 +1,6 @@
+//mandatory
+
+
 'use client';
 
 // ============ SECTION 1 - IMPORTS ============
@@ -718,52 +721,58 @@ if (!trimmedCity) {
 
   const normalizedFullName = formData.fullName.trim();
   const normalizedEmail = formData.email.trim().toLowerCase();
-  const normalizedCity = formData.city.trim();   
+  const normalizedCity = formData.city.trim();
   const normalizedReferralCode = formData.referralCode.trim();
 
-  // 1. Build the production request body
+  // Normalize gender to match Mongoose enum ["male", "female"]
+  const normalizedGender =
+    formData.gender === 'M' ? 'male' : formData.gender === 'F' ? 'female' : '';
+
+  // 1. Build request body matching models/User.js schema
   const payload = {
     fullName: normalizedFullName,
-    gender: formData.gender,
+    gender: normalizedGender,
     email: normalizedEmail,
     password: formData.password,
-    country: formData.country,
-    city: normalizedCity,
+    location: {
+      country: formData.country,
+      city: normalizedCity,
+    },
     role: formData.role,
-    referralCode: normalizedReferralCode || undefined
+    referralCode: normalizedReferralCode || undefined,
   };
 
   try {
-    // 2. Make the real API call to your backend
+    // 2. Make API call to backend
     const response = await fetch(`${API_BASE_URL}/api/auth/finalize-account`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
 
     if (response.ok) {
-      // 3. SECURE LOCAL STORAGE RULE: Save the JWT token and basic UI metadata
-      localStorage.setItem('token', data.token); // Secure authorization token
+      // 3. SECURE LOCAL STORAGE RULE
+      localStorage.setItem('token', data.token);
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('userRole', formData.role);
       localStorage.setItem('userName', normalizedFullName);
       localStorage.setItem('isProfileComplete', 'true');
-      localStorage.setItem('isEmailVerified', 'false'); // Set to true once verified via email
+      localStorage.setItem('isEmailVerified', 'false');
       localStorage.setItem('accountStrength', data.user?.accountStrength || '60');
 
+      // Correct placement inside response.ok!
       if (formData.role === 'affiliate' && normalizedReferralCode) {
         localStorage.setItem('affiliateReferralCode', normalizedReferralCode);
       }
-      
-      
-      // RIGHT HERE: Wake up your Header component instantly! 
+
+      // Wake up Header component
       window.dispatchEvent(new Event('storage'));
 
-      // Clear password states from memory safely
+      // Clear password states safely
       setFormData((prev) => ({
         ...prev,
         password: '',
@@ -778,18 +787,18 @@ if (!trimmedCity) {
       }));
 
     } else {
-      // If backend validation fails (e.g., email already exists)
       setUi((prev) => ({ ...prev, isSubmitting: false }));
-      // Use your toast component to show the error
-      alert(data.msg || "Account finalization failed.");
+      const errorMsg =
+        data.msg || data.message || data.error || 'Account finalization failed.';
+      console.error('Backend validation error:', data);
+      alert(errorMsg);
     }
   } catch (error) {
     console.error('Failed to finalize account:', error);
     setUi((prev) => ({ ...prev, isSubmitting: false }));
-    alert("Server connection issues. Please try again.");
+    alert('Network or server connection issues. Please try again.');
   }
-};   
-      
+};      
       
          
       
@@ -1395,7 +1404,7 @@ if (!trimmedCity) {
                           borderTop: '1px solid #eee',
                         }}
                       >
-                        ALL AFRICAN COUNTRIES
+                        ALL COUNTRIES
                       </li>
                     </>
                   )}
