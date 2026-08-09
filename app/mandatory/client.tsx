@@ -705,101 +705,98 @@ if (!trimmedCity) {
       
       
       
-     // ==================================================
-  // SECTION 16 — SUBMIT HANDLER
+   // ==================================================
+  // SECTION 16 — SUBMIT HANDLER (UPDATE PROFILE)
   // ==================================================   
       
-   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-  if (ui.isSubmitting) return;
+    if (ui.isSubmitting) return;
 
-  const isValid = validateForm();
-  if (!isValid) return;
+    const isValid = validateForm();
+    if (!isValid) return;
 
-  setUi((prev) => ({ ...prev, isSubmitting: true }));
-
-  const normalizedFullName = formData.fullName.trim();
-  const normalizedEmail = formData.email.trim().toLowerCase();
-  const normalizedCity = formData.city.trim();
-  const normalizedReferralCode = formData.referralCode.trim();
-
-  // Normalize gender to match Mongoose enum ["male", "female"]
-  const normalizedGender =
-    formData.gender === 'M' ? 'male' : formData.gender === 'F' ? 'female' : '';
-
-  // 1. Build request body matching models/User.js schema
-  const payload = {
-    fullName: normalizedFullName,
-    gender: normalizedGender,
-    email: normalizedEmail,
-    password: formData.password,
-    location: {
-      country: formData.country,
-      city: normalizedCity,
-    },
-    role: formData.role,
-    referralCode: normalizedReferralCode || undefined,
-  };
-
-  try {
-    // 2. Make API call to backend
-    const response = await fetch(`${API_BASE_URL}/api/auth/finalize-account`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      // 3. SECURE LOCAL STORAGE RULE
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userRole', formData.role);
-      localStorage.setItem('userName', normalizedFullName);
-      localStorage.setItem('isProfileComplete', 'true');
-      localStorage.setItem('isEmailVerified', 'false');
-      localStorage.setItem('accountStrength', data.user?.accountStrength || '60');
-
-      // Correct placement inside response.ok!
-      if (formData.role === 'affiliate' && normalizedReferralCode) {
-        localStorage.setItem('affiliateReferralCode', normalizedReferralCode);
-      }
-
-      // Wake up Header component
-      window.dispatchEvent(new Event('storage'));
-
-      // Clear password states safely
-      setFormData((prev) => ({
-        ...prev,
-        password: '',
-        retypePassword: '',
-      }));
-
-      // Show success modal wrapper
-      setUi((prev) => ({
-        ...prev,
-        isSubmitting: false,
-        showSuccess: true,
-      }));
-
-    } else {
-      setUi((prev) => ({ ...prev, isSubmitting: false }));
-      const errorMsg =
-        data.msg || data.message || data.error || 'Account finalization failed.';
-      console.error('Backend validation error:', data);
-      alert(errorMsg);
+    // 1. Get the authenticated token from initial signup/login
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert("Session expired or missing auth token. Please log in again.");
+      return;
     }
-  } catch (error) {
-    console.error('Failed to finalize account:', error);
-    setUi((prev) => ({ ...prev, isSubmitting: false }));
-    alert('Network or server connection issues. Please try again.');
-  }
-};      
-      
+
+    setUi((prev) => ({ ...prev, isSubmitting: true }));
+
+    const normalizedFullName = formData.fullName.trim();
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const normalizedCity = formData.city.trim();
+    const normalizedReferralCode = formData.referralCode.trim();
+
+    // Normalize gender to match Mongoose enum ["male", "female"]
+    const normalizedGender =
+      formData.gender === 'M' ? 'male' : formData.gender === 'F' ? 'female' : '';
+
+    // 2. Build payload matching profile update schema
+    const payload = {
+      fullName: normalizedFullName,
+      gender: normalizedGender,
+      email: normalizedEmail,
+      location: {
+        country: formData.country,
+        city: normalizedCity,
+      },
+      role: formData.role,
+      referralCode: normalizedReferralCode || undefined,
+      isProfileComplete: true,
+    };
+
+    try {
+      // 3. Make API call as PUT or PATCH to update profile with Auth Header
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        method: 'PUT', // Use PUT or PATCH for profile updates
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // Pass the authenticated user's token
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // 4. Update Local Storage with fresh user details
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userRole', formData.role);
+        localStorage.setItem('userName', normalizedFullName);
+        localStorage.setItem('isProfileComplete', 'true');
+        localStorage.setItem('accountStrength', data.user?.accountStrength || '80');
+
+        if (formData.role === 'affiliate' && normalizedReferralCode) {
+          localStorage.setItem('affiliateReferralCode', normalizedReferralCode);
+        }
+
+        // Wake up Header / Navbar components
+        window.dispatchEvent(new Event('storage'));
+
+        // Show success state
+        setUi((prev) => ({
+          ...prev,
+          isSubmitting: false,
+          showSuccess: true,
+        }));
+
+      } else {
+        setUi((prev) => ({ ...prev, isSubmitting: false }));
+        const errorMsg =
+          data.msg || data.message || data.error || 'Profile completion failed.';
+        console.error('Backend validation error:', data);
+        alert(errorMsg);
+      }
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      setUi((prev) => ({ ...prev, isSubmitting: false }));
+      alert('Network or server connection issues. Please try again.');
+    }
+  };      
          
       
       
@@ -1677,7 +1674,7 @@ if (!trimmedCity) {
 
               {ui.isSubmitting
                 ? 'Finalizing...'
-                : 'Create Account'}
+                : 'Save & Finalize Profile'}
 
             </span>
 
