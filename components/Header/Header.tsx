@@ -79,6 +79,7 @@ const Header = () => {
   }, []);
 
   // ====================== ACCOUNT ROLE ROTATION ENGINE ======================
+  // ====================== ACCOUNT ROLE ROTATION ENGINE ======================
   const handleAccountSwitching = () => {
     // 1. Grab values safely from browser environment storage with default fallbacks
     const currentRole = localStorage.getItem('userRole') || 'client';
@@ -105,13 +106,6 @@ const Header = () => {
       return; // HARD ABORT: Do not alter local states or push route switches
     }
 
-    // Safety fallback block handling unbuilt layout branches gracefully
-    if (newRole === 'affiliate') {
-      closeAllUI();
-      showToast("Affiliate mode is coming soon! Staying in Buying mode.", "fa-info-circle");
-      return;
-    }
-
     // 4. Commit verified authorization changes to local records and update states
     localStorage.setItem('userRole', newRole);
     setUserRole(newRole);
@@ -122,8 +116,13 @@ const Header = () => {
     showToast(`Switched to ${newRole.toUpperCase()} mode`, "fa-exchange-alt");
 
     // Push the browser route context directly based on the new validated tier
-    if (newRole === 'freelancer') router.push('/freelancer-dashboard');
-    else if (newRole === 'client') router.push('/client-dashboard');
+    if (newRole === 'freelancer') {
+      router.push('/freelancer-dashboard');
+    } else if (newRole === 'affiliate') {
+      router.push('/affiliate-dashboard');
+    } else {
+      router.push('/client-dashboard');
+    }
   };
     
   // Generates clean action button strings dynamically depending on the active state
