@@ -246,11 +246,13 @@ a:hover {
 #toast-container {
     position: fixed;
     bottom: 24px;
+    bottom: calc(24px + env(safe-area-inset-bottom)); /* Safe area spacing for mobile */
     right: 24px;
     z-index: 9999;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    pointer-events: none;
 }
 
 .toast {
@@ -266,6 +268,7 @@ a:hover {
     gap: 10px;
     min-width: 200px;
     animation: slideIn 0.35s ease, fadeOut 0.4s ease 2.8s forwards;
+    pointer-events: auto;
 }
 
 .toast i { color: #34c759; font-size: 1.1rem; }
@@ -277,9 +280,11 @@ a:hover {
 }
 
 @keyframes fadeOut {
-    to { opacity: 0; }
+    to { 
+        opacity: 0; 
+        pointer-events: none; /* Allows clicks through the invisible toast while it awaits unmounting */
+    }
 }
-
 
 .main-content-wrapper {
   /* This pushes the entire page content down */
@@ -287,7 +292,7 @@ a:hover {
   display: flex;
   flex-direction: column;
   min-height: 100vh; /* Keeps footer at bottom even on short pages */
-  overflow-x: hidden;
+    overflow-x: hidden;
 }
 
 main {

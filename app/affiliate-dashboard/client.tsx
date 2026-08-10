@@ -1,10 +1,1061 @@
-import React from 'react';
+'use client';
 
-export default function AffiliateDashboard() {
-  return (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      <h1>Affiliate Dashboard</h1>
-      <p>This page is currently under construction for the live environment.</p>
+import React, { useState, useEffect } from 'react';
+import "@/styles/pages/affiliate-dashboard.css";
+
+// --- TYPES & INTERFACES ---
+interface SavedLink {
+  id: number;
+  url: string;
+  name: string;
+  date: string;
+}
+
+interface HandpickedService {
+  id: number;
+  title: string;
+  category: string;
+  price: number;
+  img: string;
+}
+
+interface ToastMessage {
+  id: number;
+  message: string;
+  type: 'success' | 'removed';
+}
+
+// --- MOCK MARKETPLACE SERVICES ---
+const MARKETPLACE_SERVICES: HandpickedService[] = [
+  { id: 101, title: "Professional Minimalist Logo", category: "Design", price: 50, img: "https://via.placeholder.com/60" },
+  { id: 102, title: "SEO Optimized Blog Post", category: "Writing", price: 30, img: "https://via.placeholder.com/60" },
+  { id: 103, title: "Social Media Manager", category: "Marketing", price: 150, img: "https://via.placeholder.com/60" },
+  { id: 104, title: "YouTube Video Editing", category: "Video", price: 80, img: "https://via.placeholder.com/60" },
+  { id: 105, title: "Custom WordPress Website", category: "Tech", price: 500, img: "https://via.placeholder.com/60" },
+  { id: 106, title: "Voiceover Artist (Male/Female)", category: "Audio", price: 45, img: "https://via.placeholder.com/60" }
+];
+
+export default function AffiliateDashboardClient() {
+  const AFFILIATE_ID = "8821";
+
+  // --- APPLICATION & TAB STATE ---
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [networkView, setNetworkView] = useState<string>('view-partners');
+  const [activeShareSheetId, setActiveShareSheetId] = useState<number | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // --- DEEP LINK GENERATOR STATE ---
+  const [targetUrl, setTargetUrl] = useState<string>('');
+  const [linkNickname, setLinkNickname] = useState<string>('');
+  const [generatedLink, setGeneratedLink] = useState<string>('');
+  const [savedLinks, setSavedLinks] = useState<SavedLink[]>([]);
+  const [linkToDelete, setLinkToDelete] = useState<number | null>(null);
+
+  // --- FEATURED VIDEO & HANDPICKED SERVICES STATE ---
+  const [videoUrl, setVideoUrl] = useState<string>('');
+  const [videoPreviewType, setVideoPreviewType] = useState<'embed' | 'file' | 'none'>('none');
+  const [videoEmbedSrc, setVideoEmbedSrc] = useState<string>('');
+  const [fileNameDisplay, setFileNameDisplay] = useState<string>('');
+
+  const [serviceSearch, setServiceSearch] = useState<string>('');
+  const [selectedServices, setSelectedServices] = useState<HandpickedService[]>([]);
+  const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null);
+
+  // --- MODALS STATE ---
+  const [isMediaKitOpen, setIsMediaKitOpen] = useState<boolean>(false);
+
+  // --- PERSISTENCE & DOT COLOR EFFECT ---
+  useEffect(() => {
+    const localLinks = localStorage.getItem('myAffiliateLinks');
+    if (localLinks) {
+      try {
+        setSavedLinks(JSON.parse(localLinks));
+      } catch (e) {
+        console.error("Failed to parse saved links", e);
+      }
+    }
+  }, []);
+
+  // Update dynamic CSS variable on active tab change
+  useEffect(() => {
+    const tabColors: Record<string, string> = {
+      dashboard: "var(--color-dashboard, #007bff)",
+      links: "var(--color-links, #6f42c1)",
+      payouts: "var(--color-payouts, #28a745)",
+      referrals: "var(--color-referrals, #fd7e14)",
+      "store-management": "var(--primary-color, #cc0000)",
+      "prestige-roadmap": "var(--primary-color, #cc0000)",
+    };
+
+    const targetColor = tabColors[activeTab] || "var(--primary-color, #cc0000)";
+    document.documentElement.style.setProperty("--active-dot-color", targetColor);
+  }, [activeTab]);
+
+  const triggerToast = (message: string, type: 'success' | 'removed' = 'success') => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  };
+
+  // --- LINK GENERATOR HANDLERS ---
+  const handleGenerateLink = () => {
+    if (!targetUrl.trim()) {
+      triggerToast("Please paste a URL first!", "removed");
+      return;
+    }
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    const finalUrl = `${targetUrl.trim()}${separator}ref=${AFFILIATE_ID}`;
+    setGeneratedLink(finalUrl);
+    triggerToast("Link generated!");
+  };
+
+  const handleResetGenerator = () => {
+    setTargetUrl('');
+    setLinkNickname('');
+    setGeneratedLink('');
+    triggerToast("Generator cleared", "removed");
+  };
+
+  const handleSaveLink = () => {
+    if (!generatedLink) return;
+    const nickname = linkNickname.trim() || "Untitled Link";
+    const newLinkObj: SavedLink = {
+      id: Date.now(),
+      url: generatedLink,
+      name: nickname,
+      date: new Date().toLocaleDateString(),
+    };
+
+    const updated = [...savedLinks, newLinkObj];
+    setSavedLinks(updated);
+    localStorage.setItem('myAffiliateLinks', JSON.stringify(updated));
+    setLinkNickname('');
+    triggerToast("Link saved with nickname!");
+  };
+
+  const confirmDeleteSavedLink = () => {
+    if (linkToDelete !== null) {
+      const updated = savedLinks.filter((l) => l.id !== linkToDelete);
+      setSavedLinks(updated);
+      localStorage.setItem('myAffiliateLinks', JSON.stringify(updated));
+      triggerToast("Link successfully removed", "removed");
+      setLinkToDelete(null);
+    }
+  };
+
+  const copyToClipboard = (text: string, msg = "Link copied!") => {
+    navigator.clipboard.writeText(text);
+    triggerToast(msg);
+  };
+
+  // --- MEDIA & STORE HANDLERS ---
+  const handleUpdateVideoFromLink = () => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = videoUrl.match(regExp);
+
+    if (match && match[2].length === 11) {
+      setVideoEmbedSrc(`https://www.youtube.com/embed/${match[2]}`);
+      setVideoPreviewType('embed');
+      setFileNameDisplay('');
+      triggerToast("Video URL updated!");
+    } else {
+      alert("Please enter a valid YouTube link.");
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFileNameDisplay(file.name);
+      const fileUrl = URL.createObjectURL(file);
+      setVideoEmbedSrc(fileUrl);
+      setVideoPreviewType('file');
+      setVideoUrl('');
+      triggerToast("Local video selected!");
+    }
+  };
+
+  const handleDeleteVideoData = () => {
+    if (confirm("Are you sure you want to remove the media?")) {
+      setVideoUrl('');
+      setFileNameDisplay('');
+      setVideoEmbedSrc('');
+      setVideoPreviewType('none');
+      triggerToast("Media removed", "removed");
+    }
+  };
+
+  // --- HANDPICKED SERVICES HANDLERS ---
+  const filteredServices = serviceSearch.trim()
+    ? MARKETPLACE_SERVICES.filter(
+        (s) =>
+          s.title.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+          s.category.toLowerCase().includes(serviceSearch.toLowerCase())
+      )
+    : [];
+
+  const handleAddHandpickedService = (service: HandpickedService) => {
+    if (selectedServices.find((s) => s.id === service.id)) {
+      alert("This service is already in your list.");
+      return;
+    }
+    if (selectedServices.length >= 6) {
+      alert("Maximum 6 services reached. Please remove one before adding another.");
+      return;
+    }
+    setSelectedServices([...selectedServices, service]);
+    setServiceSearch('');
+  };
+
+  const handleRemoveService = (id: number) => {
+    if (confirm("Remove this service from your recommendations?")) {
+      setSelectedServices(selectedServices.filter((s) => s.id !== id));
+    }
+  };
+
+  const handleDragStart = (index: number) => {
+    setDragSourceIndex(index);
+  };
+
+  const handleDrop = (targetIndex: number) => {
+    if (dragSourceIndex === null || dragSourceIndex === targetIndex) return;
+    const updated = [...selectedServices];
+    const [movedItem] = updated.splice(dragSourceIndex, 1);
+    updated.splice(targetIndex, 0, movedItem);
+    setSelectedServices(updated);
+    setDragSourceIndex(null);
+  };
+
+ 
+    
+    
+    return (
+    <div className="aff-dash-bg">
+      <div className="aff-dash-wrapper">
+        
+       
+        {/* =========================================================================
+    SECTION 1 — SIDEBAR NAVIGATION
+========================================================================= */}
+<aside className="aff-sidebar">
+  <div className="aff-card nav-widget">
+    <nav id="main-nav">
+      <a
+        href="#dashboard"
+        className={activeTab === "dashboard" ? "active" : ""}
+        onClick={(e) => {
+          e.preventDefault();
+          setActiveTab("dashboard");
+        }}
+      >
+        <i className="fas fa-home"></i> Dashboard
+      </a>
+      <a
+        href="#store-management"
+        className={activeTab === "store-management" ? "active" : ""}
+        onClick={(e) => {
+          e.preventDefault();
+          setActiveTab("store-management");
+        }}
+      >
+        <i className="fas fa-store"></i> Store Content
+      </a>
+      <a
+        href="#links"
+        className={activeTab === "links" ? "active" : ""}
+        onClick={(e) => {
+          e.preventDefault();
+          setActiveTab("links");
+        }}
+      >
+        <i className="fas fa-link"></i> Link Generator
+      </a>
+      <a
+        href="#payouts"
+        className={activeTab === "payouts" ? "active" : ""}
+        onClick={(e) => {
+          e.preventDefault();
+          setActiveTab("payouts");
+        }}
+      >
+        <i className="fas fa-wallet"></i> My Earnings
+      </a>
+      <a
+        href="#referrals"
+        className={activeTab === "referrals" ? "active" : ""}
+        onClick={(e) => {
+          e.preventDefault();
+          setActiveTab("referrals");
+        }}
+      >
+        <i className="fas fa-users"></i> My Team
+      </a>
+    </nav>
+  </div>
+
+  {/* PARTNER GROWTH WIDGET */}
+  <div className="aff-card glass-promo-widget">
+    <h4>Partner Growth</h4>
+    <p>Increase your commission by reaching 50 sales this month.</p>
+
+    <div className="progress-container">
+      <div className="progress-labels">
+        <span className="start-label">0</span>
+        <span className="end-label">50 Sales</span>
+      </div>
+
+      <div className="progress-track-wrapper">
+        <div className="progress-bar-bg"></div>
+        <div className="progress-bar-fill">
+          <span className="progress-dot"></span>
+        </div>
+      </div>
+
+      <div className="progress-status">
+        Currently at <strong>32</strong> sales
+      </div>
+    </div>
+  </div>
+
+  {/* PRESTIGE SHORTCUT */}
+  <div
+    className="aff-card neumorphic-shortcut"
+    onClick={() => setActiveTab("prestige-roadmap")}
+  >
+    <div className="prestige-shortcut-inner">
+      <div className="mini-badge-a">A</div>
+      <div className="prestige-shortcut-text">
+        <h5 className="prestige-shortcut-title">AUTHORITY STATUS</h5>
+        <div className="prestige-shortcut-meta">
+          <small>
+            Rank: <strong>Associate</strong>
+          </small>
+          <i className="fas fa-chevron-right"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>
+        
+        
+        {/* =========================================================================
+            SECTION 2 — MAIN HEADER & DASHBOARD TAB
+        ========================================================================= */}
+        <main className="aff-main">
+          <header className="aff-top-bar">
+            <div className="page-title-container">
+              <div className="glass-id-badge">
+                <span className="dot"></span>
+                <span id="dynamic-title">
+                  <span className="hash-symbol">#</span>{activeTab}
+                </span>
+              </div>
+            </div>
+            <div className="aff-user-pill">
+              <i className="fas fa-user-circle"></i> <span>ID: {AFFILIATE_ID}</span>
+            </div>
+          </header>
+          
+          
+          
+          {/* =========================================================================
+              SECTION 3 — TAB 1: MAIN DASHBOARD
+          ========================================================================= */}
+          {activeTab === 'dashboard' && (
+  <div id="dashboard" className={`tab-content ${activeTab === 'dashboard' ? 'active' : ''}`}>
+              <div className="aff-stats-row">
+                <div className="aff-card stat-item bg-blue">
+                  <div className="stat-icon-circle"><i className="fas fa-mouse-pointer"></i></div>
+                  <div className="stat-content">
+                    <span className="s-label">Total Clicks</span>
+                    <h2 className="s-value" id="total-clicks-val">{savedLinks.length}</h2>
+                  </div>
+                </div>
+                <div className="aff-card stat-item bg-red">
+                  <div className="stat-icon-circle"><i className="fas fa-wallet"></i></div>
+                  <div className="stat-content">
+                    <span className="s-label">Total Commission</span>
+                    <h2 className="s-value">$1,450.00</h2>
+                  </div>
+                </div>
+                <div className="aff-card stat-item bg-green">
+                  <div className="stat-icon-circle"><i className="fas fa-clock"></i></div>
+                  <div className="stat-content">
+                    <span className="s-label">Pending Balance</span>
+                    <h2 className="s-value">$120.50</h2>
+                  </div>
+                </div>
+              </div>
+
+              <div className="aff-grid-secondary">
+                <div className="aff-card chart-island">
+                  <div className="island-header">
+                    <h3>Earnings Analytics</h3>
+                    <select className="date-filter">
+                      <option>Last 7 Days</option>
+                      <option>Last 30 Days</option>
+                    </select>
+                  </div>
+                  <div className="chart-area-wrapper">
+                    <div className="chart-placeholder">
+                      <div className="mock-chart">
+                        <div className="bar" style={{ height: '40%' }}></div>
+                        <div className="bar" style={{ height: '60%' }}></div>
+                        <div className="bar" style={{ height: '85%' }}></div>
+                        <div className="bar" style={{ height: '50%' }}></div>
+                        <div className="bar" style={{ height: '90%' }}></div>
+                        <div className="bar" style={{ height: '75%' }}></div>
+                        <div className="bar highlight" style={{ height: '95%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="aff-card tools-island">
+                  <h3>Promotion Tools</h3>
+                  <p className="small-text">Use these to drive more traffic.</p>
+                  
+                  <ul className="tools-list">
+                    <li>
+                      <i className="fas fa-ad"></i>
+                      <div><strong>Banner Ads</strong><p>Download brand banners</p></div>
+                      <a href="assets/banners.zip"><i className="fas fa-images"></i></a>
+                    </li>
+                    <li>
+                      <i className="fas fa-vial"></i>
+                      <div><strong>Official Logos</strong><p>High-res transparent PNGs</p></div>
+                      <a href="assets/logos.zip"><i className="fas fa-images"></i></a>
+                    </li>
+                    <li>
+                      <i className="fab fa-instagram"></i>
+                      <div><strong>Social Kit</strong><p>Ready-to-post story templates</p></div>
+                      <a href="assets/social-pack.zip"><i className="fas fa-images"></i></a>
+                    </li>
+                  </ul>
+                  
+                  <button className="btn-full-red" onClick={() => setIsMediaKitOpen(true)}>
+                    Browse Media Kit
+                  </button>
+                </div>
+              </div>
+
+              <div className="aff-card table-island">
+                <div className="island-header">
+                  <h3>Recent Link Activity</h3>
+                  <button className="btn-outline">Export CSV</button>
+                </div>
+                <table className="aff-modern-table">
+                  <thead>
+                    <tr><th>Service Item</th><th>Clicks</th><th>Earnings</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Graphic Design Pack</td>
+                      <td>452</td>
+                      <td>$45.00</td>
+                      <td><span className="tag-status green">Paid</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================================
+              SECTION 4 — TAB 2: STORE CONTENT MANAGEMENT
+          ========================================================================= */}
+          {activeTab === 'store-management' && (
+  <div id="store-management" className={`tab-content ${activeTab === 'store-management' ? 'active' : ''}`}>
+              <div className="aff-card management-island">
+                <h3 className="island-title"><i className="fas fa-video"></i> Featured Video</h3>
+                <p className="section-desc">Paste a YouTube or Vimeo link to showcase a tutorial or review on your profile.</p>
+                
+                <div className="video-edit-wrapper">
+                  <div className="input-group-glass">
+                    <i className="fab fa-youtube"></i>
+                    <input
+                      type="text"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      placeholder="Paste YouTube link (e.g., https://www.youtube.com/watch?v=...)"
+                    />
+                    <div className="action-buttons-flex">
+                      <button className="btn-action-primary" onClick={handleUpdateVideoFromLink}>Preview & Save</button>
+                      <button className="btn-icon-delete" onClick={handleDeleteVideoData} title="Remove Video">
+                        <i className="fas fa-trash-alt"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="separator-text"><span>OR</span></div>
+
+                  <div className="input-group-glass">
+                    <i className="fas fa-file-video"></i>
+                    <input
+                      type="file"
+                      id="video-file-input"
+                      accept="video/*"
+                      hidden
+                      onChange={handleFileSelect}
+                    />
+                    <input
+                      type="text"
+                      value={fileNameDisplay}
+                      placeholder="No file selected"
+                      readOnly
+                      onClick={() => document.getElementById('video-file-input')?.click()}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <div className="action-buttons-flex">
+                      <button
+                        className="btn-action-primary"
+                        onClick={() => document.getElementById('video-file-input')?.click()}
+                      >
+                        Upload & Save
+                      </button>
+                      <button className="btn-icon-delete" onClick={handleDeleteVideoData} title="Remove Video">
+                        <i className="fas fa-trash-alt"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div id="video-preview-container" className="video-preview-box">
+                    {videoPreviewType === 'embed' && (
+                      <iframe
+                        src={videoEmbedSrc}
+                        allowFullScreen
+                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: '16px' }}
+                      ></iframe>
+                    )}
+                    {videoPreviewType === 'file' && (
+                      <video controls style={{ width: '100%', height: '100%', borderRadius: '16px', objectFit: 'cover' }}>
+                        <source src={videoEmbedSrc} />
+                      </video>
+                    )}
+                    {videoPreviewType === 'none' && (
+                      <div className="preview-placeholder">
+                        <i className="fas fa-play-circle"></i>
+                        <span>Media preview will appear here</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="aff-card management-island" style={{ marginTop: '30px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 className="island-title" style={{ margin: 0 }}><i className="fas fa-hand-pointer"></i> Handpicked Service List</h3>
+                  {/* SLOT COUNTER RESTORED */}
+                  <span className="badge-count" style={{ background: selectedServices.length === 6 ? '#e53e3e' : '#cc0000', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600 }}>
+                    {selectedServices.length} / 6 Slots Used
+                  </span>
+                </div>
+                <p className="section-desc" style={{ marginTop: '8px' }}>Select up to 6 services to display in your "Recommended" section.</p>
+
+                <div className="search-container-wrapper">
+                  <div className="service-search-bar">
+                    <input
+                      type="text"
+                      value={serviceSearch}
+                      onChange={(e) => setServiceSearch(e.target.value)}
+                      placeholder="Search services to add (e.g., 'Logo Design')..."
+                    />
+                    <button className="btn-search-icon"><i className="fas fa-search"></i></button>
+                  </div>
+                  
+                  {serviceSearch.trim() && (
+                    <div id="search-results-dropdown" className="glass-results-dropdown" style={{ display: 'block' }}>
+                      {filteredServices.length > 0 ? (
+                        filteredServices.map((service) => (
+                          <div
+                            key={service.id}
+                            className="search-result-item"
+                            onClick={() => handleAddHandpickedService(service)}
+                          >
+                            <img src={service.img} alt="thumb" />
+                            <div className="result-info">
+                              <strong>{service.title}</strong>
+                              <span>{service.category} • ${service.price}</span>
+                            </div>
+                            <button className="btn-add-service"><i className="fas fa-plus"></i></button>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: '15px', color: '#94a3b8', fontSize: '0.8rem' }}>
+                          No services found...
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="selected-services-manager" id="managed-services-list" style={{ marginTop: '20px' }}>
+                  {selectedServices.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#cbd5e1', border: '2px dashed #f1f5f9', borderRadius: '16px' }}>
+                      <i className="fas fa-mouse-pointer" style={{ fontSize: '2rem', marginBottom: '10px' }}></i>
+                      <p>Search and add up to 6 services to feature them on your profile.</p>
+                    </div>
+                  ) : (
+                    selectedServices.map((service, index) => (
+                      <div
+                        key={service.id}
+                        className="managed-service-item"
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleDrop(index)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', marginBottom: '8px' }}
+                      >
+                        <img src={service.img} alt="Service" style={{ width: '40px', borderRadius: '6px' }} />
+                        <div className="service-meta" style={{ flexGrow: 1 }}>
+                          <strong>{service.title}</strong>
+                          <div style={{ fontSize: '0.75rem', color: '#718096' }}>ID: #{service.id} • {service.category}</div>
+                        </div>
+                        <div className="item-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <div className="btn-move" title="Drag to reorder" style={{ cursor: 'grab', color: '#a0aec0' }}>
+                            <i className="fas fa-grip-vertical"></i>
+                          </div>
+                          <button
+                            className="btn-remove-service"
+                            onClick={() => handleRemoveService(service.id)}
+                            style={{ border: 'none', background: 'transparent', color: '#e53e3e', cursor: 'pointer' }}
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================================
+              SECTION 5 — TAB 3: LINK GENERATOR & CAMPAIGNS
+          ========================================================================= */}
+          {activeTab === 'links' && (
+  <div id="links" className={`tab-content ${activeTab === 'links' ? 'active' : ''}`}>
+              <div className="aff-card generator-island">
+                <div className="island-header">
+                  <h3><i className="fas fa-link"></i> Recruit Freelancers</h3>
+                </div>
+                <p className="section-desc">Share this static link to recruit sellers and earn overrides.</p>
+                <div className="gen-flex">
+                  <input
+                    type="text"
+                    id="freelancer-recruitment-link"
+                    value={`https://mymarketplace.com/join?ref=${AFFILIATE_ID}&type=freelancer`}
+                    readOnly
+                  />
+                  <button
+                    className="btn-main-red"
+                    onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${AFFILIATE_ID}&type=freelancer`, "Recruitment link copied!")}
+                  >
+                    Copy
+                  </button>
+                </div>
+                <small className="input-hint">This link is fixed and linked to your unique ID.</small>
+              </div>
+
+              <div className="aff-card generator-island">
+                <div className="island-header">
+                  <h3><i className="fas fa-magic"></i> Deep Link Generator</h3>
+                  <button className="btn-text-only" onClick={handleResetGenerator}>
+                    <i className="fas fa-undo"></i> Reset
+                  </button>
+                </div>
+
+                <p className="section-desc">Give your link a nickname and paste the URL below.</p>
+
+                <div className="gen-flex" style={{ marginBottom: '10px' }}>
+                  <input
+                    type="text"
+                    value={linkNickname}
+                    onChange={(e) => setLinkNickname(e.target.value)}
+                    placeholder="e.g., Logo Design Project or Summer Sale"
+                  />
+                </div>
+
+                <div className="gen-flex">
+                  <input
+                    type="text"
+                    value={targetUrl}
+                    onChange={(e) => setTargetUrl(e.target.value)}
+                    placeholder="Paste product or service URL here..."
+                  />
+                  <button className="btn-main-red" onClick={handleGenerateLink}>Create Link</button>
+                </div>
+
+                <small className="input-hint">Paste any marketplace URL to create a trackable affiliate link.</small>
+
+                {generatedLink && (
+                  <div id="generated-result" style={{ marginTop: '15px' }}>
+                    <p className="small-text">Your Referral Link:</p>
+                    <div className="gen-flex">
+                      <input type="text" value={generatedLink} readOnly style={{ background: '#eef2f7' }} />
+                      <div className="button-group-flex">
+                        <button className="btn-outline" onClick={() => copyToClipboard(generatedLink)}>Copy</button>
+                        <button className="btn-save" onClick={handleSaveLink}>Save</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="aff-card saved-links-island">
+                <div className="island-header">
+                  <h3>My Saved Links</h3>
+                  <span className="badge-count" id="link-count">{savedLinks.length} Links</span>
+                </div>
+                <div id="saved-links-container">
+                  {savedLinks.length === 0 ? (
+                    <p className="empty-msg">No links saved yet.</p>
+                  ) : (
+                    savedLinks.map((link) => (
+                      <div key={link.id} className="saved-link-row" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div className="saved-link-info">
+                            <strong title={link.url}>{link.name}</strong>
+                            <small className="truncated-url" style={{ display: 'block', color: '#718096' }}>{link.url}</small>
+                          </div>
+                          <div className="button-group-flex" style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              className="btn-outline"
+                              title="Share"
+                              onClick={() => setActiveShareSheetId(activeShareSheetId === link.id ? null : link.id)}
+                            >
+                              <i className="fas fa-share-alt"></i>
+                            </button>
+                            <button className="btn-outline" title="Copy" onClick={() => copyToClipboard(link.url)}>
+                              <i className="fas fa-copy"></i>
+                            </button>
+                            <button
+                              className="btn-outline"
+                              style={{ color: '#e53e3e' }}
+                              title="Delete"
+                              onClick={() => setLinkToDelete(link.id)}
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        {activeShareSheetId === link.id && (
+                          <div className="share-sheet" style={{ display: 'flex', width: '100%', marginTop: '10px', justifyContent: 'center', gap: '15px' }}>
+                            <a href={`https://wa.me/?text=${encodeURIComponent(link.name + ': ' + link.url)}`} target="_blank" rel="noreferrer" className="share-icon wa"><i className="fab fa-whatsapp"></i></a>
+                            <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(link.name)}&url=${encodeURIComponent(link.url)}`} target="_blank" rel="noreferrer" className="share-icon tw"><i className="fab fa-twitter"></i></a>
+                            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`} target="_blank" rel="noreferrer" className="share-icon fb"><i className="fab fa-facebook-f"></i></a>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          
+          {/* =========================================================================
+              SECTION 6 — TAB 4: MY EARNINGS / PAYOUTS
+          ========================================================================= */}
+          {activeTab === 'payouts' && (
+  <div id="payouts" className={`tab-content ${activeTab === 'payouts' ? 'active' : ''}`}>
+              <div className="aff-stats-row">
+                <div className="aff-card stat-item bg-dark">
+                  <div className="stat-content">
+                    <span className="s-label">Available for Withdrawal</span>
+                    <h2 className="s-value">$1,240.00</h2>
+                    <button className="btn-withdraw-small">Withdraw Funds</button>
+                  </div>
+                </div>
+                <div className="aff-card stat-item bg-total-paid">
+                  <div className="stat-content">
+                    <span className="s-label" style={{ color: '#718096' }}>Total Paid Out</span>
+                    <h2 className="s-value" style={{ color: '#2d3748' }}>$8,450.00</h2>
+                  </div>
+                </div>
+                <div className="aff-card stat-item bg-pending">
+                  <div className="stat-content">
+                    <span className="s-label" style={{ color: '#718096' }}>Pending Verification</span>
+                    <h2 className="s-value" style={{ color: '#2d3748' }}>$320.50</h2>
+                  </div>
+                </div>
+              </div>
+
+              <div className="aff-card table-island">
+                <div className="island-header">
+                  <h3>Transaction History</h3>
+                  <div className="table-filters">
+                    <select className="date-filter">
+                      <option>All Transactions</option>
+                      <option>Withdrawals</option>
+                      <option>Commissions</option>
+                    </select>
+                  </div>
+                </div>
+                <table className="aff-modern-table">
+                  <thead>
+                    <tr><th>Date</th><th>Reference</th><th>Type</th><th>Amount</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Oct 24, 2025</td>
+                      <td>#TR-99021</td>
+                      <td>Commission</td>
+                      <td><span className="amt-positive">+$45.00</span></td>
+                      <td><span className="tag-status green">Cleared</span></td>
+                    </tr>
+                    <tr>
+                      <td>Oct 20, 2025</td>
+                      <td>#WD-55210</td>
+                      <td>Withdrawal</td>
+                      <td><span className="amt-negative">-$500.00</span></td>
+                      <td><span className="tag-status orange">Processing</span></td>
+                    </tr>
+                    <tr>
+                      <td>Oct 15, 2025</td>
+                      <td>#TR-88124</td>
+                      <td>Commission</td>
+                      <td><span className="amt-positive">+$12.50</span></td>
+                      <td><span className="tag-status green">Cleared</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================================
+              SECTION 7 — TAB 5: MY TEAM / NETWORK INTELLIGENCE
+          ========================================================================= */}
+         {activeTab === 'referrals' && (
+  <div id="referrals" className={`tab-content ${activeTab === 'referrals' ? 'active' : ''}`}>
+              <div className="team-hero-header">
+                <div className="hero-content">
+                  <h1>Network Intelligence</h1>
+                  <p>You earn from these partners and customers for the lifetime of their accounts.</p>
+                  
+                  <div className="custom-select-wrapper" style={{ marginTop: '25px' }}>
+                    <select
+                      id="network-view-selector"
+                      className="glass-dropdown-select"
+                      value={networkView}
+                      onChange={(e) => setNetworkView(e.target.value)}
+                    >
+                      <option value="view-partners">Sub-Affiliates</option>
+                      <option value="view-freelancers">Recruited Freelancers</option>
+                      <option value="view-customers">Lifetime Customers</option>
+                    </select>
+                    <i className="fas fa-chevron-down select-icon"></i>
+                  </div>
+                </div>
+              </div>
+
+              <div className="team-container-wide">
+                <div className="aff-card recruitment-island">
+                  <div className="island-header">
+                    <div className="header-text">
+                      <h3>Permanent Recruitment Link</h3>
+                      <p className="small-text">Recruits are locked to your account forever upon signup.</p>
+                    </div>
+                    <i className="fas fa-shield-alt fa-2x" style={{ color: '#48bb78', opacity: 0.5 }}></i>
+                  </div>
+                  <div className="gen-flex">
+                    <input type="text" id="recruit-link" value={`https://mymarketplace.com/join?ref=${AFFILIATE_ID}`} readOnly />
+                    <button className="btn-main-red" onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${AFFILIATE_ID}`, "Recruitment link copied!")}>
+                      Copy Link
+                    </button>
+                  </div>
+                </div>
+
+                <div className="team-views-wrapper" style={{ width: '100%' }}>
+                  {networkView === 'view-partners' && (
+                    <div id="view-partners" className="team-view active" style={{ display: 'flex' }}>
+                      <div className="horizontal-list" style={{ width: '100%' }}>
+                        <div className="aff-card team-horizontal-card">
+                          <div className="card-left">
+                            <div className="user-avatar-rect">JD</div>
+                            <div className="user-info-text">
+                              <strong>J***n D.</strong>
+                              <span>Joined Oct 2025 • <strong><i className="fab fa-youtube source-icon yt"></i></strong></span>
+                            </div>
+                          </div>
+                          <div className="card-right">
+                            <div className="v-stat">
+                              <small>His Sales</small>
+                              <strong>142</strong>
+                            </div>
+                            <div className="v-stat">
+                              <small>Lifetime Override</small>
+                              <strong className="amt-positive">+$840.20</strong>
+                            </div>
+                            <button className="btn-outline-small">View Performance</button>
+                          </div>
+                        </div>
+
+                        <div className="aff-card team-horizontal-card deactivated" style={{ marginTop: '12px' }}>
+                          <div className="card-left">
+                            <div className="user-avatar-rect">??</div>
+                            <div className="user-info-text">
+                              <strong>Former Partner</strong>
+                              <span>Account Closed • <strong><i className="fab fa-youtube source-icon yt"></i></strong></span>
+                            </div>
+                          </div>
+                          <div className="card-right">
+                            <div className="v-stat">
+                              <small>Status</small>
+                              <span className="tag-status deleted">Deleted</span>
+                            </div>
+                            <div className="v-stat">
+                              <small>Total Generated</small>
+                              <strong className="amt-positive">+$112.00</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {networkView === 'view-freelancers' && (
+                    <div id="view-freelancers" className="team-view active" style={{ display: 'block' }}>
+                      <div className="aff-card" style={{ textAlign: 'center', padding: '50px', background: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)', borderRadius: '15px' }}>
+                        <i className="fas fa-user-tie" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }}></i>
+                        <h4 style={{ color: '#475569', marginBottom: '5px' }}>No Freelancers Recruited</h4>
+                        <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Recruit specialists to earn overrides on every service they complete.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {networkView === 'view-customers' && (
+                    <div id="view-customers" className="team-view active" style={{ display: 'block' }}>
+                      <div className="horizontal-list">
+                        <div className="aff-card team-horizontal-card customer-accent">
+                          <div className="card-left">
+                            <div className="user-avatar-rect cust-bg"><i className="fas fa-shopping-basket"></i></div>
+                            <div className="user-info-text">
+                              <strong>Customer #99201</strong>
+                              <span>Acquired Oct 2025 • <strong><i className="fab fa-facebook source-icon fb"></i></strong></span>
+                            </div>
+                          </div>
+                          <div className="card-right">
+                            <div className="v-stat">
+                              <small>Total Orders</small>
+                              <strong>8 Services</strong>
+                            </div>
+                            <div className="v-stat">
+                              <small>Lifetime Commission</small>
+                              <strong className="amt-positive">+$215.00</strong>
+                            </div>
+                            <button className="btn-outline-small">View Orders</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================================
+              SECTION 8 — TAB 6: PRESTIGE ROADMAP / AUTHORITY STATUS
+          ========================================================================= */}
+          {activeTab === 'prestige-roadmap' && (
+  <div id="prestige-roadmap" className={`tab-content ${activeTab === 'prestige-roadmap' ? 'active' : ''}`}>
+              <section id="authority-status-root">
+                <div className="placeholder-content" style={{ textAlign: 'center', padding: '60px' }}>
+                  <i className="fas fa-spinner fa-spin" style={{ color: '#cc0000', fontSize: '2rem' }}></i>
+                  <p style={{ marginTop: '15px', color: '#666' }}>Loading your Prestige Roadmap...</p>
+                </div>
+              </section>
+            </div>
+          )}
+
+        </main>
+      </div>
+
+      {/* =========================================================================
+          SECTION 9 — MODAL OVERLAYS & TOAST CONTAINERS
+      ========================================================================= */}
+{/* DELETE CONFIRMATION MODAL */}
+{linkToDelete !== null && (
+  <div id="delete-modal" className="modal-overlay">
+    <div className="modal-content">
+      <div className="modal-icon"><i className="fas fa-exclamation-circle"></i></div>
+      <h3>Delete Link?</h3>
+      <p>This action cannot be undone. Are you sure you want to remove this link from your list?</p>
+      <div className="modal-actions">
+        <button className="btn-cancel" onClick={() => setLinkToDelete(null)}>Cancel</button>
+        <button className="btn-confirm-delete" onClick={confirmDeleteSavedLink}>Delete</button>
+      </div>
+    </div>
+  </div>
+)}
+
+      {/* BRAND MEDIA KIT MODAL */}
+{isMediaKitOpen && (
+  <div id="media-kit-modal" className="modal-overlay">
+    <div className="modal-content glass-gallery">
+      <div className="modal-header">
+        <div className="header-main">
+          <i className="fas fa-photo-video"></i>
+          <div>
+            <h3>Brand Media Kit</h3>
+            <p>Select and download assets to promote MyMarketplace</p>
+          </div>
+        </div>
+        <button onClick={() => setIsMediaKitOpen(false)} className="close-btn">&times;</button>
+      </div>
+
+      <div className="gallery-filter-bar">
+        <button className="filter-btn active">All Assets</button>
+        <button className="filter-btn">Banners</button>
+        <button className="filter-btn">Logos</button>
+        <button className="filter-btn">Social</button>
+      </div>
+
+      <div className="gallery-grid">
+        <div className="gallery-item">
+          <div className="item-preview">
+            <img src="https://via.placeholder.com/300x200" alt="Banner 1" />
+          </div>
+          <div className="item-info">
+            <strong>Hero Banner (Dark)</strong>
+            <span>1200 x 600 • JPG</span>
+            <a href="#" className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+          </div>
+        </div>
+
+        <div className="gallery-item">
+          <div className="item-preview">
+            <img src="https://via.placeholder.com/300x200" alt="Logo 1" />
+          </div>
+          <div className="item-info">
+            <strong>Primary Logo</strong>
+            <span>Transparent • PNG</span>
+            <a href="#" className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+      {/* DYNAMIC TOAST CONTAINER */}
+      <div id="toast-container">
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`toast ${toast.type === 'removed' ? 'removed' : ''}`}>
+            <i className={`fas ${toast.type === 'removed' ? 'fa-trash-alt' : 'fa-check-circle'}`}></i>
+            <span>{toast.message}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
+
+
