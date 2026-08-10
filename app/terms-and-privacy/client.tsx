@@ -1,15 +1,25 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import '@/styles/pages/terms.css';
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import "@/styles/pages/terms-and-privacy.css";
 
-
-
-type LegalTab = 'terms' | 'privacy';
+type LegalTab = "terms" | "privacy";
 
 export default function TermsClientLayout() {
-  const [activeTab, setActiveTab] = useState<LegalTab>('terms');
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+
+  const [activeTab, setActiveTab] = useState<LegalTab>(
+    tabParam === "privacy" ? "privacy" : "terms"
+  );
+
+  useEffect(() => {
+    if (tabParam === "privacy") setActiveTab("privacy");
+    else if (tabParam === "terms") setActiveTab("terms");
+  }, [tabParam]);
+
 
   return (
     <>

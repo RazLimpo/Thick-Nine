@@ -191,8 +191,7 @@ const Header = () => {
 
     // Setup safe context directories accessible without active registration tokens
     const safePages = [
-      '/', '/search-results', '/about', '/terms', '/privacy',
-      '/service-details', '/freelancer-profile', '/verify-email', '/mandatory'
+      '/', '/search-results', '/about', '/terms-and-privacy', '/service-details', '/freelancer-profile', '/verify-email', '/mandatory'
     ];
     const isSafePage = safePages.includes(currentPath || '');
 
@@ -299,20 +298,20 @@ const Header = () => {
     // Append Role-Specific Sub-Menu Lists
     if (userRole === 'freelancer') {
       items.push(
-        <li key="f-orders"><Link href="/withdrawal" onClick={closeAllUI}><i className="fas fa-spinner"></i> Order Management</Link></li>,
-        <li key="f-withdraw"><Link href="/withdrawal" onClick={closeAllUI}><i className="fas fa-wallet"></i> Withdrawal</Link></li>,
-        <li key="f-stats"><Link href="/stats" onClick={closeAllUI}><i className="fas fa-chart-line"></i> Stats</Link></li>,
-        <li key="f-clients"><Link href="/client-management" onClick={closeAllUI}><i className="fas fa-users"></i> Clients</Link></li>,
-        <li key="f-settings"><Link href="/settings" onClick={closeAllUI}><i className="fas fa-cog"></i> Settings</Link></li>
+        <li key="f-orders"><Link href="/freelancer-order-management" onClick={closeAllUI}><i className="fas fa-spinner"></i> Order Management</Link></li>,
+        <li key="f-withdraw"><Link href="/freelancer-withdrawal" onClick={closeAllUI}><i className="fas fa-wallet"></i> Withdrawal</Link></li>,
+        <li key="f-stats"><Link href="/freelancer-analytics" onClick={closeAllUI}><i className="fas fa-chart-line"></i> Stats</Link></li>,
+        <li key="f-clients"><Link href="/freelancer-client-management" onClick={closeAllUI}><i className="fas fa-users"></i> Clients</Link></li>,
+        <li key="f-settings"><Link href="/freelancer-settings" onClick={closeAllUI}><i className="fas fa-cog"></i> Settings</Link></li>
       );
     } else if (userRole === 'client') {
       items.push(
-        <li key="b-settings"><Link href="/settings" onClick={closeAllUI}><i className="fas fa-cog"></i> Account Settings</Link></li>
+        <li key="b-settings"><Link href="/client-settings" onClick={closeAllUI}><i className="fas fa-cog"></i> Account Settings</Link></li>
       );
     } else if (userRole === 'affiliate') {
       items.push(
-        <li key="a-dash"><Link href="/dashboard" onClick={closeAllUI}><i className="fas fa-tachometer-alt"></i> Dashboard</Link></li>,
-        <li key="a-settings"><Link href="/settings" onClick={closeAllUI}><i className="fas fa-cog"></i> Settings</Link></li>
+        <li key="a-dash"><Link href="/affiliate-dashboard" onClick={closeAllUI}><i className="fas fa-tachometer-alt"></i> Dashboard</Link></li>,
+        <li key="a-settings"><Link href="/affiliate-settings" onClick={closeAllUI}><i className="fas fa-cog"></i> Settings</Link></li>
       );
     }
 
@@ -496,7 +495,7 @@ const Header = () => {
                 <li><Link href="/freelancer-dashboard" className={`nav-link ${currentPath === '/freelancer-dashboard' ? 'active' : ''}`}>Dashboard</Link></li>
                 <li><Link href="/freelancer-orders-history" className={`nav-link ${currentPath === '/freelancer-orders-history' ? 'active' : ''}`}>Orders</Link></li>
                 <li><Link href="/freelancer-client-management" className={`nav-link ${currentPath === '/freelancer-client-management' ? 'active' : ''}`}>Clients</Link></li>
-                <li><Link href="/service-manager" className={`nav-link ${currentPath === '/service-manager' ? 'active' : ''}`}>Services</Link></li>
+                <li><Link href="/service-management" className={`nav-link ${currentPath === '/service-management' ? 'active' : ''}`}>Services</Link></li>
               </>
             )}
 
@@ -510,7 +509,7 @@ const Header = () => {
 
             {userRole === 'affiliate' && (
               <>
-                <li><Link href="/dashboard" className={`nav-link ${currentPath === '/dashboard' ? 'active' : ''}`}>Dashboard</Link></li>
+                <li><Link href="/affiliate-dashboard" className={`nav-link ${currentPath === '/affiliate-dashboard' ? 'active' : ''}`}>Dashboard</Link></li>
                 <li><Link href="/affiliate-stats" className={`nav-link ${currentPath === '/affiliate-stats' ? 'active' : ''}`}>Stats</Link></li>
                 <li><Link href="/affiliate-campaigns" className={`nav-link ${currentPath === '/affiliate-campaigns' ? 'active' : ''}`}>Campaigns</Link></li>
               </>
@@ -678,8 +677,16 @@ const Header = () => {
                     )}
                   </button>
                   <p className="legal-note">
-                    By joining, you agree to our <Link href="/terms" onClick={closeAllUI}>Terms of Service</Link> and <Link href="/privacy" onClick={closeAllUI}>Privacy Policy</Link>.
-                  </p>
+  By joining, you agree to our{" "}
+  <Link href="/terms-and-privacy?tab=terms" onClick={closeAllUI}>
+    Terms of Service
+  </Link>{" "}
+  and{" "}
+  <Link href="/terms-and-privacy?tab=privacy" onClick={closeAllUI}>
+    Privacy Policy
+  </Link>
+  .
+</p>
                 </form>
               </div>
               

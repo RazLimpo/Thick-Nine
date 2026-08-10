@@ -14,82 +14,89 @@ interface Category {
 
 const categories: Category[] = [
   {
-    name: "Graphics",
-    label: "Creative",
-    displayTitle: "Graphic Designing",
+    name: "ai-services",
+    label: "AI",
+    displayTitle: "AI Services",
     image: "/images/categorysidebar/watch.png",
-    className: "bg-graphics"
+    className: "bg-ai",
   },
   {
-    name: "Programming",
-    label: "Solutions",
-    displayTitle: "Programming & Tech",
-    image: "/images/categorysidebar/watch.png",
-    className: "bg-programming"
-  },
-  {
-    name: "Video",
-    label: "Motion",
-    displayTitle: "Video 'n' Animation",
-    image: "/images/categorysidebar/watch.png",
-    className: "bg-video"
-  },
-  {
-    name: "Writing",
-    label: "Contents",
-    displayTitle: "Writing & Translation",
-    image: "/images/categorysidebar/watch.png",
-    className: "bg-writing"
-  },
-  {
-    name: "Music-and-Audio",
-    label: "Acoustic",
-    displayTitle: "Music & Audio",
-    image: "/images/categorysidebar/watch.png",
-    className: "bg-music"
-  },
-  {
-    name: "Digital-Marketing",
-    label: "Growth",
-    displayTitle: "Digital Marketing",
-    image: "/images/categorysidebar/watch.png",
-    className: "bg-marketing"
-  },
-  {
-    name: "Business",
+    name: "business-services",
     label: "Professional",
     displayTitle: "Business Services",
     image: "/images/categorysidebar/watch.png",
-    className: "bg-business"
+    className: "bg-business",
   },
   {
-    name: "Data-Science",
+    name: "data-science",
     label: "Analysis",
-    displayTitle: "Data & Analytics",
+    displayTitle: "Data Science",
     image: "/images/categorysidebar/watch.png",
-    className: "bg-data"
+    className: "bg-data",
   },
   {
-    name: "Travelling",
-    label: "Explore",
-    displayTitle: "Travelling Services",
+    name: "digital-marketing",
+    label: "Growth",
+    displayTitle: "Digital Marketing",
     image: "/images/categorysidebar/watch.png",
-    className: "bg-travelling"
+    className: "bg-marketing",
   },
   {
-    name: "Lifestyle",
+    name: "graphics-design",
+    label: "Creative",
+    displayTitle: "Graphics & Design",
+    image: "/images/categorysidebar/watch.png",
+    className: "bg-graphics",
+  },
+  {
+    name: "music-audio",
+    label: "Acoustic",
+    displayTitle: "Music and Audio",
+    image: "/images/categorysidebar/watch.png",
+    className: "bg-music",
+  },
+  {
+    name: "photography",
+    label: "Visual",
+    displayTitle: "Photography",
+    image: "/images/categorysidebar/watch.png",
+    className: "bg-photography",
+  },
+  {
+    name: "programming-tech",
+    label: "Solutions",
+    displayTitle: "Programming & Tech",
+    image: "/images/categorysidebar/watch.png",
+    className: "bg-programming",
+  },
+  {
+    name: "travel-lifestyle",
     label: "Lifestyle",
-    displayTitle: "Lifestyle Gigs",
+    displayTitle: "Travel & Lifestyle",
     image: "/images/categorysidebar/watch.png",
-    className: "bg-lifestyle"
+    className: "bg-travelling",
   },
   {
-    name: "Miscellaneous",
-    label: "General",
-    displayTitle: "Other Miscellaneous",
+    name: "video-animation",
+    label: "Motion",
+    displayTitle: "Video & Animation",
     image: "/images/categorysidebar/watch.png",
-    className: "bg-misc"
-  }
+    className: "bg-video",
+  },
+  {
+    name: "writing-translation",
+    label: "Contents",
+    displayTitle: "Writing & Translation",
+    image: "/images/categorysidebar/watch.png",
+    className: "bg-writing",
+  },
+  {
+    name: "miscellaneous",
+    label: "General",
+    displayTitle: "Miscellaneous (General)",
+    image: "/images/categorysidebar/watch.png",
+    className: "bg-misc",
+  },
 ];
 
 export default function CategorySidebar() {
@@ -126,6 +133,7 @@ export default function CategorySidebar() {
           </Link>
         ))}
 
+       {/* Trending Glassmorphic List Container */}
         <TrendingWidget />
         
       </div>

@@ -464,7 +464,7 @@
   line-height: 1.2;
 }
 
-/* Container for the Next.js Image */
+/* Image Positioning */
 .cat-widget-img-wrapper {
   position: absolute;
   right: 0;
@@ -474,14 +474,17 @@
   z-index: 1;
   overflow: hidden; /* Clips the background to the card's rounded borders */
 }
+
 /* Specific Solid Background Colors (Matching your images) */
 /* Custom Palette for Widgets */
+.bg-ai { background-color: #00c7be; }
 .bg-business { background-color: #4a90e2; }
 .bg-data { background-color: #34c759; }
 .bg-marketing { background-color: #ff9500; }
 .bg-lifestyle { background-color: #ff2d55; }
 .bg-graphics { background-color: #5856d6; }
 .bg-music { background-color: #af52de; }
+.bg-photography { background-color: #ff6b35; }
 .bg-programming { background-color: #1d1d1f; }
 .bg-travelling { background-color: #5ac8fa; }
 .bg-video { background-color: #cc0000; }
@@ -608,10 +611,4 @@
   color: #ffffff;
   margin-bottom: 15px;
 }
-
-
-
-
-
-
 
