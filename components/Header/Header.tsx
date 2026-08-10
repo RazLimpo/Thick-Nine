@@ -394,15 +394,15 @@ const Header = () => {
     }
   };
 
-  // Login Endpoint Pipeline
+ // Login Endpoint Pipeline
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
   
-    const form = e.currentTarget as HTMLFormElement;
-    const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement;
-    const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement;
+    // Direct ID selectors to guarantee value extractions
+    const emailInput = (document.getElementById('login-email') as HTMLInputElement)?.value.trim();
+    const passwordInput = (document.getElementById('login-password') as HTMLInputElement)?.value.trim();
 
-    if (!emailInput?.value || !passwordInput?.value) {
+    if (!emailInput || !passwordInput) {
       showToast("Please enter email and password", "fa-exclamation-triangle");
       return;
     }
@@ -414,27 +414,36 @@ const Header = () => {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput.value.trim(), password: passwordInput.value })
+        body: JSON.stringify({ email: emailInput, password: passwordInput })
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        const userRole = data.user.role || 'client';
+
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('token', data.token);
-        localStorage.setItem('userRole', data.user.role || 'client');
+        localStorage.setItem('userRole', userRole);
         localStorage.setItem('accountStrength', (data.user.accountStrength || 0).toString()); 
         localStorage.setItem('isEmailVerified', (data.user.isEmailVerified ?? false).toString());
         localStorage.setItem('isProfileComplete', (data.user.isProfileComplete ?? false).toString());
 
         setIsLoggedIn(true);
-        setUserRole(data.user.role || 'client');
+        setUserRole(userRole);
         setIsEmailVerified(data.user.isEmailVerified ?? false);
         setIsProfileComplete(data.user.isProfileComplete ?? false);
         
         closeAllUI();      
         showToast(`Welcome back, ${data.user.fullName || 'User'}!`, "fa-sign-in-alt");
-        setTimeout(() => router.push('/'), 1200);
+
+        // Route dynamically to user's active dashboard
+        setTimeout(() => {
+          if (userRole === 'freelancer') router.push('/freelancer-dashboard');
+          else if (userRole === 'affiliate') router.push('/affiliate-dashboard');
+          else router.push('/client-dashboard');
+        }, 1200);
+
       } else {
         showToast(data.msg || "Invalid credentials", "fa-lock");
       }
@@ -444,8 +453,6 @@ const Header = () => {
       setIsLoading(false);
     }
   };
-
-
 
 
 
@@ -608,39 +615,38 @@ const Header = () => {
                 <button className={`tab-btn ${authTab === 'register' ? 'active' : ''}`} onClick={() => setAuthTab('register')}>Register</button>
               </div>
 
-              {/* Login Form Layout View */}
-              <div id="login-view" className={`auth-view ${authTab === 'login' ? 'active' : ''}`}>
-                <h3>Welcome Back</h3>
-                <div className="social-auth">
-                  <button className="btn-social google" onClick={() => handleSocialAuth('google')}>
-                    <i className="fab fa-google color-google"></i> Continue with Google
-                  </button>
-                  <button className="btn-social facebook" onClick={() => handleSocialAuth('facebook')}>
-                    <i className="fab fa-facebook-f color-facebook"></i> Continue with Facebook
-                  </button>
-                </div>
-                
-                <div className="divider"><span>OR</span></div>
-                
-                <form onSubmit={handleLogin}>
-                  <div className="input-group">
-                    <input type="email" placeholder="Email Address" required />
-                    <input type="password" placeholder="Password" required />
-                  </div>
-                  <button type="submit" className="btn-primary full-width-btn" disabled={isLoading}>
-                    {isLoading ? (
-                      <div className="dots-spinner">
-                        <div className="dot"></div>
-                        <div className="dot"></div>
-                        <div className="dot"></div>
-                      </div>
-                    ) : (
-                      "Login"
-                    )}
-                  </button>
-                </form>
-              </div>
-
+             {/* Login Form Layout View */}
+<div id="login-view" className={`auth-view ${authTab === 'login' ? 'active' : ''}`}>
+  <h3>Welcome Back</h3>
+  <div className="social-auth">
+    <button className="btn-social google" onClick={() => handleSocialAuth('google')}>
+      <i className="fab fa-google color-google"></i> Continue with Google
+    </button>
+    <button className="btn-social facebook" onClick={() => handleSocialAuth('facebook')}>
+      <i className="fab fa-facebook-f color-facebook"></i> Continue with Facebook
+    </button>
+  </div>
+  
+  <div className="divider"><span>OR</span></div>
+  
+  <form onSubmit={handleLogin}>
+    <div className="input-group">
+      <input type="email" id="login-email" placeholder="Email Address" required />
+      <input type="password" id="login-password" placeholder="Password" required />
+    </div>
+    <button type="submit" className="btn-primary full-width-btn" disabled={isLoading}>
+      {isLoading ? (
+        <div className="dots-spinner">
+          <div className="dot"></div>
+          <div className="dot"></div>
+          <div className="dot"></div>
+        </div>
+      ) : (
+        "Login"
+      )}
+    </button>
+  </form>
+</div>
              
               {/* Registration Form Layout View */}
               <div id="register-view" className={`auth-view ${authTab === 'register' ? 'active' : ''}`}>
