@@ -151,16 +151,15 @@ const Header = () => {
     router.push('/');
   };
 
-  const handleSocialAuth = (provider: string) => {
-    const dummyData = { 
-      email: "user@example.com", 
-      name: "New User", 
-      photo: "https://via.placeholder.com/150" 
-    };
-    localStorage.setItem('tempAuthData', JSON.stringify(dummyData));
-    router.push('/mandatory');
-  };
     
+ // ====================== SOCIAL AUTH HANDLER ======================
+  const handleSocialAuth = (provider: string) => {
+    // Flag social authentication provider for mandatory onboarding alignment
+    localStorage.setItem('authProvider', provider);
+    
+    // In production, initiate OAuth redirect here (e.g., window.location.href = `${API_BASE_URL}/api/auth/${provider}`)
+    showToast(`Redirecting to ${provider.toUpperCase()}...`, "fa-spin fa-spinner");
+  };   
     
     
     
@@ -193,7 +192,7 @@ const Header = () => {
     // Setup safe context directories accessible without active registration tokens
     const safePages = [
       '/', '/search-results', '/about', '/terms', '/privacy',
-      '/service-details', '/freelancer-profile', '/verify-email', '/mandatory', '/post-service', '/checkout/plan', '/services'
+      '/service-details', '/freelancer-profile', '/verify-email', '/mandatory'
     ];
     const isSafePage = safePages.includes(currentPath || '');
 
@@ -336,7 +335,7 @@ const Header = () => {
 
   // ====================== AUTH SUBMIT MANIPULATION ACTIONS ======================
   
-  // Registration Endpoint Pipeline
+// Registration Endpoint Pipeline
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
    
@@ -348,8 +347,14 @@ const Header = () => {
       return;
     }
 
+    if (password.length < 8) {
+      showToast("Password must be at least 8 characters long", "fa-exclamation-triangle");
+      return;
+    }
+
     if (isLoading) return;
     setIsLoading(true);
+
 
     const userData = { fullName: "New User", username: email.split('@')[0], email, password, role: "client" };
 
@@ -638,6 +643,7 @@ const Header = () => {
                 </form>
               </div>
 
+             
               {/* Registration Form Layout View */}
               <div id="register-view" className={`auth-view ${authTab === 'register' ? 'active' : ''}`}>
                 <h3>Create Account</h3>
@@ -652,7 +658,13 @@ const Header = () => {
                 <form onSubmit={handleRegister}>
                   <div className="input-group">
                     <input type="email" id="reg-email" placeholder="Email Address" required />
-                    <input type="password" id="reg-password" placeholder="Create Password" required />
+                    <input 
+                      type="password" 
+                      id="reg-password" 
+                      placeholder="Create Password (min. 8 characters)" 
+                      minLength={8}
+                      required 
+                    />
                   </div>
                   <button type="submit" className="btn-primary full-width-btn" disabled={isLoading}>
                     {isLoading ? (
@@ -670,6 +682,7 @@ const Header = () => {
                   </p>
                 </form>
               </div>
+              
 
             </div>
           </div>

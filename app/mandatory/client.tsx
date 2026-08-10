@@ -1703,7 +1703,8 @@ if (!trimmedCity) {
 
 </div>
 
-      {/* ==================================================
+     
+{/* ==================================================
           SECTION 30 — SUCCESS OVERLAY WRAPPER
       ================================================== */}
 
@@ -1720,129 +1721,40 @@ if (!trimmedCity) {
 
           <div className="overlay-content">
             
-            
-            
             {/* ==================================================
-          SECTION 31 — SUCCESS CONTENT + EMAIL VERIFICATION UI
-      ================================================== */}            
+                SECTION 31 — SUCCESS CONTENT + PROFILE COMPLETE UI
+            ================================================== */}            
                         
             <i
-              className="fas fa-envelope-open-text success-icon"
+              className="fas fa-check-circle success-icon"
               aria-hidden="true"
             ></i>
 
             <h2 id="success-title">
-              Check Your Inbox!
+              Account Setup Complete!
             </h2>
 
             <p id="success-description">
-
-              Registration successful.
-
-              Please visit your email inbox to
-              validate your account before
-              logging in.
-
+              Your profile has been successfully updated. You now have full access to all platform features.
             </p>
 
             <Link
-              href="/login"
+              href="/dashboard"
               className="btn-primary full-width-btn"
             >
-              Go to Login
+              Continue to Dashboard
             </Link>
 
-            {/* Resend Verification */}
-            <div
-              className="resend-container"
-              style={{ marginTop: '20px' }}
-            >
-
-              <p
-                style={{
-                  fontSize: '0.9rem',
-                  color: '#666',
-                }}
-              >
-                Didn&apos;t get the email?
-              </p>
-
-              <button
-                type="button"
-                onClick={handleResendEmail}
-                className="btn-link"
-                disabled={
-                  ui.resendCooldown > 0
-                }
-                aria-disabled={
-                  ui.resendCooldown > 0
-                }
-                style={{
-                  justifyContent: 'center',
-
-                  opacity:
-                    ui.resendCooldown > 0
-                      ? 0.6
-                      : 1,
-                }}
-              >
-
-                <i
-                  className="fas fa-redo"
-                  aria-hidden="true"
-                ></i>
-
-                {' '}
-                Resend Verification Link
-
-              </button>
-
-              {ui.resendCooldown > 0 && (
-
-                <p
-                  id="resend-timer"
-                  className="timer-visible"
-                  style={{
-                    fontSize: '0.8rem',
-                    color: '#999',
-                    marginTop: '5px',
-                  }}
-                >
-
-                  You can resend again in{' '}
-
-                  <span id="timer-seconds">
-                    {ui.resendCooldown}
-                  </span>
-
-                  s
-
-                </p>
-
-              )}
-
-            </div>
-
-        
-        
-
-
-       {/* ==================================================
-          SECTION 32 — FINAL JSX CLOSURE + COMPONENT EXPORT
-      ================================================== */}           
-
-
-</div>
+          </div>
 
         </div>
 
       )}
 
+      {/* ==================================================
+          SECTION 32 — FINAL JSX CLOSURE
+      ================================================== */}           
+
     </main>
   );
 }
-        
-      
-      
-      
-      
