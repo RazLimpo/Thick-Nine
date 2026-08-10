@@ -1739,11 +1739,17 @@ if (!trimmedCity) {
             </p>
 
             <Link
-              href="/dashboard"
-              className="btn-primary full-width-btn"
-            >
-              Continue to Dashboard
-            </Link>
+  href={
+    formData.role === 'freelancer'
+      ? '/freelancer-dashboard'
+      : formData.role === 'affiliate'
+      ? '/dashboard'
+      : '/client-dashboard'
+  }
+  className="btn-primary full-width-btn"
+>
+  Continue to Dashboard
+</Link>
 
           </div>
 
