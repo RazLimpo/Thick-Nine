@@ -552,8 +552,7 @@ export default function AffiliateDashboardClient() {
                     {selectedServices.length} / 6 Slots Used
                   </span>
                 </div>
-                <p className="section-desc" style={{ marginTop: '8px' }}>Select up to 6 services to display in your "Recommended" section.</p>
-
+                <p className="section-desc" style={{ marginTop: '8px' }}>Select up to 6 services to display in your &quot;Recommended&quot; section.</p>
                 <div className="search-container-wrapper">
                   <div className="service-search-bar">
                     <input
@@ -652,7 +651,7 @@ export default function AffiliateDashboardClient() {
                   />
                   <button
                     className="btn-main-red"
-                    onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${AFFILIATE_ID}&type=freelancer`, "Recruitment link copied!")}
+                    onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${AFFILIATE_ID}&type=freelancer`, 'Recruitment link copied!')}
                   >
                     Copy
                   </button>
@@ -675,7 +674,7 @@ export default function AffiliateDashboardClient() {
                     type="text"
                     value={linkNickname}
                     onChange={(e) => setLinkNickname(e.target.value)}
-                    placeholder="e.g., Logo Design Project or Summer Sale"
+                    placeholder='e.g., "Logo Design Project" or "Summer Sale"'
                   />
                 </div>
 
@@ -684,7 +683,7 @@ export default function AffiliateDashboardClient() {
                     type="text"
                     value={targetUrl}
                     onChange={(e) => setTargetUrl(e.target.value)}
-                    placeholder="Paste product or service URL here..."
+                    placeholder='"Paste product or service URL here..."'
                   />
                   <button className="btn-main-red" onClick={handleGenerateLink}>Create Link</button>
                 </div>
@@ -866,7 +865,7 @@ export default function AffiliateDashboardClient() {
                   </div>
                   <div className="gen-flex">
                     <input type="text" id="recruit-link" value={`https://mymarketplace.com/join?ref=${AFFILIATE_ID}`} readOnly />
-                    <button className="btn-main-red" onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${AFFILIATE_ID}`, "Recruitment link copied!")}>
+                    <button className="btn-main-red" onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${AFFILIATE_ID}`, 'Recruitment link copied!')}>
                       Copy Link
                     </button>
                   </div>
