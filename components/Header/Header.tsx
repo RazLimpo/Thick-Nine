@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { BRAND, API_BASE_URL } from '@/lib/constants'; // Your centralized configuration file
 
 // Define structural types for cleaner component data mapping
@@ -41,7 +41,9 @@ const Header = () => {
     
     
     
-    
+    // ====================== URL SEARCH PARAMS ======================
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get('tab');
     
     
     
@@ -78,7 +80,7 @@ const Header = () => {
     });
   }, []);
 
-  // ====================== ACCOUNT ROLE ROTATION ENGINE ======================
+
   // ====================== ACCOUNT ROLE ROTATION ENGINE ======================
   const handleAccountSwitching = () => {
     // 1. Grab values safely from browser environment storage with default fallbacks
@@ -515,10 +517,36 @@ const Header = () => {
 
             {userRole === 'affiliate' && (
               <>
-                <li><Link href="/affiliate-dashboard" className={`nav-link ${currentPath === '/affiliate-dashboard' ? 'active' : ''}`}>Dashboard</Link></li>
-                <li><Link href="/affiliate-stats" className={`nav-link ${currentPath === '/affiliate-stats' ? 'active' : ''}`}>Stats</Link></li>
-                <li><Link href="/affiliate-campaigns" className={`nav-link ${currentPath === '/affiliate-campaigns' ? 'active' : ''}`}>Campaigns</Link></li>
-              </>
+                {/* 1. CAMPAIGNS */}
+<li>
+  <Link 
+    href="/affiliate-dashboard?tab=campaigns" 
+    className={`nav-link ${currentPath === '/affiliate-dashboard' && currentTab === 'campaigns' ? 'active' : ''}`}
+  >
+    Campaigns
+  </Link>
+</li>
+
+{/* 2. EARNINGS */}
+<li>
+  <Link 
+    href="/affiliate-dashboard?tab=payouts" 
+    className={`nav-link ${currentPath === '/affiliate-dashboard' && currentTab === 'payouts' ? 'active' : ''}`}
+  >
+    Earnings
+  </Link>
+</li>
+
+{/* 3. MY TEAM */}
+<li>
+  <Link 
+    href="/affiliate-dashboard?tab=referrals" 
+    className={`nav-link ${currentPath === '/affiliate-dashboard' && currentTab === 'referrals' ? 'active' : ''}`}
+  >
+    My Team
+  </Link>
+</li>
+          </>
             )}
           </ul>
         </nav>

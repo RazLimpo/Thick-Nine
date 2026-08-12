@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import "@/styles/pages/affiliate-dashboard.css";
 
 // --- TYPES & INTERFACES ---
@@ -38,12 +39,37 @@ const MARKETPLACE_SERVICES: HandpickedService[] = [
 export default function AffiliateDashboardClient() {
   const AFFILIATE_ID = "8821";
 
+  // Read URL search parameters
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+
+  // Map incoming URL parameter names to your component's internal tab IDs
+  const getInitialTab = (): string => {
+    if (tabParam === 'campaigns') return 'links';
+    if (tabParam === 'payouts') return 'payouts';
+    if (tabParam === 'referrals') return 'referrals';
+    return tabParam || 'dashboard';
+  };
+
   // --- APPLICATION & TAB STATE ---
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
   const [networkView, setNetworkView] = useState<string>('view-partners');
   const [activeShareSheetId, setActiveShareSheetId] = useState<number | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  // Keep state updated if a user clicks header links while on the page
+  useEffect(() => {
+    if (tabParam === 'campaigns') {
+      setActiveTab('links');
+    } else if (tabParam === 'payouts') {
+      setActiveTab('payouts');
+    } else if (tabParam === 'referrals') {
+      setActiveTab('referrals');
+    } else if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+    
   // --- DEEP LINK GENERATOR STATE ---
   const [targetUrl, setTargetUrl] = useState<string>('');
   const [linkNickname, setLinkNickname] = useState<string>('');
