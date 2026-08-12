@@ -26,12 +26,16 @@
     font-family: 'Roboto', sans-serif;
 }
 
+/* Keep layout width stable across all tabs */
 .aff-dash-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    gap: 30px;
-    padding: 0 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  gap: 30px;
+  padding: 0 20px;
+  align-items: flex-start; /* sidebar doesn't stretch with tall tabs */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* --- 2. The "Island" Card Base --- */
@@ -46,8 +50,8 @@
 
 /* --- 3. Sidebar Widgets --- */
 .aff-sidebar {
-    width: 280px;
-    flex-shrink: 0;
+  width: 280px;
+  flex-shrink: 0;
 }
 
 .nav-widget nav a {
@@ -230,12 +234,12 @@
 
 /* --- 4. Tab Management --- */
 .tab-content {
-    display: none; /* Hidden by default */
+    width: 100%;
     animation: fadeIn 0.4s ease-out;
 }
 
 .tab-content.active {
-    display: block !important; /* Visible when active */
+    width: 100%;
 }
 
 @keyframes fadeIn {
@@ -513,17 +517,22 @@
 /* --- Modal Overlay --- */
 .modal-overlay {
     position: fixed;
-    top: 0; 
-    left: 0; 
-    width: 100vw; 
+    top: 0;
+    left: 0;
+    width: 100vw;
     height: 100vh;
     background: rgba(0, 0, 0, 0.5);
-    display: flex; 
-    align-items: center; 
+    display: none;
+    align-items: center;
     justify-content: center;
     z-index: 10000;
     backdrop-filter: blur(4px);
-    pointer-events: auto; /* Active modal intercepts clicks */
+    pointer-events: none;
+}
+
+.modal-overlay.is-active {
+    display: flex;
+    pointer-events: auto;
 }
 
 .modal-content {
@@ -815,19 +824,22 @@
 
 
 /* 1. Ensure the Main content area doesn't shrink when tabs change */
+/* Main area always fills remaining width */
 .aff-main {
-    flex: 1; /* This forces the main area to take up all remaining space next to the sidebar */
-    min-width: 0; /* Prevents flex-box from bulging or collapsing unexpectedly */
-    display: flex;
-    flex-direction: column;
+  flex: 1;
+  min-width: 0; /* prevents flex overflow collapse */
+  width: 100%;
 }
 
 /* 2. Fix the Referrals Tab container */
 #referrals.tab-content.active {
-    display: block; /* Change from flex to block to stabilize the layout */
     width: 100%;
 }
 
+/* Stop page height from jumping too hard */
+.aff-main .tab-content.active {
+  min-height: 70vh;
+}
 
 
 /* 4. Ensure the Team Views and Lists don't collapse */

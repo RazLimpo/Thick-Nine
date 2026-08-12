@@ -77,19 +77,20 @@ export default function AffiliateDashboardClient() {
   }, []);
 
   // Update dynamic CSS variable on active tab change
-  useEffect(() => {
-    const tabColors: Record<string, string> = {
-      dashboard: "var(--color-dashboard, #007bff)",
-      links: "var(--color-links, #6f42c1)",
-      payouts: "var(--color-payouts, #28a745)",
-      referrals: "var(--color-referrals, #fd7e14)",
-      "store-management": "var(--primary-color, #cc0000)",
-      "prestige-roadmap": "var(--primary-color, #cc0000)",
-    };
 
-    const targetColor = tabColors[activeTab] || "var(--primary-color, #cc0000)";
-    document.documentElement.style.setProperty("--active-dot-color", targetColor);
-  }, [activeTab]);
+useEffect(() => {
+  const tabColors: Record<string, string> = {
+    dashboard: "var(--color-dashboard, #3b82f6)",
+    links: "var(--color-links, #10b981)",
+    payouts: "var(--color-payouts, #f59e0b)",
+    referrals: "var(--color-referrals, #8b5cf6)",
+    "store-management": "var(--primary-color, #ff2d55)",
+    "prestige-roadmap": "var(--primary-color, #ff2d55)",
+  };
+
+  const targetColor = tabColors[activeTab] || "var(--primary-color, #ff2d55)";
+  document.documentElement.style.setProperty("--active-dot-color", targetColor);
+}, [activeTab]);
 
   const triggerToast = (message: string, type: 'success' | 'removed' = 'success') => {
     const id = Date.now();
@@ -363,8 +364,8 @@ export default function AffiliateDashboardClient() {
           {/* =========================================================================
               SECTION 3 — TAB 1: MAIN DASHBOARD
           ========================================================================= */}
-          {activeTab === 'dashboard' && (
-  <div id="dashboard" className={`tab-content ${activeTab === 'dashboard' ? 'active' : ''}`}>
+          {activeTab === 'dashboard' && ( 
+            <div id="dashboard" className="tab-content active">
               <div className="aff-stats-row">
                 <div className="aff-card stat-item bg-blue">
                   <div className="stat-icon-circle"><i className="fas fa-mouse-pointer"></i></div>
@@ -467,7 +468,7 @@ export default function AffiliateDashboardClient() {
               SECTION 4 — TAB 2: STORE CONTENT MANAGEMENT
           ========================================================================= */}
           {activeTab === 'store-management' && (
-  <div id="store-management" className={`tab-content ${activeTab === 'store-management' ? 'active' : ''}`}>
+            <div id="store-management" className="tab-content active">
               <div className="aff-card management-island">
                 <h3 className="island-title"><i className="fas fa-video"></i> Featured Video</h3>
                 <p className="section-desc">Paste a YouTube or Vimeo link to showcase a tutorial or review on your profile.</p>
@@ -636,8 +637,8 @@ export default function AffiliateDashboardClient() {
               SECTION 5 — TAB 3: LINK GENERATOR & CAMPAIGNS
           ========================================================================= */}
           {activeTab === 'links' && (
-  <div id="links" className={`tab-content ${activeTab === 'links' ? 'active' : ''}`}>
-              <div className="aff-card generator-island">
+            <div id="links" className="tab-content active">
+            <div className="aff-card generator-island">
                 <div className="island-header">
                   <h3><i className="fas fa-link"></i> Recruit Freelancers</h3>
                 </div>
@@ -762,7 +763,7 @@ export default function AffiliateDashboardClient() {
               SECTION 6 — TAB 4: MY EARNINGS / PAYOUTS
           ========================================================================= */}
           {activeTab === 'payouts' && (
-  <div id="payouts" className={`tab-content ${activeTab === 'payouts' ? 'active' : ''}`}>
+            <div id="payouts" className="tab-content active">          
               <div className="aff-stats-row">
                 <div className="aff-card stat-item bg-dark">
                   <div className="stat-content">
@@ -832,8 +833,8 @@ export default function AffiliateDashboardClient() {
               SECTION 7 — TAB 5: MY TEAM / NETWORK INTELLIGENCE
           ========================================================================= */}
          {activeTab === 'referrals' && (
-  <div id="referrals" className={`tab-content ${activeTab === 'referrals' ? 'active' : ''}`}>
-              <div className="team-hero-header">
+           <div id="referrals" className="tab-content active">
+          <div className="team-hero-header">
                 <div className="hero-content">
                   <h1>Network Intelligence</h1>
                   <p>You earn from these partners and customers for the lifetime of their accounts.</p>
@@ -964,7 +965,7 @@ export default function AffiliateDashboardClient() {
               SECTION 8 — TAB 6: PRESTIGE ROADMAP / AUTHORITY STATUS
           ========================================================================= */}
           {activeTab === 'prestige-roadmap' && (
-  <div id="prestige-roadmap" className={`tab-content ${activeTab === 'prestige-roadmap' ? 'active' : ''}`}>
+  <div id="prestige-roadmap" className="tab-content active">          
               <section id="authority-status-root">
                 <div className="placeholder-content" style={{ textAlign: 'center', padding: '60px' }}>
                   <i className="fas fa-spinner fa-spin" style={{ color: '#cc0000', fontSize: '2rem' }}></i>
@@ -982,7 +983,7 @@ export default function AffiliateDashboardClient() {
       ========================================================================= */}
 {/* DELETE CONFIRMATION MODAL */}
 {linkToDelete !== null && (
-  <div id="delete-modal" className="modal-overlay">
+  <div className="modal-overlay is-active" id="delete-modal">
     <div className="modal-content">
       <div className="modal-icon"><i className="fas fa-exclamation-circle"></i></div>
       <h3>Delete Link?</h3>
@@ -997,7 +998,7 @@ export default function AffiliateDashboardClient() {
 
       {/* BRAND MEDIA KIT MODAL */}
 {isMediaKitOpen && (
-  <div id="media-kit-modal" className="modal-overlay">
+ <div className="modal-overlay is-active" id="media-kit-modal">
     <div className="modal-content glass-gallery">
       <div className="modal-header">
         <div className="header-main">

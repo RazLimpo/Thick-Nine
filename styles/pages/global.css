@@ -296,8 +296,8 @@ a:hover {
 }
 
 main {
-  flex: 1; /* Pushes the footer to the very bottom */
-    margin: auto;
+  flex: 1;
+  width: 100%;
 }
 
 
