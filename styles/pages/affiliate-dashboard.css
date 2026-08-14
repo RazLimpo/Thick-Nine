@@ -1963,3 +1963,94 @@
     flex-grow: 1; 
     min-height: 300px; /* Ensures the actual graph has room to breathe */ 
 }
+
+
+
+
+/* ===========================================================
+   TIER & PRESTIGE GAMIFICATION CARD
+   =========================================================== */
+
+.tier-card-container {
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+  background-color: #ffffff;
+}
+
+.tier-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.tier-card-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.tier-card-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.tier-card-level {
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.tier-card-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #f1f5f9;
+  margin-top: 4px;
+}
+
+.tier-card-points-wrapper {
+  text-align: right;
+}
+
+.tier-card-points-label {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.tier-card-points-val {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.tier-card-progress-wrapper {
+  margin-top: 16px;
+}
+
+.tier-card-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.tier-card-progress-track {
+  width: 100%;
+  height: 10px;
+  background-color: #e2e8f0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.tier-card-progress-fill {
+  height: 100%;
+  background-color: #2563eb;
+  transition: width 0.4s ease-in-out;
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import "@/styles/pages/affiliate-dashboard.css";
 
 // --- TYPES & INTERFACES ---
@@ -37,7 +37,99 @@ const MARKETPLACE_SERVICES: HandpickedService[] = [
 ];
 
 export default function AffiliateDashboardClient() {
-  const AFFILIATE_ID = "8821";
+  const router = useRouter();
+  const [affiliateId, setAffiliateId] = useState<string>('');
+  const [authToken, setAuthToken] = useState<string>('');
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+
+  // Store Customizer State
+  const [storeTitle, setStoreTitle] = useState<string>('');
+  const [storeDescription, setStoreDescription] = useState<string>('');
+  const [featuredVideoUrl, setFeaturedVideoUrl] = useState<string>('');
+  const [isSavingStore, setIsSavingStore] = useState<boolean>(false);
+  const [storeSaveStatus, setStoreSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Handler to persist store changes to the backend
+  const handleSaveStoreConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingStore(true);
+    setStoreSaveStatus(null);
+
+    try {
+      const res = await fetch('/api/users/affiliate/store', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          storeTitle,
+          storeDescription,
+          featuredVideoUrl
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setStoreSaveStatus({ type: 'success', message: 'Store settings saved successfully!' });
+      } else {
+        setStoreSaveStatus({ type: 'error', message: data.msg || 'Failed to update store settings.' });
+      }
+    } catch (err) {
+      console.error('Error updating store:', err);
+      setStoreSaveStatus({ type: 'error', message: 'An unexpected error occurred while saving.' });
+    } finally {
+      setIsSavingStore(false);
+    }
+  };
+
+  useEffect(() => {
+    // Read session stored during login
+    const token = localStorage.getItem('token');
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const storedUserId = localStorage.getItem('userId') || localStorage.getItem('affiliateId');
+
+    // Route Protection: Redirect if no valid token exists
+    if (!token || !loggedIn) {
+      setIsAuthLoading(false);
+      router.push('/login');
+      return;
+    }
+
+    setAuthToken(token);
+    if (storedUserId) {
+      setAffiliateId(storedUserId);
+    }
+
+    // Hydrate existing store configuration from backend
+    fetch('/api/users/affiliate/me', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.affiliateProfile?.storeConfig) {
+          const config = data.affiliateProfile.storeConfig;
+          setStoreTitle(config.storeTitle || '');
+          setStoreDescription(config.storeDescription || '');
+          setFeaturedVideoUrl(config.featuredVideoUrl || '');
+        }
+      })
+      .catch((err) => console.error('Error loading store config:', err))
+      .finally(() => setIsAuthLoading(false));
+  }, [router]);
+
+  // Prevent flash of unauthenticated content while loading session
+  if (isAuthLoading) {
+    return (
+      <div className="aff-dash-bg" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
+        <p>Verifying authentication...</p>
+      </div>
+    );
+  }
+
 
   // Read URL search parameters
   const searchParams = useSearchParams();
@@ -381,8 +473,8 @@ useEffect(() => {
               </div>
             </div>
             <div className="aff-user-pill">
-              <i className="fas fa-user-circle"></i> <span>ID: {AFFILIATE_ID}</span>
-            </div>
+  <i className="fas fa-user-circle"></i> <span>ID: {affiliateId || '...'}</span>
+</div>
           </header>
           
           

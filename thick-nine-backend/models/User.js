@@ -131,7 +131,13 @@ const UserSchema = new mongoose.Schema(
 
     gender: {
         type: String,
-        enum: ["male", "female"]
+        enum: [
+            "male",
+            "female",
+            "other",
+            "prefer_not_to_say"
+        ],
+        default: "prefer_not_to_say"
     },
 
     referralCode: {
@@ -545,9 +551,9 @@ const UserSchema = new mongoose.Schema(
     
     
     
-        /* ===========================================================
-       SECTION 16 — USER SETTINGS
-       =========================================================== */
+    /* ===========================================================
+           SECTION 16 — USER SETTINGS
+           =========================================================== */
 
     settings: {
 
@@ -576,6 +582,84 @@ const UserSchema = new mongoose.Schema(
             default: true
         }
 
+    },
+
+
+
+    /* ===========================================================
+       SECTION 17 — AFFILIATE DASHBOARD & STORE ENGINE
+       =========================================================== */
+
+    affiliateProfile: {
+
+        // Tier & Rank Progress
+        currentTier: {
+            type: String,
+            enum: ["Bronze", "Silver", "Gold", "Platinum", "Diamond"],
+            default: "Bronze"
+        },
+
+        tierTargetEarnings: {
+            type: Number,
+            default: 1000
+        },
+
+        // Authority & Prestige Engine
+        prestigeLevel: {
+            type: Number,
+            default: 1
+        },
+
+        prestigePoints: {
+            type: Number,
+            default: 0
+        },
+
+        prestigeBadge: {
+            type: String,
+            default: "Rising Marketer"
+        },
+
+        // Detailed Metrics
+        lifetimeClicks: {
+            type: Number,
+            default: 0
+        },
+
+        conversionRate: {
+            type: Number,
+            default: 0
+        },
+
+        // Dynamic Store Configuration
+        storeConfig: {
+            featuredVideoUrl: {
+                type: String,
+                default: ""
+            },
+            
+            storeTitle: {
+                type: String,
+                default: ""
+            },
+
+            storeDescription: {
+                type: String,
+                default: ""
+            },
+
+            pinnedServices: [{
+                serviceId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Service"
+                },
+                displayOrder: {
+                    type: Number,
+                    default: 0
+                }
+            }]
+        }
+
     }
 
 },
@@ -588,7 +672,6 @@ const UserSchema = new mongoose.Schema(
         virtuals: true
     }
 });
-
 
 
 /* ===========================================================
