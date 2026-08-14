@@ -1226,14 +1226,16 @@
 .management-island {
     background: #ffffff;
     border-radius: 20px;
-    padding: 30px;
+    padding: 20px; /* Reduced from 30px to fit mobile screens */
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .section-desc {
     color: var(--text-muted);
     font-size: 0.9rem;
-    margin-bottom: 25px;
+    margin-bottom: 20px;
     line-height: 1.5;
 }
 
@@ -1241,12 +1243,15 @@
 .input-group-glass {
     display: flex;
     align-items: center;
-    background: rgba(30, 41, 59, 0.04); /* Very subtle dark tint */
+    background: rgba(30, 41, 59, 0.04);
     border: 1px solid rgba(30, 41, 59, 0.1);
     border-radius: 14px;
-    padding: 8px 8px 8px 18px;
-    gap: 15px;
+    padding: 8px 12px;
+    gap: 10px;
     transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
+    flex-wrap: wrap; /* Allows action buttons to drop down cleanly if space is tight */
 }
 
 .input-group-glass:focus-within {
@@ -1258,13 +1263,15 @@
 .input-group-glass i.fa-youtube {
     color: #ff0000;
     font-size: 1.2rem;
+    flex-shrink: 0;
 }
 
 .input-group-glass input {
     flex: 1;
+    min-width: 0; /* Unlocks flex input truncation */
     border: none;
     background: transparent;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     color: var(--text-dark);
     font-weight: 500;
     outline: none;
@@ -1274,19 +1281,21 @@
 .action-buttons-flex {
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .btn-action-primary {
-    background: rgba(30, 41, 59, 0.9); /* Dark Glass */
+    background: rgba(30, 41, 59, 0.9);
     color: white;
     border: none;
-    padding: 10px 20px;
+    padding: 8px 14px;
     border-radius: 10px;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.2s ease;
     backdrop-filter: blur(4px);
+    white-space: nowrap;
 }
 
 .btn-action-primary:hover {
@@ -1299,17 +1308,19 @@
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.2);
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.2s;
+    flex-shrink: 0;
 }
 
 .btn-icon-delete:hover {
     background: #ef4444;
     color: white;
 }
+
 
 /* 4. Service Search Bar (Deep Dark Glass) */
 .service-search-bar {
