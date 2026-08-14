@@ -949,22 +949,58 @@
         padding: 15px 0; /* Reduce outer padding on mobile */
     }
 
+       
+    
+    
+    
+    
     .aff-dash-wrapper {
-        flex-direction: column; /* Stack Sidebar on top of Main content */
+        display: flex;
+        flex-direction: column; /* Stack all elements vertically */
         gap: 15px;
-        padding: 0 15px; /* Tighter side margins for more screen real estate */
+        padding: 0 15px;
     }
 
+    /* 1. Dissolve the sidebar container on mobile so its children act as direct flex items */
     .aff-sidebar {
-        width: 100%; /* Sidebar takes full width */
-        order: 1;    /* Keeps sidebar at the top (or 2 if you want it below) */
+        width: 100%; 
+        display: contents;
     }
 
-    .aff-main {
+    /* 2. Top of page: Nav Menu Links */
+    .nav-widget {
+        order: 1;
         width: 100%;
+    }
+
+    /* 3. Middle of page: Active Tab Content (placed directly below nav) */
+    .aff-main {
         order: 2;
+        width: 100%;
+    }
+
+    /* 4. Bottom of page: Partner Growth Widget */
+    .glass-promo-widget {
+        order: 3;
+        width: 100%;
+        margin-top: 15px;
+    }
+
+    /* 5. Bottom of page: Authority Status Widget */
+    .neumorphic-shortcut {
+        order: 4;
+        width: 100%;
     }
     
+    
+    
+    
+    
+    
+    
+    
+    
+        
     /* Optional: Make the sidebar nav scroll horizontally on very small phones */
     .nav-widget nav {
         display: flex;

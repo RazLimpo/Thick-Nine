@@ -543,7 +543,7 @@ export default function MandatoryClientPage() {
 
   /**
    * Validates all form fields before
-   * account finalization submission.
+   * Profile finalization submission.
    */
 
   const validateForm = (): boolean => {
@@ -884,11 +884,11 @@ if (!trimmedCity) {
         <header className="form-header">
 
           <h1 id="mandatory-page-title">
-            Finalize Your Account
+            Update Your Profile
           </h1>
 
           <p className="form-instruction">
-            Complete your account setup to unlock
+            Complete your profile setup to unlock
             full platform access.
           </p>
 
@@ -1731,7 +1731,7 @@ if (!trimmedCity) {
             ></i>
 
             <h2 id="success-title">
-              Account Setup Complete!
+              Profile Setup Complete!
             </h2>
 
             <p id="success-description">
