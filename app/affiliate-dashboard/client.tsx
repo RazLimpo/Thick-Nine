@@ -49,6 +49,21 @@ export default function AffiliateDashboardClient() {
   const [isSavingStore, setIsSavingStore] = useState<boolean>(false);
   const [storeSaveStatus, setStoreSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Gamification & Tier State
+  const [currentTier, setCurrentTier] = useState<string>('Bronze');
+  const [nextTier, setNextTier] = useState<string>('Silver');
+  const [prestigeBadge, setPrestigeBadge] = useState<string>('Rising Marketer');
+  const [prestigeLevel, setPrestigeLevel] = useState<number>(1);
+  const [prestigePoints, setPrestigePoints] = useState<number>(0);
+  const [currentEarnings, setCurrentEarnings] = useState<number>(0);
+  const [tierTargetEarnings, setTierTargetEarnings] = useState<number>(1000);
+
+  // Derived progress percentage for UI Progress Bars
+  const tierProgressPercent = Math.min(
+    100,
+    Math.round((currentEarnings / (tierTargetEarnings || 1)) * 100)
+  );
+    
   // Handler to persist store changes to the backend
   const handleSaveStoreConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +117,7 @@ export default function AffiliateDashboardClient() {
       setAffiliateId(storedUserId);
     }
 
-    // Hydrate existing store configuration from backend
+   // Hydrate existing store configuration & tier stats from backend
     fetch('/api/users/affiliate/me', {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -110,14 +125,31 @@ export default function AffiliateDashboardClient() {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && data.affiliateProfile?.storeConfig) {
-          const config = data.affiliateProfile.storeConfig;
-          setStoreTitle(config.storeTitle || '');
-          setStoreDescription(config.storeDescription || '');
-          setFeaturedVideoUrl(config.featuredVideoUrl || '');
+        if (data.success) {
+          // Store Config
+          if (data.affiliateProfile?.storeConfig) {
+            const config = data.affiliateProfile.storeConfig;
+            setStoreTitle(config.storeTitle || '');
+            setStoreDescription(config.storeDescription || '');
+            setFeaturedVideoUrl(config.featuredVideoUrl || '');
+          }
+
+          // Gamification & Tier Data
+          if (data.tierInfo) {
+            setCurrentTier(data.tierInfo.currentTier || 'Bronze');
+            setNextTier(data.tierInfo.nextTier || 'Silver');
+            setPrestigeBadge(data.tierInfo.prestigeBadge || 'Rising Marketer');
+            setTierTargetEarnings(data.tierInfo.tierTargetEarnings || 1000);
+            setCurrentEarnings(data.tierInfo.currentEarnings || 0);
+          }
+
+          if (data.affiliateProfile) {
+            setPrestigeLevel(data.affiliateProfile.prestigeLevel || 1);
+            setPrestigePoints(data.affiliateProfile.prestigePoints || 0);
+          }
         }
       })
-      .catch((err) => console.error('Error loading store config:', err))
+      .catch((err) => console.error('Error loading affiliate profile:', err))
       .finally(() => setIsAuthLoading(false));
   }, [router]);
 
@@ -478,13 +510,47 @@ useEffect(() => {
           </header>
           
           
-          
           {/* =========================================================================
               SECTION 3 — TAB 1: MAIN DASHBOARD
           ========================================================================= */}
           {activeTab === 'dashboard' && ( 
             <div id="dashboard" className="tab-content active">
+
+              {/* TIER & PRESTIGE GAMIFICATION CARD */}
+              <div className="tier-card-container">
+                <div className="tier-card-header">
+                  <div className="tier-card-info">
+                    <span className="tier-card-label">Current Rank</span>
+                    <h2 className="tier-card-title">
+                      {currentTier} Tier <span className="tier-card-level">(Lvl {prestigeLevel})</span>
+                    </h2>
+                    <div className="tier-card-badge">
+                      🏆 {prestigeBadge}
+                    </div>
+                  </div>
+                  <div className="tier-card-points-wrapper">
+                    <span className="tier-card-points-label">Prestige Points</span>
+                    <div className="tier-card-points-val">{prestigePoints.toLocaleString()} PTS</div>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="tier-card-progress-wrapper">
+                  <div className="tier-card-progress-labels">
+                    <span>Progress to <strong>{nextTier} Tier</strong></span>
+                    <span>${currentEarnings.toLocaleString()} / ${tierTargetEarnings.toLocaleString()} ({tierProgressPercent}%)</span>
+                  </div>
+                  <div className="tier-card-progress-track">
+                    <div 
+                      className="tier-card-progress-fill"
+                      style={{ width: `${tierProgressPercent}%` }} 
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="aff-stats-row">
+          
                 <div className="aff-card stat-item bg-blue">
                   <div className="stat-icon-circle"><i className="fas fa-mouse-pointer"></i></div>
                   <div className="stat-content">
