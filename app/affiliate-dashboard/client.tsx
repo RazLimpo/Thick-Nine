@@ -128,6 +128,13 @@ export default function AffiliateDashboardClient() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
+          // Wallet & Balance Hydration
+          if (data.user?.wallet) {
+            setAvailableBalance(data.user.wallet.availableBalance || 0);
+            setPendingBalance(data.user.wallet.pendingBalance || 0);
+            setTotalPaidOut(data.user.wallet.lifetimeWithdrawals || 0);
+          }
+
           // Store Config
           if (data.affiliateProfile?.storeConfig) {
             const config = data.affiliateProfile.storeConfig;
@@ -153,9 +160,7 @@ export default function AffiliateDashboardClient() {
       })
       .catch((err) => console.error('Error loading affiliate profile:', err))
       .finally(() => setIsAuthLoading(false));
-  }, [router]);
-
-  
+  }, [router]);  
 
   // Read URL search parameters
   const searchParams = useSearchParams();
@@ -198,6 +203,17 @@ export default function AffiliateDashboardClient() {
   const [linkToDelete, setLinkToDelete] = useState<string | number | null>(null);
     
     
+    // --- PAYOUTS & WITHDRAWAL STATE ---
+  const [availableBalance, setAvailableBalance] = useState<number>(0);
+  const [totalPaidOut, setTotalPaidOut] = useState<number>(0);
+  const [pendingBalance, setPendingBalance] = useState<number>(0);
+  const [payoutsHistory, setPayoutsHistory] = useState<any[]>([]);
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState<boolean>(false);
+  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
+  const [withdrawMethod, setWithdrawMethod] = useState<string>('Payoneer');
+  const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState<boolean>(false);
+    
+    
   // --- FEATURED VIDEO & HANDPICKED SERVICES STATE ---
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoPreviewType, setVideoPreviewType] = useState<'embed' | 'file' | 'none'>('none');
@@ -236,6 +252,28 @@ export default function AffiliateDashboardClient() {
       .catch((err) => console.error('Error fetching affiliate links:', err));
   }, [authToken]);
 
+    
+    
+    // Fetch transaction history when Payouts tab is active
+  useEffect(() => {
+    if (activeTab !== 'payouts' || !authToken) return;
+
+    fetch('/api/affiliate/payouts', {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.payouts)) {
+          setPayoutsHistory(data.payouts);
+        }
+      })
+      .catch((err) => console.error('Error fetching payouts:', err));
+  }, [activeTab, authToken]);
+    
+    
+    
   // Update dynamic CSS variable on active tab change
 
 useEffect(() => {
@@ -333,6 +371,63 @@ useEffect(() => {
       setLinkToDelete(null);
     }
   };
+
+
+// --- WITHDRAWAL HANDLER ---
+  const handleRequestWithdrawal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountNum = parseFloat(withdrawAmount);
+
+    if (isNaN(amountNum) || amountNum < 50) {
+      triggerToast("Minimum withdrawal threshold is $50.00", "removed");
+      return;
+    }
+
+    if (amountNum > availableBalance) {
+      triggerToast("Insufficient available balance", "removed");
+      return;
+    }
+
+    setIsSubmittingWithdraw(true);
+
+    try {
+      const res = await fetch('/api/affiliate/withdraw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          amount: amountNum,
+          method: withdrawMethod
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Optimistically update local balances
+        setAvailableBalance((prev) => parseFloat((prev - amountNum).toFixed(2)));
+        setPendingBalance((prev) => parseFloat((prev + amountNum).toFixed(2)));
+        
+        // Add new record to top of history
+        setPayoutsHistory((prev) => [data.withdrawal, ...prev]);
+
+        setIsWithdrawModalOpen(false);
+        setWithdrawAmount('');
+        triggerToast("Withdrawal request submitted!");
+      } else {
+        triggerToast(data.message || "Withdrawal failed", "removed");
+      }
+    } catch (err) {
+      console.error("Error requesting withdrawal:", err);
+      triggerToast("Server error requesting withdrawal", "removed");
+    } finally {
+      setIsSubmittingWithdraw(false);
+    }
+  };
+
+
 
   const copyToClipboard = (text: string, msg = "Link copied!") => {
     navigator.clipboard.writeText(text);
@@ -1040,73 +1135,68 @@ useEffect(() => {
           {/* =========================================================================
               SECTION 6 — TAB 4: MY EARNINGS / PAYOUTS
           ========================================================================= */}
+          
           {activeTab === 'payouts' && (
-            <div id="payouts" className="tab-content active">          
-              <div className="aff-stats-row">
-                <div className="aff-card stat-item bg-dark">
-                  <div className="stat-content">
-                    <span className="s-label">Available for Withdrawal</span>
-                    <h2 className="s-value">$1,240.00</h2>
-                    <button className="btn-withdraw-small">Withdraw Funds</button>
-                  </div>
-                </div>
-                <div className="aff-card stat-item bg-total-paid">
-                  <div className="stat-content">
-                    <span className="s-label" style={{ color: '#718096' }}>Total Paid Out</span>
-                    <h2 className="s-value" style={{ color: '#2d3748' }}>$8,450.00</h2>
-                  </div>
-                </div>
-                <div className="aff-card stat-item bg-pending">
-                  <div className="stat-content">
-                    <span className="s-label" style={{ color: '#718096' }}>Pending Verification</span>
-                    <h2 className="s-value" style={{ color: '#2d3748' }}>$320.50</h2>
-                  </div>
-                </div>
-              </div>
+    <div id="payouts" className="tab-content active">          
+      <div className="aff-stats-row">
+        <div className="aff-card stat-item bg-dark">
+          <div className="stat-content">
+            <span className="s-label">Available for Withdrawal</span>
+            <h2 className="s-value">${availableBalance.toFixed(2)}</h2>
+            <button className="btn-withdraw-small" onClick={() => setIsWithdrawModalOpen(true)}>
+              Withdraw Funds
+            </button>
+          </div>
+        </div>
+        <div className="aff-card stat-item bg-total-paid">
+          <div className="stat-content">
+            <span className="s-label" style={{ color: '#718096' }}>Total Paid Out</span>
+            <h2 className="s-value" style={{ color: '#2d3748' }}>${totalPaidOut.toFixed(2)}</h2>
+          </div>
+        </div>
+        <div className="aff-card stat-item bg-pending">
+          <div className="stat-content">
+            <span className="s-label" style={{ color: '#718096' }}>Pending Verification</span>
+            <h2 className="s-value" style={{ color: '#2d3748' }}>${pendingBalance.toFixed(2)}</h2>
+          </div>
+        </div>
+      </div>
 
-              <div className="aff-card table-island">
-                <div className="island-header">
-                  <h3>Transaction History</h3>
-                  <div className="table-filters">
-                    <select className="date-filter">
-                      <option>All Transactions</option>
-                      <option>Withdrawals</option>
-                      <option>Commissions</option>
-                    </select>
-                  </div>
-                </div>
-                <table className="aff-modern-table">
-                  <thead>
-                    <tr><th>Date</th><th>Reference</th><th>Type</th><th>Amount</th><th>Status</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Oct 24, 2025</td>
-                      <td>#TR-99021</td>
-                      <td>Commission</td>
-                      <td><span className="amt-positive">+$45.00</span></td>
-                      <td><span className="tag-status green">Cleared</span></td>
-                    </tr>
-                    <tr>
-                      <td>Oct 20, 2025</td>
-                      <td>#WD-55210</td>
-                      <td>Withdrawal</td>
-                      <td><span className="amt-negative">-$500.00</span></td>
-                      <td><span className="tag-status orange">Processing</span></td>
-                    </tr>
-                    <tr>
-                      <td>Oct 15, 2025</td>
-                      <td>#TR-88124</td>
-                      <td>Commission</td>
-                      <td><span className="amt-positive">+$12.50</span></td>
-                      <td><span className="tag-status green">Cleared</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
+      <div className="aff-card table-island">
+        <div className="island-header">
+          <h3>Transaction History</h3>
+        </div>
+        <table className="aff-modern-table">
+          <thead>
+            <tr><th>Date</th><th>Reference</th><th>Method</th><th>Amount</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {payoutsHistory.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', color: '#718096' }}>No transactions recorded yet.</td>
+              </tr>
+            ) : (
+              payoutsHistory.map((item) => (
+                <tr key={item._id}>
+                  <td>{new Date(item.createdAt).toLocaleDateString()}</td>
+                  <td>#{item._id.substring(item._id.length - 6).toUpperCase()}</td>
+                  <td>{item.method}</td>
+                  <td><span className="amt-negative">-${Number(item.amount).toFixed(2)}</span></td>
+                  <td>
+                    <span className={`tag-status ${item.status === 'completed' ? 'green' : 'orange'}`}>
+                      {item.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )}
+          
+          
           {/* =========================================================================
               SECTION 7 — TAB 5: MY TEAM / NETWORK INTELLIGENCE
           ========================================================================= */}
@@ -1323,6 +1413,65 @@ useEffect(() => {
   </div>
 )}
 
+      
+      
+      {/* WITHDRAWAL REQUEST MODAL */}
+      {isWithdrawModalOpen && (
+        <div className="modal-overlay is-active">
+          <div className="modal-content withdraw-modal-card">
+            <h3>Request Withdrawal</h3>
+            <p className="modal-subtitle">
+              Minimum payout threshold is $50.00. Funds will move to pending status upon submission.
+            </p>
+
+            <form onSubmit={handleRequestWithdrawal} className="withdraw-form">
+              <div className="form-group">
+                <label className="form-label">Amount ($ USD)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="50.00"
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Payout Method</label>
+                <select
+                  value={withdrawMethod}
+                  onChange={(e) => setWithdrawMethod(e.target.value)}
+                  className="form-select"
+                >
+                  <option value="Payoneer">Payoneer</option>
+                  <option value="PayPal">PayPal</option>
+                  <option value="Bank Transfer">Direct Bank Transfer</option>
+                </select>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => setIsWithdrawModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-confirm-delete"
+                  disabled={isSubmittingWithdraw}
+                >
+                  {isSubmittingWithdraw ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* DYNAMIC TOAST CONTAINER */}
       <div id="toast-container">
         {toasts.map((toast) => (
@@ -1335,5 +1484,3 @@ useEffect(() => {
     </div>
   );
 }
-
-

@@ -1968,7 +1968,7 @@
 
 
 /* ===========================================================
-   TIER & PRESTIGE GAMIFICATION CARD
+   Inline CSS Removed From Main File - TIER & PRESTIGE GAMIFICATION CARD
    =========================================================== */
 
 .tier-card-container {
@@ -2053,4 +2053,56 @@
   height: 100%;
   background-color: #2563eb;
   transition: width 0.4s ease-in-out;
+}
+
+
+
+/* --- WITHDRAWAL MODAL STYLES --- */
+.withdraw-modal-card {
+  max-width: 440px;
+  width: 100%;
+}
+
+.modal-subtitle {
+  font-size: 0.85rem;
+  color: #718096;
+  margin-top: 6px;
+  margin-bottom: 18px;
+  line-height: 1.4;
+}
+
+.withdraw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+  background-color: #ffffff;
+  color: #2d3748;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: #3182ce;
 }
