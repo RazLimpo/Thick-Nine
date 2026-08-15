@@ -1,3 +1,5 @@
+//affiliate-dashboard
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,7 +8,7 @@ import "@/styles/pages/affiliate-dashboard.css";
 
 // --- TYPES & INTERFACES ---
 interface SavedLink {
-  id: number;
+  id: string | number;
   url: string;
   name: string;
   date: string;
@@ -153,15 +155,7 @@ export default function AffiliateDashboardClient() {
       .finally(() => setIsAuthLoading(false));
   }, [router]);
 
-  // Prevent flash of unauthenticated content while loading session
-  if (isAuthLoading) {
-    return (
-      <div className="aff-dash-bg" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
-        <p>Verifying authentication...</p>
-      </div>
-    );
-  }
-
+  
 
   // Read URL search parameters
   const searchParams = useSearchParams();
@@ -175,12 +169,13 @@ export default function AffiliateDashboardClient() {
     return tabParam || 'dashboard';
   };
 
+  
   // --- APPLICATION & TAB STATE ---
   const [activeTab, setActiveTab] = useState<string>(getInitialTab);
   const [networkView, setNetworkView] = useState<string>('view-partners');
-  const [activeShareSheetId, setActiveShareSheetId] = useState<number | null>(null);
+  const [activeShareSheetId, setActiveShareSheetId] = useState<string | number | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
+    
   // Keep state updated if a user clicks header links while on the page
   useEffect(() => {
     if (tabParam === 'campaigns') {
@@ -194,13 +189,15 @@ export default function AffiliateDashboardClient() {
     }
   }, [tabParam]);
     
+  
   // --- DEEP LINK GENERATOR STATE ---
   const [targetUrl, setTargetUrl] = useState<string>('');
   const [linkNickname, setLinkNickname] = useState<string>('');
   const [generatedLink, setGeneratedLink] = useState<string>('');
   const [savedLinks, setSavedLinks] = useState<SavedLink[]>([]);
-  const [linkToDelete, setLinkToDelete] = useState<number | null>(null);
-
+  const [linkToDelete, setLinkToDelete] = useState<string | number | null>(null);
+    
+    
   // --- FEATURED VIDEO & HANDPICKED SERVICES STATE ---
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoPreviewType, setVideoPreviewType] = useState<'embed' | 'file' | 'none'>('none');
@@ -214,17 +211,30 @@ export default function AffiliateDashboardClient() {
   // --- MODALS STATE ---
   const [isMediaKitOpen, setIsMediaKitOpen] = useState<boolean>(false);
 
-  // --- PERSISTENCE & DOT COLOR EFFECT ---
+ // --- PERSISTENCE & DOT COLOR EFFECT ---
+  // Fetch saved links from DB on load
   useEffect(() => {
-    const localLinks = localStorage.getItem('myAffiliateLinks');
-    if (localLinks) {
-      try {
-        setSavedLinks(JSON.parse(localLinks));
-      } catch (e) {
-        console.error("Failed to parse saved links", e);
+    if (!authToken) return;
+
+    fetch('/api/affiliate/links', {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
       }
-    }
-  }, []);
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.links)) {
+          const formatted = data.links.map((link: any) => ({
+            id: link._id,
+            url: link.url,
+            name: link.name,
+            date: new Date(link.createdAt).toLocaleDateString()
+          }));
+          setSavedLinks(formatted);
+        }
+      })
+      .catch((err) => console.error('Error fetching affiliate links:', err));
+  }, [authToken]);
 
   // Update dynamic CSS variable on active tab change
 
@@ -241,6 +251,17 @@ useEffect(() => {
   const targetColor = tabColors[activeTab] || "var(--primary-color, #ff2d55)";
   document.documentElement.style.setProperty("--active-dot-color", targetColor);
 }, [activeTab]);
+    
+    
+    // Prevent flash of unauthenticated content while loading session
+  if (isAuthLoading) {
+    return (
+      <div className="aff-dash-bg" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
+        <p>Verifying authentication...</p>
+      </div>
+    );
+  }
+
 
   const triggerToast = (message: string, type: 'success' | 'removed' = 'success') => {
     const id = Date.now();
@@ -257,7 +278,7 @@ useEffect(() => {
       return;
     }
     const separator = targetUrl.includes('?') ? '&' : '?';
-    const finalUrl = `${targetUrl.trim()}${separator}ref=${AFFILIATE_ID}`;
+    const finalUrl = `${targetUrl.trim()}${separator}ref=${affiliateId}`;
     setGeneratedLink(finalUrl);
     triggerToast("Link generated!");
   };
@@ -286,12 +307,29 @@ useEffect(() => {
     triggerToast("Link saved with nickname!");
   };
 
-  const confirmDeleteSavedLink = () => {
-    if (linkToDelete !== null) {
-      const updated = savedLinks.filter((l) => l.id !== linkToDelete);
-      setSavedLinks(updated);
-      localStorage.setItem('myAffiliateLinks', JSON.stringify(updated));
-      triggerToast("Link successfully removed", "removed");
+ const confirmDeleteSavedLink = async () => {
+    if (linkToDelete === null) return;
+
+    try {
+      const res = await fetch(`/api/affiliate/links/${linkToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setSavedLinks((prev) => prev.filter((l) => l.id !== linkToDelete));
+        triggerToast("Link successfully removed", "removed");
+      } else {
+        triggerToast(data.message || "Failed to delete link", "removed");
+      }
+    } catch (err) {
+      console.error("Error deleting link:", err);
+      triggerToast("Server error deleting link", "removed");
+    } finally {
       setLinkToDelete(null);
     }
   };
@@ -301,21 +339,38 @@ useEffect(() => {
     triggerToast(msg);
   };
 
-  // --- MEDIA & STORE HANDLERS ---
-  const handleUpdateVideoFromLink = () => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = videoUrl.match(regExp);
+ // --- MEDIA & STORE HANDLERS ---
+  const handleUpdateVideoFromLink = async () => {
+    if (!videoUrl.trim()) {
+      triggerToast('Please enter a video URL first', 'removed');
+      return;
+    }
 
-    if (match && match[2].length === 11) {
-      setVideoEmbedSrc(`https://www.youtube.com/embed/${match[2]}`);
-      setVideoPreviewType('embed');
-      setFileNameDisplay('');
-      triggerToast("Video URL updated!");
-    } else {
-      alert("Please enter a valid YouTube link.");
+    try {
+      const res = await fetch('/api/affiliate/store/video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ videoUrl: videoUrl.trim() })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setVideoEmbedSrc(data.featuredVideoUrl || videoUrl.trim());
+        setVideoPreviewType('embed');
+        setVideoUrl('');
+        triggerToast('Featured video updated successfully!');
+      } else {
+        triggerToast(data.msg || 'Failed to update video', 'removed');
+      }
+    } catch (err) {
+      console.error('Error updating video:', err);
+      triggerToast('Server error updating video', 'removed');
     }
   };
-
+    
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -347,7 +402,7 @@ useEffect(() => {
       )
     : [];
 
-  const handleAddHandpickedService = (service: HandpickedService) => {
+ const handleAddHandpickedService = (service: HandpickedService) => {
     if (selectedServices.find((s) => s.id === service.id)) {
       alert("This service is already in your list.");
       return;
@@ -356,29 +411,68 @@ useEffect(() => {
       alert("Maximum 6 services reached. Please remove one before adding another.");
       return;
     }
-    setSelectedServices([...selectedServices, service]);
+    const updated = [...selectedServices, service];
     setServiceSearch('');
+    handleSavePinnedServices(updated);
   };
 
   const handleRemoveService = (id: number) => {
     if (confirm("Remove this service from your recommendations?")) {
-      setSelectedServices(selectedServices.filter((s) => s.id !== id));
+      const updated = selectedServices.filter((s) => s.id !== id);
+      handleSavePinnedServices(updated);
     }
   };
+    
 
   const handleDragStart = (index: number) => {
     setDragSourceIndex(index);
   };
 
-  const handleDrop = (targetIndex: number) => {
+ 
+    const handleDrop = (targetIndex: number) => {
     if (dragSourceIndex === null || dragSourceIndex === targetIndex) return;
     const updated = [...selectedServices];
     const [movedItem] = updated.splice(dragSourceIndex, 1);
     updated.splice(targetIndex, 0, movedItem);
-    setSelectedServices(updated);
     setDragSourceIndex(null);
+    handleSavePinnedServices(updated);
   };
 
+    
+    
+    // --- PERSIST HANDPICKED SERVICES & REORDERING TO BACKEND ---
+  const handleSavePinnedServices = async (updatedServicesList: HandpickedService[]) => {
+    // Optimistic UI update
+    setSelectedServices(updatedServicesList);
+
+    if (!authToken) return;
+
+    try {
+      const formattedServices = updatedServicesList.map((srv, idx) => ({
+        serviceId: srv.id,
+        displayOrder: idx
+      }));
+
+      const res = await fetch('/api/affiliate/store/services', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ services: formattedServices })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        triggerToast('Handpicked services updated!');
+      } else {
+        triggerToast(data.msg || 'Failed to save services ordering', 'removed');
+      }
+    } catch (err) {
+      console.error('Error saving handpicked services:', err);
+      triggerToast('Server error saving services', 'removed');
+    }
+  };
  
     
     
@@ -831,12 +925,12 @@ useEffect(() => {
                   <input
                     type="text"
                     id="freelancer-recruitment-link"
-                    value={`https://mymarketplace.com/join?ref=${AFFILIATE_ID}&type=freelancer`}
+                    value={`https://mymarketplace.com/join?ref=${affiliateId}&type=freelancer`}
                     readOnly
                   />
                   <button
                     className="btn-main-red"
-                    onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${AFFILIATE_ID}&type=freelancer`, 'Recruitment link copied!')}
+                    onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${affiliateId}&type=freelancer`, 'Recruitment link copied!')}
                   >
                     Copy
                   </button>
@@ -1049,8 +1143,8 @@ useEffect(() => {
                     <i className="fas fa-shield-alt fa-2x" style={{ color: '#48bb78', opacity: 0.5 }}></i>
                   </div>
                   <div className="gen-flex">
-                    <input type="text" id="recruit-link" value={`https://mymarketplace.com/join?ref=${AFFILIATE_ID}`} readOnly />
-                    <button className="btn-main-red" onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${AFFILIATE_ID}`, 'Recruitment link copied!')}>
+                    <input type="text" id="recruit-link" value={`https://mymarketplace.com/join?ref=${affiliateId}`} readOnly />
+                    <button className="btn-main-red" onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${affiliateId}`, 'Recruitment link copied!')}>
                       Copy Link
                     </button>
                   </div>
