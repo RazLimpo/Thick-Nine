@@ -309,14 +309,43 @@ useEffect(() => {
     }, 3500);
   };
 
+
+
+// --- SECTION 3: EVENT HANDLERS & ACTION FUNCTIONS ---
+
+  // Security & Sanitization Helpers
+  const sanitizeInput = (str: string): string => {
+    return str.replace(/[<>]/g, '').trim();
+  };
+
+  const isValidHttpUrl = (str: string): boolean => {
+    try {
+      const url = new URL(str);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch (_) {
+      return false;
+    }
+  };
+
+
+
+
   // --- LINK GENERATOR HANDLERS ---
   const handleGenerateLink = () => {
-    if (!targetUrl.trim()) {
+    const sanitizedUrl = sanitizeInput(targetUrl);
+
+    if (!sanitizedUrl) {
       triggerToast("Please paste a URL first!", "removed");
       return;
     }
-    const separator = targetUrl.includes('?') ? '&' : '?';
-    const finalUrl = `${targetUrl.trim()}${separator}ref=${affiliateId}`;
+
+    if (!isValidHttpUrl(sanitizedUrl)) {
+      triggerToast("Please enter a valid URL (e.g. https://...)", "removed");
+      return;
+    }
+
+    const separator = sanitizedUrl.includes('?') ? '&' : '?';
+    const finalUrl = `${sanitizedUrl}${separator}ref=${affiliateId}`;
     setGeneratedLink(finalUrl);
     triggerToast("Link generated!");
   };
@@ -375,6 +404,7 @@ useEffect(() => {
 
 // --- WITHDRAWAL HANDLER ---
   const handleRequestWithdrawal = async (e: React.FormEvent) => {
+    if (isSubmittingWithdraw) return;
     e.preventDefault();
     const amountNum = parseFloat(withdrawAmount);
 
