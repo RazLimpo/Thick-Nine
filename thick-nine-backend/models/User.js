@@ -569,7 +569,7 @@ storeConfig: {
     
     
     
-        /* ===========================================================
+      /* ===========================================================
        SECTION 17 — USER SETTINGS
        =========================================================== */
 
@@ -600,6 +600,16 @@ storeConfig: {
             default: true
         }
 
+    },
+
+    notificationsEnabled: {
+        type: Boolean,
+        default: true
+    },
+
+    twoFactorEnabled: {
+        type: Boolean,
+        default: false
     }
 
 },
@@ -612,7 +622,6 @@ storeConfig: {
         virtuals: true
     }
 });
-
 
 
 /* ===========================================================

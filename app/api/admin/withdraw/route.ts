@@ -78,7 +78,6 @@ async function verifyAdminFromRequest(req: Request) {
     throw e;
   }
 
-  // Ensure requesting user is an Admin
   const adminUser = await User.findById(decoded.id).select("role");
   if (!adminUser || adminUser.role !== "admin") {
     const e: any = new Error("Forbidden: Admin privileges required");
@@ -87,6 +86,30 @@ async function verifyAdminFromRequest(req: Request) {
   }
 
   return decoded;
+}
+
+/* ---------- GET: Fetch All Withdrawal Requests ---------- */
+export async function GET(req: Request) {
+  try {
+    await connectToDatabase();
+    await verifyAdminFromRequest(req);
+
+    // Fetch all requests sorted by most recent first
+    const withdrawals = await Withdrawal.find({}).sort({ createdAt: -1 });
+
+    return NextResponse.json(
+      {
+        success: true,
+        count: withdrawals.length,
+        withdrawals,
+      },
+      { status: 200 }
+    );
+  } catch (err: any) {
+    const status = err?.status || 500;
+    const message = err?.message || "Server error fetching withdrawals";
+    return NextResponse.json({ success: false, message }, { status });
+  }
 }
 
 /* ---------- POST: Process Withdrawal Request (Approve or Reject) ---------- */
@@ -110,7 +133,6 @@ export async function POST(req: Request) {
     session.startTransaction();
 
     try {
-      // Find withdrawal record within transaction
       const withdrawal = await Withdrawal.findById(withdrawalId).session(session);
       if (!withdrawal) {
         await session.abortTransaction();
@@ -127,7 +149,6 @@ export async function POST(req: Request) {
         );
       }
 
-      // Find recipient user within transaction
       const user = await User.findById(withdrawal.userId).session(session);
       if (!user) {
         await session.abortTransaction();
@@ -139,19 +160,15 @@ export async function POST(req: Request) {
       const amount = Number(withdrawal.amount);
 
       if (action === "approve") {
-        // Mark withdrawal completed
         withdrawal.status = "completed";
         withdrawal.adminNotes = notes || "Approved by admin";
 
-        // Deduct from pendingBalance and add to lifetimeWithdrawals
         user.wallet.pendingBalance = Math.max(0, Number(((user.wallet.pendingBalance || 0) - amount).toFixed(2)));
         user.wallet.lifetimeWithdrawals = Number(((user.wallet.lifetimeWithdrawals || 0) + amount).toFixed(2));
       } else if (action === "reject") {
-        // Mark withdrawal failed
         withdrawal.status = "failed";
         withdrawal.adminNotes = notes || "Rejected by admin";
 
-        // Refund pending balance back to availableBalance
         user.wallet.pendingBalance = Math.max(0, Number(((user.wallet.pendingBalance || 0) - amount).toFixed(2)));
         user.wallet.availableBalance = Number(((user.wallet.availableBalance || 0) + amount).toFixed(2));
       }
