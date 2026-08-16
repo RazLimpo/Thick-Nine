@@ -3,12 +3,13 @@ import mongoose, { Schema, model, models } from "mongoose";
 import jwt from "jsonwebtoken";
 
 /* ---------- Config / DB Connection ---------- */
-const MONGODB_URI = process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGODB_URI;
-if (!MONGODB_URI) {
-  throw new Error("MONGODB_URI environment variable is required");
-}
+const MONGODB_URI = process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGODB_URI || "";
 
 async function connectToDatabase() {
+  if (!MONGODB_URI) {
+    throw new Error("MONGODB_URI environment variable is required");
+  }
+
   const g = global as any;
   if (g._mongoosePromise) return g._mongoosePromise;
   g._mongoosePromise = mongoose.connect(MONGODB_URI, {});
