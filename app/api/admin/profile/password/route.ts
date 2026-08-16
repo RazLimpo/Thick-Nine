@@ -1,51 +1,61 @@
 import { NextResponse } from "next/server";
 import mongoose, { Schema, model, models } from "mongoose";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 
 /* ---------- Config / DB Connection ---------- */
-const MONGODB_URI = process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGODB_URI;
-if (!MONGODB_URI) {
-  throw new Error("MONGODB_URI environment variable is required");
-}
+const MONGODB_URI = process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGODB_URI || "";
 
 async function connectToDatabase() {
+  if (!MONGODB_URI) {
+    const e: any = new Error("MONGODB_URI environment variable is missing");
+    e.status = 500;
+    throw e;
+  }
+
   const g = global as any;
   if (g._mongoosePromise) return g._mongoosePromise;
-  g._mongoosePromise = mongoose.connect(MONGODB_URI, {});
+
+  g._mongoosePromise = mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
+  });
+
   return g._mongoosePromise;
 }
 
 /* ---------- Schemas & Models ---------- */
 const UserSchema = new Schema(
   {
+    name: { type: String, default: "" },
+    email: { type: String, required: true },
     role: { type: String, default: "user" },
-    password: { type: String, required: true },
+    notificationsEnabled: { type: Boolean, default: true },
+    twoFactorEnabled: { type: Boolean, default: false },
   },
-  { timestamps: true, collection: "users" }
+  { timestamps: true, collection: "users", strict: false }
 );
 
 const User = models.User || model("User", UserSchema);
 
-/* ---------- Auth Helper ---------- */
+/* ---------- Auth & Admin Verification Helper ---------- */
 async function verifyAdminFromRequest(req: Request) {
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   if (!authHeader) {
-    const e: any = new Error("No Authorization header");
+    const e: any = new Error("No Authorization header provided");
     e.status = 401;
     throw e;
   }
 
   const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
-  if (!token) {
-    const e: any = new Error("No token provided");
+  if (!token || token.trim() === "" || token === "null" || token === "undefined") {
+    const e: any = new Error("No valid token found in Authorization header");
     e.status = 401;
     throw e;
   }
 
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    const e: any = new Error("JWT_SECRET not configured");
+    const e: any = new Error("JWT_SECRET environment variable is not configured");
     e.status = 500;
     throw e;
   }
@@ -54,18 +64,18 @@ async function verifyAdminFromRequest(req: Request) {
   try {
     decoded = jwt.verify(token, secret);
   } catch (err) {
-    const e: any = new Error("Invalid or expired token");
+    const e: any = new Error("Invalid or expired authentication token");
     e.status = 401;
     throw e;
   }
 
   if (!decoded || !decoded.id) {
-    const e: any = new Error("Invalid token payload");
+    const e: any = new Error("Invalid token payload structure");
     e.status = 401;
     throw e;
   }
 
-  const adminUser = await User.findById(decoded.id).select("role password");
+  const adminUser = await User.findById(decoded.id).select("role");
   if (!adminUser || adminUser.role !== "admin") {
     const e: any = new Error("Forbidden: Admin privileges required");
     e.status = 403;
@@ -75,52 +85,75 @@ async function verifyAdminFromRequest(req: Request) {
   return { decoded, adminUser };
 }
 
-/* ---------- PUT: Change Admin Password ---------- */
+/* ---------- GET: Fetch Admin Profile ---------- */
+export async function GET(req: Request) {
+  try {
+    await connectToDatabase();
+    const { decoded } = await verifyAdminFromRequest(req);
+
+    const user = await User.findById(decoded.id).select(
+      "name email role notificationsEnabled twoFactorEnabled"
+    );
+
+    if (!user) {
+      return NextResponse.json({ success: false, message: "Admin account not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, user }, { status: 200 });
+  } catch (err: any) {
+    const status = err?.status || 500;
+    const message = err?.message || "Server error fetching admin profile";
+    return NextResponse.json({ success: false, message }, { status });
+  }
+}
+
+/* ---------- PUT: Update Admin Profile Details ---------- */
 export async function PUT(req: Request) {
   try {
     await connectToDatabase();
-    const { adminUser } = await verifyAdminFromRequest(req);
+    const { decoded } = await verifyAdminFromRequest(req);
 
     const body = await req.json().catch(() => ({}));
-    const { currentPassword, newPassword } = body;
+    const { name, email, notificationsEnabled, twoFactorEnabled } = body;
 
-    if (!currentPassword || !newPassword) {
+    if (!name || !email) {
       return NextResponse.json(
-        { success: false, message: "Current password and new password are required" },
+        { success: false, message: "Name and email are required" },
         { status: 400 }
       );
     }
 
-    if (newPassword.length < 8) {
+    // Check email availability if changing email address
+    const existingUser = await User.findOne({ email, _id: { $ne: decoded.id } });
+    if (existingUser) {
       return NextResponse.json(
-        { success: false, message: "New password must be at least 8 characters long" },
+        { success: false, message: "Email is already in use by another account" },
         { status: 400 }
       );
     }
 
-    // Verify current password against stored hash
-    const isMatch = await bcrypt.compare(currentPassword, adminUser.password);
-    if (!isMatch) {
-      return NextResponse.json(
-        { success: false, message: "Incorrect current password" },
-        { status: 400 }
-      );
-    }
-
-    // Hash and save new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    adminUser.password = hashedPassword;
-    await adminUser.save();
+    const updatedUser = await User.findByIdAndUpdate(
+      decoded.id,
+      {
+        name,
+        email,
+        ...(typeof notificationsEnabled === "boolean" && { notificationsEnabled }),
+        ...(typeof twoFactorEnabled === "boolean" && { twoFactorEnabled }),
+      },
+      { new: true, runValidators: true }
+    ).select("name email role notificationsEnabled twoFactorEnabled");
 
     return NextResponse.json(
-      { success: true, message: "Password updated successfully" },
+      {
+        success: true,
+        message: "Profile updated successfully",
+        user: updatedUser,
+      },
       { status: 200 }
     );
   } catch (err: any) {
     const status = err?.status || 500;
-    const message = err?.message || "Server error updating password";
+    const message = err?.message || "Server error updating admin profile";
     return NextResponse.json({ success: false, message }, { status });
   }
 }
