@@ -5,7 +5,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Service = require('../models/Service');
-// const Message = require('../models/Message'); // Uncomment once your Message model exists
+const Message = require('../models/Message'); 
 // const { sendNotificationEmail } = require('../utils/emailService'); // Import your email helper here when ready
 
 // GET /api/admin/stats
@@ -48,13 +48,16 @@ router.get('/messages', auth, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
-    // Return empty array until Message model is instantiated
-    // const messages = await Message.find().populate('senderId', 'fullName email avatar').sort({ createdAt: -1 }).lean();
-    const messages = [];
+    // Fetches real messages from MongoDB sorted by newest first
+    const messages = await Message.find()
+      .populate('senderId', 'fullName email avatar')
+      .populate('repliedBy', 'fullName email')
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       success: true,
-      messages
+      messages: messages || []
     });
   } catch (err) {
     console.error('Error fetching admin messages:', err);
@@ -75,29 +78,35 @@ router.post('/messages/reply', auth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Message ID and reply text are required.' });
     }
 
-    // 1. Update the message document in MongoDB
-    // const updatedMessage = await Message.findByIdAndUpdate(
-    //   messageId,
-    //   {
-    //     adminReply: replyText,
-    //     status: 'replied',
-    //     repliedAt: new Date(),
-    //   },
-    //   { new: true }
-    // ).populate('senderId', 'email fullName');
+    // 1. Update the message document directly in MongoDB
+    const updatedMessage = await Message.findByIdAndUpdate(
+      messageId,
+      {
+        adminReply: replyText,
+        repliedBy: req.user.id,
+        status: 'replied',
+        repliedAt: new Date(),
+      },
+      { new: true }
+    ).populate('senderId', 'email fullName');
 
-    // Mock response placeholder until Message model is instantiated
-    const updatedMessage = { _id: messageId, adminReply: replyText, status: 'replied' };
+    if (!updatedMessage) {
+      return res.status(404).json({ success: false, message: 'Message not found.' });
+    }
 
-    // 2. Send simple notification email if helper exists
+    // 2. Optional: Send notification email if helper is active
     // const recipientEmail = updatedMessage.senderId?.email || updatedMessage.senderEmail;
     // if (recipientEmail && typeof sendNotificationEmail === 'function') {
-    //   await sendNotificationEmail({ ... });
+    //   await sendNotificationEmail({
+    //     to: recipientEmail,
+    //     subject: 'You have a new reply to your message',
+    //     html: `<p>An admin has replied to your inquiry. Log in to your dashboard to view it.</p>`
+    //   });
     // }
 
     return res.status(200).json({
       success: true,
-      message: 'Reply saved and notification email sent successfully.',
+      message: 'Reply saved successfully.',
       data: updatedMessage,
     });
   } catch (err) {
