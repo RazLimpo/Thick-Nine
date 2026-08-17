@@ -12,6 +12,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: 'Dashboard', path: '/admin/dashboard', icon: 'fa-chart-line' },
     { name: 'Clients', path: '/admin/clients', icon: 'fa-users' },
     { name: 'Withdrawals', path: '/admin/withdrawals', icon: 'fa-wallet' },
+    { name: 'Messages', path: '/admin/messages', icon: 'fa-envelope' },
     { name: 'Profile', path: '/admin/profile', icon: 'fa-user-cog' },
   ];
 
