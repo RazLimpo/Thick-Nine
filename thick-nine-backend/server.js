@@ -16,6 +16,7 @@ const Service = require('./models/Service');
 const User = require('./models/User'); 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const affiliateLinksRouter = require('./routes/affiliateLinks');
 const affiliateStoreRouter = require('./routes/affiliateStore');
 const uploadMedia = require('./middleware/upload'); 
@@ -95,6 +96,7 @@ if (skipDatabase) {
 // ====================== REST ROUTE SUB-ROUTERS ======================
 app.use('/api/auth', authRoutes); 
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/affiliate/links', affiliateLinksRouter);
 app.use('/api/affiliate/store', affiliateStoreRouter);
 
