@@ -1,36 +1,21 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
+import { API_BASE_URL } from "@/lib/constants";
 
-/* ---------- Config / DB Connection ---------- */
-const MONGODB_URI = process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGODB_URI || "";
-
-async function connectToDatabase() {
-  if (!MONGODB_URI) {
-    throw new Error("Please define the MONGODB_URI environment variable inside .env");
-  }
-
-  const g = global as any;
-  if (g._mongoosePromise) return g._mongoosePromise;
-  g._mongoosePromise = mongoose.connect(MONGODB_URI, {});
-  return g._mongoosePromise;
+// Handle preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
 }
-
-/* ---------- User Model ---------- */
-const UserSchema = new mongoose.Schema(
-  {
-    email: { type: String, required: true },
-    role: { type: String, default: "client" },
-  },
-  { timestamps: true, collection: "users", strict: false }
-);
-
-const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 /* ---------- POST: Promote User to Admin ---------- */
 export async function POST(req: Request) {
   try {
-    await connectToDatabase();
-
     const body = await req.json().catch(() => ({}));
     const { email, secretKey } = body;
 
@@ -41,37 +26,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify secret key
-    const configuredKey = process.env.ADMIN_SECRET_KEY;
-    if (!configuredKey || secretKey !== configuredKey) {
-      return NextResponse.json(
-        { success: false, message: "Forbidden: Invalid secret key" },
-        { status: 403 }
-      );
-    }
-
-    // Find and update user role
-    const user = await User.findOneAndUpdate(
-      { email: email.toLowerCase().trim() },
-      { role: "admin" },
-      { new: true }
-    );
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: "User with this email was not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: `User ${email} has been successfully promoted to admin!`,
-        user: { id: user._id, email: user.email, role: user.role },
+    // Proxy the promotion request directly to your Render Express backend
+    const backendRes = await fetch(`${API_BASE_URL}/api/auth/promote-admin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      { status: 200 }
-    );
+      body: JSON.stringify({ email, secretKey }),
+    });
+
+    const data = await backendRes.json();
+
+    return NextResponse.json(data, { status: backendRes.status });
   } catch (err: any) {
     return NextResponse.json(
       { success: false, message: err?.message || "Server error" },
