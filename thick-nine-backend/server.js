@@ -97,6 +97,7 @@ if (skipDatabase) {
 app.use('/api/auth', authRoutes); 
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api', require('./routes/contactRoutes'));
 app.use('/api/affiliate/links', affiliateLinksRouter);
 app.use('/api/affiliate/store', affiliateStoreRouter);
 
