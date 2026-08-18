@@ -126,7 +126,7 @@ export default function SubAdminsClient() {
               {subAdmins.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>
-                    No sub-admins found. Click "Add Sub-Admin" to create one.
+                    No sub-admins found. Click &quot;Add Sub-Admin&quot; to create one.
                   </td>
                 </tr>
               ) : (
