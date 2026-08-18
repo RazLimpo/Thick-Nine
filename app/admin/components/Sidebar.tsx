@@ -1,5 +1,3 @@
-//app/admin/components/Sidebar.tsx
-
 'use client';
 
 import React from 'react';
@@ -15,14 +13,16 @@ interface NavItem {
   name: string;
   path: string;
   icon: string;
-  permission?: string; // Optional: If omitted, visible to all logged-in admins
+  permission?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: 'fa-chart-line' },
-  { name: 'Messages', path: '/admin/messages', icon: 'fa-envelope', permission: 'messages:read' },
   { name: 'Clients', path: '/admin/clients', icon: 'fa-users', permission: 'users:read' },
+  { name: 'Withdrawals', path: '/admin/withdrawals', icon: 'fa-wallet', permission: 'payouts:read' },
+  { name: 'Messages', path: '/admin/messages', icon: 'fa-envelope', permission: 'messages:read' },
   { name: 'Team Roles', path: '/admin/sub-admins', icon: 'fa-user-shield', permission: 'roles:manage' },
+  { name: 'Profile', path: '/admin/profile', icon: 'fa-user-cog' },
 ];
 
 export default function AdminSidebar({ user }: SidebarProps) {
@@ -37,18 +37,17 @@ export default function AdminSidebar({ user }: SidebarProps) {
 
       <nav className="sidebar-nav">
         {NAV_ITEMS.map((item) => {
-          // Hide navigation link if user lacks permission
           if (item.permission && !hasPermission(user, item.permission)) {
             return null;
           }
 
-          const isActive = pathname === item.path;
+          const isActive = pathname.startsWith(item.path);
 
           return (
             <Link
               key={item.path}
               href={item.path}
-              className={`nav-link ${isActive ? 'active' : ''}`}
+              className={`nav-item ${isActive ? 'active' : ''}`}
             >
               <i className={`fas ${item.icon}`} aria-hidden="true"></i>
               <span>{item.name}</span>
