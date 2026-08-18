@@ -6,12 +6,14 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Service = require('../models/Service');
 const Message = require('../models/Message'); 
+const Admin = require('../models/Admin');
+const { requirePermission } = require('../middleware/rbac');
 // const { sendNotificationEmail } = require('../utils/emailService'); // Import your email helper here when ready
 
 // GET /api/admin/stats
 router.get('/stats', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'sub_admin') {
       return res.status(403).json({ success: false, message: 'Access denied. Admin privileges required.' });
     }
 
@@ -41,14 +43,9 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
-// GET /api/admin/messages
-router.get('/messages', auth, async (req, res) => {
+// GET /api/admin/messages - Protected by 'messages:read'
+router.get('/messages', auth, requirePermission('messages:read'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Access denied.' });
-    }
-
-    // Fetches real messages from MongoDB sorted by newest first
     const messages = await Message.find()
       .populate('senderId', 'fullName email avatar')
       .populate('repliedBy', 'fullName email')
@@ -65,20 +62,15 @@ router.get('/messages', auth, async (req, res) => {
   }
 });
 
-// POST /api/admin/messages/reply
-router.post('/messages/reply', auth, async (req, res) => {
+// POST /api/admin/messages/reply - Protected by 'messages:reply'
+router.post('/messages/reply', auth, requirePermission('messages:reply'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Access denied.' });
-    }
-
     const { messageId, replyText } = req.body;
 
     if (!messageId || !replyText) {
       return res.status(400).json({ success: false, message: 'Message ID and reply text are required.' });
     }
 
-    // 1. Update the message document directly in MongoDB
     const updatedMessage = await Message.findByIdAndUpdate(
       messageId,
       {
@@ -94,16 +86,6 @@ router.post('/messages/reply', auth, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Message not found.' });
     }
 
-    // 2. Optional: Send notification email if helper is active
-    // const recipientEmail = updatedMessage.senderId?.email || updatedMessage.senderEmail;
-    // if (recipientEmail && typeof sendNotificationEmail === 'function') {
-    //   await sendNotificationEmail({
-    //     to: recipientEmail,
-    //     subject: 'You have a new reply to your message',
-    //     html: `<p>An admin has replied to your inquiry. Log in to your dashboard to view it.</p>`
-    //   });
-    // }
-
     return res.status(200).json({
       success: true,
       message: 'Reply saved successfully.',
@@ -112,6 +94,99 @@ router.post('/messages/reply', auth, async (req, res) => {
   } catch (err) {
     console.error('Error replying to message:', err);
     return res.status(500).json({ success: false, message: 'Server error processing reply.' });
+  }
+});
+
+// ==================================================================
+// SUB-ADMIN MANAGEMENT ROUTES (Protected by 'roles:manage')
+// ==================================================================
+
+// 1. POST /api/admin/sub-admins - Create a new Sub-Admin
+router.post('/sub-admins', auth, requirePermission('roles:manage'), async (req, res) => {
+  try {
+    const { name, email, password, permissions } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    }
+
+    const existingAdmin = await Admin.findOne({ email });
+    if (existingAdmin) {
+      return res.status(400).json({ success: false, message: 'An admin with this email already exists.' });
+    }
+
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newSubAdmin = await Admin.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: 'sub_admin',
+      permissions: permissions || [],
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Sub-admin created successfully.',
+      data: {
+        id: newSubAdmin._id,
+        name: newSubAdmin.name,
+        email: newSubAdmin.email,
+        role: newSubAdmin.role,
+        permissions: newSubAdmin.permissions,
+      },
+    });
+  } catch (err) {
+    console.error('Error creating sub-admin:', err);
+    return res.status(500).json({ success: false, message: 'Server error creating sub-admin.' });
+  }
+});
+
+// 2. GET /api/admin/sub-admins - List all Sub-Admins
+router.get('/sub-admins', auth, requirePermission('roles:manage'), async (req, res) => {
+  try {
+    const subAdmins = await Admin.find({ role: 'sub_admin' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      data: subAdmins,
+    });
+  } catch (err) {
+    console.error('Error fetching sub-admins:', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve sub-admins.' });
+  }
+});
+
+// 3. PUT /api/admin/sub-admins/:id/permissions - Update permissions or status
+router.put('/sub-admins/:id/permissions', auth, requirePermission('roles:manage'), async (req, res) => {
+  try {
+    const { permissions, isActive } = req.body;
+
+    const updatedAdmin = await Admin.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...(permissions && { permissions }),
+        ...(typeof isActive === 'boolean' && { isActive }),
+      },
+      { new: true }
+    ).select('-password');
+
+    if (!updatedAdmin) {
+      return res.status(404).json({ success: false, message: 'Sub-admin not found.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Sub-admin permissions updated successfully.',
+      data: updatedAdmin,
+    });
+  } catch (err) {
+    console.error('Error updating sub-admin:', err);
+    return res.status(500).json({ success: false, message: 'Server error updating sub-admin.' });
   }
 });
 

@@ -1,44 +1,27 @@
+// app/admin/layout.tsx
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import '@/styles/pages/admin-portal.css';
+import AdminSidebar from './components/Sidebar'; // <-- IMPORT ADDED HERE
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
-  const navItems = [
-    { name: 'Dashboard', path: '/admin/dashboard', icon: 'fa-chart-line' },
-    { name: 'Clients', path: '/admin/clients', icon: 'fa-users' },
-    { name: 'Withdrawals', path: '/admin/withdrawals', icon: 'fa-wallet' },
-    { name: 'Messages', path: '/admin/messages', icon: 'fa-envelope' },
-    { name: 'Profile', path: '/admin/profile', icon: 'fa-user-cog' },
-  ];
+  
+  // TEMPORARY MOCK USER
+  // Replace this later with your actual global auth state (e.g., from context, Redux, or a fetch hook)
+  const currentUser = {
+    id: '1',
+    name: 'Super Admin',
+    email: 'admin@thicknine.com',
+    role: 'super_admin' as const, 
+    permissions: [],
+  };
 
   return (
     <div className="admin-container">
-      {/* SIDEBAR */}
-      <aside className="admin-sidebar">
-        <div className="sidebar-brand">
-          <h2>Admin Portal</h2>
-        </div>
-        <nav className="sidebar-nav">
-          {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.path);
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={`nav-item ${isActive ? 'active' : ''}`}
-              >
-                <i className={`fas ${item.icon}`}></i>
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
+      
+      {/* SIDEBAR COMPONENT INJECTED HERE */}
+      <AdminSidebar user={currentUser} />
 
       {/* MAIN CONTENT WORKSPACE */}
       <main className="admin-main">
