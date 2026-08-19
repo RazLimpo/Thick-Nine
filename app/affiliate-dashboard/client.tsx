@@ -43,6 +43,7 @@ export default function AffiliateDashboardClient() {
   const [affiliateId, setAffiliateId] = useState<string>('');
   const [authToken, setAuthToken] = useState<string>('');
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Store Customizer State
   const [storeTitle, setStoreTitle] = useState<string>('');
@@ -159,7 +160,10 @@ export default function AffiliateDashboardClient() {
         }
       })
       .catch((err) => console.error('Error loading affiliate profile:', err))
-      .finally(() => setIsAuthLoading(false));
+.finally(() => {
+  setIsAuthLoading(false);
+  setIsLoading(false);
+});
   }, [router]);  
 
   // Read URL search parameters
@@ -768,30 +772,47 @@ useEffect(() => {
                 </div>
               </div>
 
-              <div className="aff-stats-row">
-          
-                <div className="aff-card stat-item bg-blue">
-                  <div className="stat-icon-circle"><i className="fas fa-mouse-pointer"></i></div>
-                  <div className="stat-content">
-                    <span className="s-label">Total Clicks</span>
-                    <h2 className="s-value" id="total-clicks-val">{savedLinks.length}</h2>
-                  </div>
-                </div>
-                <div className="aff-card stat-item bg-red">
-                  <div className="stat-icon-circle"><i className="fas fa-wallet"></i></div>
-                  <div className="stat-content">
-                    <span className="s-label">Total Commission</span>
-                    <h2 className="s-value">$1,450.00</h2>
-                  </div>
-                </div>
-                <div className="aff-card stat-item bg-green">
-                  <div className="stat-icon-circle"><i className="fas fa-clock"></i></div>
-                  <div className="stat-content">
-                    <span className="s-label">Pending Balance</span>
-                    <h2 className="s-value">$120.50</h2>
-                  </div>
-                </div>
-              </div>
+              {/* --- STATISTICAL METRICS GRID WITH SHIMMER LOADING --- */}
+{isLoading ? (
+  <div className="aff-stats-row">
+    <div className="skeleton-card">
+      <div className="skeleton-box skeleton-text-sm"></div>
+      <div className="skeleton-box skeleton-text-lg"></div>
+    </div>
+    <div className="skeleton-card">
+      <div className="skeleton-box skeleton-text-sm"></div>
+      <div className="skeleton-box skeleton-text-lg"></div>
+    </div>
+    <div className="skeleton-card">
+      <div className="skeleton-box skeleton-text-sm"></div>
+      <div className="skeleton-box skeleton-text-lg"></div>
+    </div>
+  </div>
+) : (
+  <div className="aff-stats-row">
+    <div className="aff-card stat-item bg-blue">
+      <div className="stat-icon-circle"><i className="fas fa-mouse-pointer"></i></div>
+      <div className="stat-content">
+        <span className="s-label">Total Clicks</span>
+        <h2 className="s-value" id="total-clicks-val">{savedLinks.length}</h2>
+      </div>
+    </div>
+    <div className="aff-card stat-item bg-red">
+      <div className="stat-icon-circle"><i className="fas fa-wallet"></i></div>
+      <div className="stat-content">
+        <span className="s-label">Total Commission</span>
+        <h2 className="s-value">${currentEarnings.toFixed(2)}</h2>
+      </div>
+    </div>
+    <div className="aff-card stat-item bg-green">
+      <div className="stat-icon-circle"><i className="fas fa-clock"></i></div>
+      <div className="stat-content">
+        <span className="s-label">Pending Balance</span>
+        <h2 className="s-value">${pendingBalance.toFixed(2)}</h2>
+      </div>
+    </div>
+  </div>
+)}
 
               <div className="aff-grid-secondary">
                 <div className="aff-card chart-island">
