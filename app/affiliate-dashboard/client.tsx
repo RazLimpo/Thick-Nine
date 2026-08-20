@@ -1076,8 +1076,8 @@ useEffect(() => {
                     {selectedServices.length} / 6 Slots Used
                   </span>
                 </div>
-                <p className="section-desc" style={{ marginTop: '8px' }}>Select up to 6 services to display in your "Recommended" section.</p>
-                <div className="search-container-wrapper">
+                <p className="section-desc" style={{ marginTop: '8px' }}>Select up to 6 services to display in your &quot;Recommended&quot; section.</p>
+                  <div className="search-container-wrapper">
                   <div className="service-search-bar">
                     <input
                       type="text"
