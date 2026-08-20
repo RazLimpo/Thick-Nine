@@ -44,6 +44,7 @@ const Header = () => {
     // ====================== URL SEARCH PARAMS ======================
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab');
+  const sourceParam = searchParams.get('source') || 'direct';
     
     
     
@@ -356,15 +357,22 @@ const Header = () => {
     setIsLoading(true);
 
 
-    const userData = { fullName: "New User", username: email.split('@')[0], email, password, role: "client" };
+    const userData = { 
+  fullName: "New User", 
+  username: email.split('@')[0], 
+  email, 
+  password, 
+  role: "client",
+  source: sourceParam
+};
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/finalize-account`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData)
-      });
-
+try {
+  const response = await fetch(`${API_BASE_URL}/api/auth/finalize-account`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData)
+  });
+      
       const data = await response.json();
 
       if (response.ok) {
