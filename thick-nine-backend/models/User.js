@@ -549,6 +549,15 @@ const UserSchema = new mongoose.Schema(
    SECTION 16 — AFFILIATE DATA 
 =========================================================== */
 
+affiliateProfile: {
+  source: {
+    type: String,
+    default: 'direct',
+    trim: true,
+    lowercase: true
+  }
+},
+
 savedLinks: [
   {
     name: { type: String, default: 'Untitled Link' },
@@ -565,8 +574,7 @@ storeConfig: {
       displayOrder: { type: Number, default: 0 }
     }
   ]
-},
-    
+},    
     
     
       /* ===========================================================

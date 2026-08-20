@@ -28,15 +28,7 @@ interface ToastMessage {
   type: 'success' | 'removed';
 }
 
-// --- MOCK MARKETPLACE SERVICES ---
-const MARKETPLACE_SERVICES: HandpickedService[] = [
-  { id: 101, title: "Professional Minimalist Logo", category: "Design", price: 50, img: "https://via.placeholder.com/60" },
-  { id: 102, title: "SEO Optimized Blog Post", category: "Writing", price: 30, img: "https://via.placeholder.com/60" },
-  { id: 103, title: "Social Media Manager", category: "Marketing", price: 150, img: "https://via.placeholder.com/60" },
-  { id: 104, title: "YouTube Video Editing", category: "Video", price: 80, img: "https://via.placeholder.com/60" },
-  { id: 105, title: "Custom WordPress Website", category: "Tech", price: 500, img: "https://via.placeholder.com/60" },
-  { id: 106, title: "Voiceover Artist (Male/Female)", category: "Audio", price: 45, img: "https://via.placeholder.com/60" }
-];
+
 
 export default function AffiliateDashboardClient() {
   const router = useRouter();
@@ -44,6 +36,7 @@ export default function AffiliateDashboardClient() {
   const [authToken, setAuthToken] = useState<string>('');
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [marketplaceServices, setMarketplaceServices] = useState<HandpickedService[]>([]);
 
   // Store Customizer State
   const [storeTitle, setStoreTitle] = useState<string>('');
@@ -185,6 +178,11 @@ export default function AffiliateDashboardClient() {
   const [activeShareSheetId, setActiveShareSheetId] = useState<string | number | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
     
+    
+   // --- SUB-AFFILIATES / TEAM STATE & FETCH ---
+   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+   const [loadingTeam, setLoadingTeam] = useState<boolean>(true);
+    
   // Keep state updated if a user clicks header links while on the page
   useEffect(() => {
     if (tabParam === 'campaigns') {
@@ -255,6 +253,39 @@ export default function AffiliateDashboardClient() {
       })
       .catch((err) => console.error('Error fetching affiliate links:', err));
   }, [authToken]);
+    
+    
+    // Fetch sub-affiliates (team members) on load
+  useEffect(() => {
+    if (!authToken) return;
+
+    fetch('/api/affiliate/network/partners', {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.partners)) {
+          setTeamMembers(data.partners);
+        }
+      })
+      .catch((err) => console.error('Error loading sub-affiliates:', err))
+      .finally(() => setLoadingTeam(false));
+  }, [authToken]);
+    
+
+  // NEW: Fetch live marketplace services on load
+  useEffect(() => {
+    fetch('/api/services')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.services)) {
+          setMarketplaceServices(data.services);
+        }
+      })
+      .catch((err) => console.error('Error loading marketplace services:', err));
+  }, []);
 
     
     
@@ -522,9 +553,9 @@ useEffect(() => {
     }
   };
 
-  // --- HANDPICKED SERVICES HANDLERS ---
+ // --- HANDPICKED SERVICES HANDLERS ---
   const filteredServices = serviceSearch.trim()
-    ? MARKETPLACE_SERVICES.filter(
+    ? marketplaceServices.filter(
         (s) =>
           s.title.toLowerCase().includes(serviceSearch.toLowerCase()) ||
           s.category.toLowerCase().includes(serviceSearch.toLowerCase())
@@ -876,13 +907,23 @@ useEffect(() => {
                     <tr><th>Service Item</th><th>Clicks</th><th>Earnings</th><th>Status</th></tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Graphic Design Pack</td>
-                      <td>452</td>
-                      <td>$45.00</td>
-                      <td><span className="tag-status green">Paid</span></td>
-                    </tr>
-                  </tbody>
+  {savedLinks.length === 0 ? (
+    <tr>
+      <td colSpan={4} style={{ textAlign: 'center', color: '#718096' }}>
+        No recent link activity recorded.
+      </td>
+    </tr>
+  ) : (
+    savedLinks.map((link) => (
+      <tr key={link.id}>
+        <td>{link.name}</td>
+        <td>0</td>
+        <td>$0.00</td>
+        <td><span className="tag-status green">Active</span></td>
+      </tr>
+    ))
+  )}
+</tbody>
                 </table>
               </div>
             </div>
@@ -893,6 +934,64 @@ useEffect(() => {
           ========================================================================= */}
           {activeTab === 'store-management' && (
             <div id="store-management" className="tab-content active">
+              
+              {/* STORE PROFILE & SETTINGS */}
+              <div className="aff-card management-island" style={{ marginBottom: '30px' }}>
+                <h3 className="island-title"><i className="fas fa-id-card"></i> Store Profile Settings</h3>
+                <p className="section-desc">Customize your public affiliate store title and bio seen by potential recruits.</p>
+                
+                <form onSubmit={handleSaveStoreConfig} style={{ marginTop: '15px' }}>
+                  {storeSaveStatus && (
+                    <div style={{
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      marginBottom: '15px',
+                      fontSize: '0.85rem',
+                      background: storeSaveStatus.type === 'success' ? 'rgba(72,187,120,0.15)' : 'rgba(229,62,62,0.15)',
+                      color: storeSaveStatus.type === 'success' ? '#48bb78' : '#e53e3e',
+                      border: `1px solid ${storeSaveStatus.type === 'success' ? '#48bb78' : '#e53e3e'}`
+                    }}>
+                      {storeSaveStatus.message}
+                    </div>
+                  )}
+
+                  <div className="input-group-glass" style={{ marginBottom: '15px' }}>
+                    <i className="fas fa-heading"></i>
+                    <input
+                      type="text"
+                      value={storeTitle}
+                      onChange={(e) => setStoreTitle(e.target.value)}
+                      placeholder="Store Title (e.g., Alex's Tech & Design Hub)"
+                      required
+                    />
+                  </div>
+
+                  <div className="input-group-glass" style={{ marginBottom: '15px' }}>
+                    <i className="fas fa-align-left"></i>
+                    <textarea
+                      value={storeDescription}
+                      onChange={(e) => setStoreDescription(e.target.value)}
+                      placeholder="Store Description / Tagline..."
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'inherit',
+                        outline: 'none',
+                        padding: '10px 0',
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn-main-red" disabled={isSavingStore}>
+                    {isSavingStore ? 'Saving Store...' : 'Save Store Profile'}
+                  </button>
+                </form>
+              </div>
+
+              {/* FEATURED VIDEO */}
               <div className="aff-card management-island">
                 <h3 className="island-title"><i className="fas fa-video"></i> Featured Video</h3>
                 <p className="section-desc">Paste a YouTube or Vimeo link to showcase a tutorial or review on your profile.</p>
@@ -969,15 +1068,15 @@ useEffect(() => {
                 </div>
               </div>
 
+              {/* HANDPICKED SERVICES */}
               <div className="aff-card management-island" style={{ marginTop: '30px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 className="island-title" style={{ margin: 0 }}><i className="fas fa-hand-pointer"></i> Handpicked Service List</h3>
-                  {/* SLOT COUNTER RESTORED */}
                   <span className="badge-count" style={{ background: selectedServices.length === 6 ? '#e53e3e' : '#cc0000', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600 }}>
                     {selectedServices.length} / 6 Slots Used
                   </span>
                 </div>
-                <p className="section-desc" style={{ marginTop: '8px' }}>Select up to 6 services to display in your &quot;Recommended&quot; section.</p>
+                <p className="section-desc" style={{ marginTop: '8px' }}>Select up to 6 services to display in your "Recommended" section.</p>
                 <div className="search-container-wrapper">
                   <div className="service-search-bar">
                     <input
@@ -1056,7 +1155,8 @@ useEffect(() => {
               </div>
             </div>
           )}
-
+          
+          
           {/* =========================================================================
               SECTION 5 — TAB 3: LINK GENERATOR & CAMPAIGNS
           ========================================================================= */}
@@ -1248,138 +1348,135 @@ useEffect(() => {
   )}
           
           
-          {/* =========================================================================
-              SECTION 7 — TAB 5: MY TEAM / NETWORK INTELLIGENCE
-          ========================================================================= */}
-         {activeTab === 'referrals' && (
-           <div id="referrals" className="tab-content active">
-          <div className="team-hero-header">
-                <div className="hero-content">
-                  <h1>Network Intelligence</h1>
-                  <p>You earn from these partners and customers for the lifetime of their accounts.</p>
-                  
-                  <div className="custom-select-wrapper" style={{ marginTop: '25px' }}>
-                    <select
-                      id="network-view-selector"
-                      className="glass-dropdown-select"
-                      value={networkView}
-                      onChange={(e) => setNetworkView(e.target.value)}
-                    >
-                      <option value="view-partners">Sub-Affiliates</option>
-                      <option value="view-freelancers">Recruited Freelancers</option>
-                      <option value="view-customers">Lifetime Customers</option>
-                    </select>
-                    <i className="fas fa-chevron-down select-icon"></i>
-                  </div>
-                </div>
-              </div>
+        {/* =========================================================================
+    SECTION 7 — TAB 5: MY TEAM / NETWORK INTELLIGENCE
+   ========================================================================= */}
+{activeTab === 'referrals' && (
+  <div id="referrals" className="tab-content active">
+    <div className="team-hero-header">
+      <div className="hero-content">
+        <h1>Network Intelligence</h1>
+        <p>You earn from these partners and customers for the lifetime of their accounts.</p>
+        
+        <div className="custom-select-wrapper" style={{ marginTop: '25px' }}>
+          <select
+            id="network-view-selector"
+            className="glass-dropdown-select"
+            value={networkView}
+            onChange={(e) => setNetworkView(e.target.value)}
+          >
+            <option value="view-partners">Sub-Affiliates</option>
+            <option value="view-freelancers">Recruited Freelancers</option>
+            <option value="view-customers">Lifetime Customers</option>
+          </select>
+          <i className="fas fa-chevron-down select-icon"></i>
+        </div>
+      </div>
+    </div>
 
-              <div className="team-container-wide">
-                <div className="aff-card recruitment-island">
-                  <div className="island-header">
-                    <div className="header-text">
-                      <h3>Permanent Recruitment Link</h3>
-                      <p className="small-text">Recruits are locked to your account forever upon signup.</p>
-                    </div>
-                    <i className="fas fa-shield-alt fa-2x" style={{ color: '#48bb78', opacity: 0.5 }}></i>
-                  </div>
-                  <div className="gen-flex">
-                    <input type="text" id="recruit-link" value={`https://mymarketplace.com/join?ref=${affiliateId}`} readOnly />
-                    <button className="btn-main-red" onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${affiliateId}`, 'Recruitment link copied!')}>
-                      Copy Link
-                    </button>
-                  </div>
-                </div>
+    <div className="team-container-wide">
+      <div className="aff-card recruitment-island">
+        <div className="island-header">
+          <div className="header-text">
+            <h3>Permanent Recruitment Link</h3>
+            <p className="small-text">Recruits are locked to your account forever upon signup.</p>
+          </div>
+          <i className="fas fa-shield-alt fa-2x" style={{ color: '#48bb78', opacity: 0.5 }}></i>
+        </div>
+        <div className="gen-flex">
+          <input type="text" id="recruit-link" value={`https://mymarketplace.com/join?ref=${affiliateId}`} readOnly />
+          <button className="btn-main-red" onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${affiliateId}`, 'Recruitment link copied!')}>
+            Copy Link
+          </button>
+        </div>
+      </div>
 
-                <div className="team-views-wrapper" style={{ width: '100%' }}>
-                  {networkView === 'view-partners' && (
-                    <div id="view-partners" className="team-view active" style={{ display: 'flex' }}>
-                      <div className="horizontal-list" style={{ width: '100%' }}>
-                        <div className="aff-card team-horizontal-card">
-                          <div className="card-left">
-                            <div className="user-avatar-rect">JD</div>
-                            <div className="user-info-text">
-                              <strong>J***n D.</strong>
-                              <span>Joined Oct 2025 • <strong><i className="fab fa-youtube source-icon yt"></i></strong></span>
-                            </div>
-                          </div>
-                          <div className="card-right">
-                            <div className="v-stat">
-                              <small>His Sales</small>
-                              <strong>142</strong>
-                            </div>
-                            <div className="v-stat">
-                              <small>Lifetime Override</small>
-                              <strong className="amt-positive">+$840.20</strong>
-                            </div>
-                            <button className="btn-outline-small">View Performance</button>
-                          </div>
+      <div className="team-views-wrapper" style={{ width: '100%' }}>
+        {networkView === 'view-partners' && (
+          <div id="view-partners" className="team-view active" style={{ display: 'flex' }}>
+            <div className="horizontal-list" style={{ width: '100%' }}>
+              
+              {loadingTeam ? (
+                <p style={{ padding: '20px', color: '#94a3b8' }}>Loading sub-affiliates...</p>
+              ) : teamMembers && teamMembers.length > 0 ? (
+                teamMembers.map((member) => {
+                  const memberId = member.id || member._id || member.affiliateId;
+                  const memberName = member.displayName || member.fullName || member.username || 'Sub-Affiliate';
+                  const rawDate = member.memberSince || member.createdAt || member.joinedDate;
+                  const formattedDate = rawDate 
+                    ? new Date(rawDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) 
+                    : 'N/A';
+                  const salesCount = member.sales ?? member.completedOrders ?? member.metrics?.referralCount ?? 0;
+                  const earningsVal = member.wallet?.lifetimeEarnings 
+                    ?? member.metrics?.totalEarnings 
+                    ?? member.commissionEarned 
+                    ?? member.earnings 
+                    ?? 0;
+                  const formattedEarnings = typeof earningsVal === 'number' 
+                    ? earningsVal.toFixed(2) 
+                    : parseFloat(earningsVal || 0).toFixed(2);
+
+                  return (
+                    <div key={memberId} className="aff-card team-horizontal-card">
+                      <div className="card-left">
+                        <div className="user-avatar-rect">
+                          {memberName.substring(0, 2).toUpperCase()}
                         </div>
-
-                        <div className="aff-card team-horizontal-card deactivated" style={{ marginTop: '12px' }}>
-                          <div className="card-left">
-                            <div className="user-avatar-rect">??</div>
-                            <div className="user-info-text">
-                              <strong>Former Partner</strong>
-                              <span>Account Closed • <strong><i className="fab fa-youtube source-icon yt"></i></strong></span>
-                            </div>
-                          </div>
-                          <div className="card-right">
-                            <div className="v-stat">
-                              <small>Status</small>
-                              <span className="tag-status deleted">Deleted</span>
-                            </div>
-                            <div className="v-stat">
-                              <small>Total Generated</small>
-                              <strong className="amt-positive">+$112.00</strong>
-                            </div>
-                          </div>
+                        <div className="user-info-text">
+                          <strong>{memberName}</strong>
+                          <span>Joined {formattedDate}</span>
                         </div>
                       </div>
-                    </div>
-                  )}
-
-                  {networkView === 'view-freelancers' && (
-                    <div id="view-freelancers" className="team-view active" style={{ display: 'block' }}>
-                      <div className="aff-card" style={{ textAlign: 'center', padding: '50px', background: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)', borderRadius: '15px' }}>
-                        <i className="fas fa-user-tie" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }}></i>
-                        <h4 style={{ color: '#475569', marginBottom: '5px' }}>No Freelancers Recruited</h4>
-                        <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Recruit specialists to earn overrides on every service they complete.</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {networkView === 'view-customers' && (
-                    <div id="view-customers" className="team-view active" style={{ display: 'block' }}>
-                      <div className="horizontal-list">
-                        <div className="aff-card team-horizontal-card customer-accent">
-                          <div className="card-left">
-                            <div className="user-avatar-rect cust-bg"><i className="fas fa-shopping-basket"></i></div>
-                            <div className="user-info-text">
-                              <strong>Customer #99201</strong>
-                              <span>Acquired Oct 2025 • <strong><i className="fab fa-facebook source-icon fb"></i></strong></span>
-                            </div>
-                          </div>
-                          <div className="card-right">
-                            <div className="v-stat">
-                              <small>Total Orders</small>
-                              <strong>8 Services</strong>
-                            </div>
-                            <div className="v-stat">
-                              <small>Lifetime Commission</small>
-                              <strong className="amt-positive">+$215.00</strong>
-                            </div>
-                            <button className="btn-outline-small">View Orders</button>
-                          </div>
+                      <div className="card-right">
+                        <div className="v-stat">
+                          <small>Sales</small>
+                          <strong>{salesCount}</strong>
+                        </div>
+                        <div className="v-stat">
+                          <small>Lifetime Override</small>
+                          <strong className="amt-positive">${formattedEarnings}</strong>
                         </div>
                       </div>
                     </div>
-                  )}
+                  );
+                })
+              ) : (
+                <div className="aff-card" style={{ textAlign: 'center', padding: '40px' }}>
+                  <p style={{ color: '#94a3b8' }}>
+                    No sub-affiliates recruited yet. Share your recruitment link to start building your team!
+                  </p>
                 </div>
-              </div>
+              )}
+
             </div>
-          )}
+          </div>
+        )}
 
+        {networkView === 'view-freelancers' && (
+          <div id="view-freelancers" className="team-view active" style={{ display: 'block' }}>
+            <div className="aff-card" style={{ textAlign: 'center', padding: '50px', background: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)', borderRadius: '15px' }}>
+              <i className="fas fa-user-tie" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }}></i>
+              <h4 style={{ color: '#475569', marginBottom: '5px' }}>No Freelancers Recruited</h4>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Recruit specialists to earn overrides on every service they complete.</p>
+            </div>
+          </div>
+        )}
+
+        {networkView === 'view-customers' && (
+          <div id="view-customers" className="team-view active" style={{ display: 'block' }}>
+            <div className="aff-card" style={{ textAlign: 'center', padding: '50px', background: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)', borderRadius: '15px' }}>
+              <i className="fas fa-shopping-basket" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }}></i>
+              <h4 style={{ color: '#475569', marginBottom: '5px' }}>No Lifetime Customers Yet</h4>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Share your link to start earning lifetime commissions on customer orders.</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+          
+          
           {/* =========================================================================
               SECTION 8 — TAB 6: PRESTIGE ROADMAP / AUTHORITY STATUS
           ========================================================================= */}

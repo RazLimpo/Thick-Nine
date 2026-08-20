@@ -14,6 +14,7 @@ const emailService = require('../utils/emailService');
  * by Next.js components. Includes full fallback support for both `avatar` and `profilePicture`,
  * stringifies MongoDB IDs, and delegates location defaults directly to the User schema.
  */
+
 const formatUserPayload = (user) => {
     const userObj = user.toObject ? user.toObject() : user;
     
@@ -35,7 +36,8 @@ const formatUserPayload = (user) => {
         isProfileComplete: Boolean(userObj.isProfileComplete),
         avatar: userAvatar,
         profilePicture: userProfilePicture,
-        location: userObj.location || { country: '', city: '' } // 🔑 Guarantees object shape so frontend keys never crash
+        location: userObj.location || { country: '', city: '' }, // Guarantees object shape
+        source: userObj.affiliateProfile?.source || 'direct' // 🔑 Exposes traffic source to frontend
     };
 };
 
@@ -46,11 +48,17 @@ const formatUserPayload = (user) => {
  */
 exports.register = async (req, res) => {
     try {
-        const { fullName, email, password, role, gender, country, referralCode } = req.body;
+        const { fullName, email, password, role, gender, country, referralCode, source } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ message: "Email and password are required." });
         }
+
+        // Validate source query/body input
+        const validSources = ['youtube', 'facebook', 'instagram', 'twitter', 'linkedin', 'tiktok', 'google'];
+        const detectedSource = source && validSources.includes(source.toLowerCase()) 
+            ? source.toLowerCase() 
+            : 'direct';
 
         // Email Normalization
         const normalizedEmail = email.toLowerCase().trim();
@@ -81,7 +89,7 @@ exports.register = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. Create User Document (Delegates location defaults to User schema if country is unpassed)
+        // 4. Create User Document
         const newUser = new User({
             fullName: fullName ? fullName.trim() : finalUsername,
             username: finalUsername,
@@ -90,7 +98,10 @@ exports.register = async (req, res) => {
             role: role || 'client',
             gender,
             referralCode: referralCode ? referralCode.trim() : undefined,
-            ...(country && { location: { country } }) // Lets schema defaults supply missing fields
+            affiliateProfile: {
+                source: detectedSource
+            },
+            ...(country && { location: { country } })
         });
 
         // 5. Calculate account strength on model instance before initial save
@@ -117,7 +128,6 @@ exports.register = async (req, res) => {
 };
 
 
-
 /**
  * @route   POST /api/auth/finalize-account
  * @desc    FINALIZE ONBOARDING ACCOUNT (Enforces Email Verification Workflow)
@@ -125,11 +135,17 @@ exports.register = async (req, res) => {
  */
 exports.finalizeAccount = async (req, res) => {
     try {
-        const { fullName, email, password, role, gender, country, referralCode } = req.body;
+        const { fullName, email, password, role, gender, country, referralCode, source } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ message: "Email and password are required." });
         }
+
+        // Validate source query/body input
+        const validSources = ['youtube', 'facebook', 'instagram', 'twitter', 'linkedin', 'tiktok', 'google'];
+        const detectedSource = source && validSources.includes(source.toLowerCase()) 
+            ? source.toLowerCase() 
+            : 'direct';
 
         // Email Normalization
         const normalizedEmail = email.toLowerCase().trim();
@@ -164,7 +180,7 @@ exports.finalizeAccount = async (req, res) => {
         const emailVerificationToken = crypto.randomBytes(32).toString('hex');
         const tokenExpiryDate = Date.now() + 24 * 60 * 60 * 1000; // 24 Hours
 
-        // 5. Create User Instance (Delegates location defaults to User schema if country is unpassed)
+        // 5. Create User Instance
         const newUser = new User({
             fullName: fullName ? fullName.trim() : finalUsername,
             username: finalUsername,
@@ -177,6 +193,9 @@ exports.finalizeAccount = async (req, res) => {
             isEmailVerified: false,
             verificationToken: emailVerificationToken,
             verificationTokenExpires: tokenExpiryDate,
+            affiliateProfile: {
+                source: detectedSource
+            },
             ...(country && { location: { country } })
         });
 
@@ -209,6 +228,7 @@ exports.finalizeAccount = async (req, res) => {
         return res.status(500).json({ message: "Critical server error processing account completion." });
     }
 };
+
 
 // ==========================================
 // FILE: controllers/authController.js (PART 2 OF 2)

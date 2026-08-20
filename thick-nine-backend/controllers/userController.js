@@ -55,7 +55,9 @@ const formatUserPayload = (user) => {
     isProfileComplete: Boolean(userObj.isProfileComplete),
     avatar: userAvatar,
     profilePicture: userProfilePicture,
-    location: userObj.location || { country: '', city: '' }
+    location: userObj.location || { country: '', city: '' },
+    // ADD THIS LINE:
+    source: userObj.affiliateProfile?.source || 'direct'
   };
 };
 
