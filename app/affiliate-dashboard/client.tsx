@@ -73,6 +73,15 @@ export default function AffiliateDashboardClient() {
   const [prestigePoints, setPrestigePoints] = useState<number>(0);
   const [currentEarnings, setCurrentEarnings] = useState<number>(0);
   const [tierTargetEarnings, setTierTargetEarnings] = useState<number>(1000);
+    
+    
+    // --- PROGRESSION STATE ---
+  const [progression, setProgression] = useState({
+    monthlySales: 0,
+    targetSales: 5000,
+    progressPercentage: 0,
+  });
+  const [loadingProgression, setLoadingProgression] = useState<boolean>(false);
 
   // Derived progress percentage for UI Progress Bars
   const tierProgressPercent = Math.min(
@@ -215,6 +224,15 @@ export default function AffiliateDashboardClient() {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
+     
+     
+     // --- FREELANCERS NETWORK STATE ---
+  const [freelancers, setFreelancers] = useState<any[]>([]);
+  const [loadingFreelancers, setLoadingFreelancers] = useState<boolean>(false);
+    
+    // --- CUSTOMERS NETWORK STATE ---
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState<boolean>(false);
     
   
   // --- DEEP LINK GENERATOR STATE ---
@@ -223,6 +241,21 @@ export default function AffiliateDashboardClient() {
   const [generatedLink, setGeneratedLink] = useState<string>('');
   const [savedLinks, setSavedLinks] = useState<SavedLink[]>([]);
   const [linkToDelete, setLinkToDelete] = useState<string | number | null>(null);
+    
+    
+    // --- LINK PERFORMANCE STATE ---
+const [linkPerformance, setLinkPerformance] = useState<{
+  totalClicks: number;
+  totalConversions: number;
+  conversionRate: number;
+} | null>(null);
+const [loadingPerformance, setLoadingPerformance] = useState(false);
+  
+  
+    // --- CHART / ANALYTICS STATE ---
+  const [chartData, setChartData] = useState<{ date: string; label: string; amount: number }[]>([]);
+  const [loadingChart, setLoadingChart] = useState(false);
+  const [chartDays, setChartDays] = useState<number>(7);
     
     
     // --- PAYOUTS & WITHDRAWAL STATE ---
@@ -275,6 +308,38 @@ export default function AffiliateDashboardClient() {
   }, [authToken]);
     
     
+    // Fetch link performance metrics on load
+useEffect(() => {
+  const token = localStorage.getItem('token'); 
+  if (!token) return;
+
+  async function fetchPerformanceData() {
+    setLoadingPerformance(true);
+    try {
+      const res = await fetch('/api/affiliate/links/performance', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const json = await res.json();
+      if (json.success && json.performance) {
+        setLinkPerformance(json.performance);
+      }
+    } catch (err) {
+      console.error('Error loading link performance stream:', err);
+    } finally {
+      setLoadingPerformance(false);
+    }
+  }
+
+  fetchPerformanceData();
+}, []);    
+    
+    
+    
+    
+    
     // Fetch sub-affiliates (team members) on load
   useEffect(() => {
     if (!authToken) return;
@@ -293,6 +358,118 @@ export default function AffiliateDashboardClient() {
       .catch((err) => console.error('Error loading sub-affiliates:', err))
       .finally(() => setLoadingTeam(false));
   }, [authToken]);
+
+
+   // Fetch recruited freelancers on load
+useEffect(() => {
+  if (!authToken) return;
+
+  async function fetchFreelancers() {
+    setLoadingFreelancers(true);
+    try {
+      const res = await fetch('/api/affiliate/network/freelancers', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      const json = await res.json();
+      if (json.success && json.freelancers) {
+        setFreelancers(json.freelancers);
+      }
+    } catch (err) {
+      console.error('Error loading recruited freelancers:', err);
+    } finally {
+      setLoadingFreelancers(false);
+    }
+  }
+
+  fetchFreelancers();
+}, [authToken]);
+    
+    
+    // Fetch referred customers on load
+useEffect(() => {
+  if (!authToken) return;
+
+  async function fetchCustomers() {
+    setLoadingCustomers(true);
+    try {
+      const res = await fetch('/api/affiliate/network/customers', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      const json = await res.json();
+      if (json.success && json.customers) {
+        setCustomers(json.customers);
+      }
+    } catch (err) {
+      console.error('Error loading referred customers:', err);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  }
+
+  fetchCustomers();
+}, [authToken]);
+    
+    
+    // Fetch monthly sales progression
+useEffect(() => {
+  if (!authToken) return;
+
+  async function fetchProgression() {
+    setLoadingProgression(true);
+    try {
+      const res = await fetch('/api/affiliate/progression/monthly-sales', {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setProgression({
+          monthlySales: json.monthlySales || 0,
+          targetSales: json.targetSales || 5000,
+          progressPercentage: json.progressPercentage || 0,
+        });
+      }
+    } catch (err) {
+      console.error('Error loading monthly sales progression:', err);
+    } finally {
+      setLoadingProgression(false);
+    }
+  }
+
+  fetchProgression();
+}, [authToken]);
+    
+    
+    // Fetch daily commissions chart data
+useEffect(() => {
+  if (!authToken) return;
+
+  async function fetchChartData() {
+    setLoadingChart(true);
+    try {
+      const res = await fetch(`/api/affiliate/analytics/daily-commissions?days=${chartDays}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      const json = await res.json();
+      if (json.success && json.chartData) {
+        setChartData(json.chartData);
+      }
+    } catch (err) {
+      console.error('Error loading analytics chart:', err);
+    } finally {
+      setLoadingChart(false);
+    }
+  }
+
+  fetchChartData();
+}, [authToken, chartDays]);
     
 
   // NEW: Fetch live marketplace services on load
@@ -721,47 +898,52 @@ useEffect(() => {
   </div>
 
   {/* PARTNER GROWTH WIDGET */}
-  <div className="aff-card glass-promo-widget">
-    <h4>Partner Growth</h4>
-    <p>Increase your commission by reaching 50 sales this month.</p>
-
-    <div className="progress-container">
-      <div className="progress-labels">
-        <span className="start-label">0</span>
-        <span className="end-label">50 Sales</span>
-      </div>
-
-      <div className="progress-track-wrapper">
-        <div className="progress-bar-bg"></div>
-        <div className="progress-bar-fill">
-          <span className="progress-dot"></span>
-        </div>
-      </div>
-
-      <div className="progress-status">
-        Currently at <strong>32</strong> sales
-      </div>
-    </div>
+<div className="aff-card progression-card">
+  <div className="progression-header">
+    <h4>Partner Growth Progress</h4>
+    <span className="progression-percent">{progression.progressPercentage}%</span>
   </div>
+
+  <div className="progress-bar-wrapper">
+    <div
+      className="progress-bar-fill"
+      style={{ width: `${progression.progressPercentage}%` }}
+    />
+  </div>
+
+  <div className="progression-footer">
+    <span className="progression-stat">
+      Monthly Volume: <strong>${progression.monthlySales.toFixed(2)}</strong>
+    </span>
+    <span className="progression-target">
+      Goal: <strong>${progression.targetSales.toFixed(2)}</strong>
+    </span>
+  </div>
+</div>
 
   {/* PRESTIGE SHORTCUT */}
-  <div
-    className="aff-card neumorphic-shortcut"
-    onClick={() => setActiveTab("prestige-roadmap")}
-  >
-    <div className="prestige-shortcut-inner">
-      <div className="mini-badge-a">A</div>
-      <div className="prestige-shortcut-text">
-        <h5 className="prestige-shortcut-title">AUTHORITY STATUS</h5>
-        <div className="prestige-shortcut-meta">
-          <small>
-            Rank: <strong>Associate</strong>
-          </small>
-          <i className="fas fa-chevron-right"></i>
-        </div>
+<div
+  className="aff-card neumorphic-shortcut"
+  onClick={() => setActiveTab("prestige-roadmap")}
+  role="button"
+  tabIndex={0}
+  onKeyDown={(e) => e.key === "Enter" && setActiveTab("prestige-roadmap")}
+>
+  <div className="prestige-shortcut-inner">
+    <div className="mini-badge-a">
+      {(currentTier || "Bronze").charAt(0).toUpperCase()}
+    </div>
+    <div className="prestige-shortcut-text">
+      <h5 className="prestige-shortcut-title">AUTHORITY STATUS</h5>
+      <div className="prestige-shortcut-meta">
+        <small>
+          Rank: <strong>{currentTier || "Bronze"}</strong>
+        </small>
+        <i className="fas fa-chevron-right" />
       </div>
     </div>
   </div>
+</div>
 </aside>
         
         
@@ -824,7 +1006,7 @@ useEffect(() => {
               </div>
 
               {/* --- STATISTICAL METRICS GRID WITH SHIMMER LOADING --- */}
-{isLoading ? (
+{isLoading || loadingPerformance ? (
   <div className="aff-stats-row">
     <div className="skeleton-card">
       <div className="skeleton-box skeleton-text-sm"></div>
@@ -845,7 +1027,9 @@ useEffect(() => {
       <div className="stat-icon-circle"><i className="fas fa-mouse-pointer"></i></div>
       <div className="stat-content">
         <span className="s-label">Total Clicks</span>
-        <h2 className="s-value" id="total-clicks-val">{savedLinks.length}</h2>
+        <h2 className="s-value" id="total-clicks-val">
+          {linkPerformance?.totalClicks ?? 0}
+        </h2>
       </div>
     </div>
     <div className="aff-card stat-item bg-red">
@@ -866,29 +1050,56 @@ useEffect(() => {
 )}
 
               <div className="aff-grid-secondary">
+                
                 <div className="aff-card chart-island">
-                  <div className="island-header">
-                    <h3>Earnings Analytics</h3>
-                    <select className="date-filter">
-                      <option>Last 7 Days</option>
-                      <option>Last 30 Days</option>
-                    </select>
-                  </div>
-                  <div className="chart-area-wrapper">
-                    <div className="chart-placeholder">
-                      <div className="mock-chart">
-                        <div className="bar" style={{ height: '40%' }}></div>
-                        <div className="bar" style={{ height: '60%' }}></div>
-                        <div className="bar" style={{ height: '85%' }}></div>
-                        <div className="bar" style={{ height: '50%' }}></div>
-                        <div className="bar" style={{ height: '90%' }}></div>
-                        <div className="bar" style={{ height: '75%' }}></div>
-                        <div className="bar highlight" style={{ height: '95%' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+  <div className="island-header">
+    <h3>Earnings Analytics</h3>
+    <select 
+      className="date-filter"
+      value={chartDays}
+      onChange={(e) => setChartDays(Number(e.target.value))}
+      disabled={loadingChart}
+    >
+      <option value={7}>Last 7 Days</option>
+      <option value={30}>Last 30 Days</option>
+    </select>
+  </div>
 
+  <div className="chart-area-wrapper">
+    <div className="chart-placeholder">
+      {loadingChart ? (
+        <p style={{ color: '#94a3b8', padding: '20px', textAlign: 'center' }}>
+          Loading earnings data...
+        </p>
+      ) : chartData.length > 0 ? (
+        <div className="mock-chart">
+          {(() => {
+            const maxVal = Math.max(...chartData.map((d) => d.amount), 1);
+
+            return chartData.map((item) => {
+              const heightPercent = Math.max((item.amount / maxVal) * 100, 8);
+              const isHighest = item.amount === maxVal && item.amount > 0;
+
+              return (
+                <div
+                  key={item.date}
+                  className={`bar ${isHighest ? 'highlight' : ''}`}
+                  style={{ height: `${heightPercent}%` }}
+                  title={`${item.label} (${item.date}): $${item.amount.toFixed(2)}`}
+                />
+              );
+            });
+          })()}
+        </div>
+      ) : (
+        <p style={{ color: '#94a3b8', padding: '20px', textAlign: 'center' }}>
+          No earnings recorded for this period.
+        </p>
+      )}
+    </div>
+  </div>
+</div>
+                
                 <div className="aff-card tools-island">
                   <h3>Promotion Tools</h3>
                   <p className="small-text">Use these to drive more traffic.</p>
@@ -1479,25 +1690,115 @@ useEffect(() => {
           </div>
         )}
 
-        {networkView === 'view-freelancers' && (
-          <div id="view-freelancers" className="team-view active" style={{ display: 'block' }}>
-            <div className="aff-card" style={{ textAlign: 'center', padding: '50px', background: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)', borderRadius: '15px' }}>
-              <i className="fas fa-user-tie" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }}></i>
-              <h4 style={{ color: '#475569', marginBottom: '5px' }}>No Freelancers Recruited</h4>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Recruit specialists to earn overrides on every service they complete.</p>
+        
+       {networkView === 'view-freelancers' && (
+  <div id="view-freelancers" className="team-view active team-view-flex">
+    <div className="horizontal-list team-list-full">
+      {loadingFreelancers ? (
+        <div className="aff-card loading-state-card">
+          <p className="loading-text">Loading recruited freelancers...</p>
+        </div>
+      ) : freelancers.length > 0 ? (
+        freelancers.map((item) => {
+          const freelancerId = item._id || item.id;
+          const name = item.name || item.fullName || item.username || 'Unnamed Freelancer';
+          const joined = item.joinedAt || item.createdAt || item.memberSince;
+          const formattedDate = joined
+            ? new Date(joined).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+            : 'N/A';
+
+          return (
+            <div key={freelancerId} className="aff-card team-horizontal-card freelancer-item">
+              <div className="card-left">
+                <div className="user-avatar-rect">
+                  {name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="user-info-text">
+                  <strong>{name}</strong>
+                  <span>Joined {formattedDate}</span>
+                </div>
+              </div>
+              <div className="card-right">
+                <div className="v-stat">
+                  <small>Status</small>
+                  <span className={`tag-status ${item.status === 'active' ? 'green' : 'orange'}`}>
+                    {item.status || 'Active'}
+                  </span>
+                </div>
+                <div className="v-stat">
+                  <small>Email</small>
+                  <strong className="email-value">{item.email || '—'}</strong>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })
+      ) : (
+        <div className="aff-card empty-network-card">
+          <i className="fas fa-user-tie empty-network-icon"></i>
+          <h4 className="empty-network-title">No Freelancers Recruited</h4>
+          <p className="empty-network-desc">
+            Recruit specialists to earn overrides on every service they complete.
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
+        
 
         {networkView === 'view-customers' && (
-          <div id="view-customers" className="team-view active" style={{ display: 'block' }}>
-            <div className="aff-card" style={{ textAlign: 'center', padding: '50px', background: 'rgba(0,0,0,0.02)', border: '1px dashed rgba(0,0,0,0.1)', borderRadius: '15px' }}>
-              <i className="fas fa-shopping-basket" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '15px', display: 'block' }}></i>
-              <h4 style={{ color: '#475569', marginBottom: '5px' }}>No Lifetime Customers Yet</h4>
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Share your link to start earning lifetime commissions on customer orders.</p>
+  <div id="view-customers" className="team-view active team-view-flex">
+    <div className="horizontal-list team-list-full">
+      {loadingCustomers ? (
+        <div className="aff-card loading-state-card">
+          <p className="loading-text">Loading referred customers...</p>
+        </div>
+      ) : customers.length > 0 ? (
+        customers.map((item) => {
+          const customerId = item._id || item.id;
+          const name = item.name || item.fullName || item.username || 'Unnamed Customer';
+          const joined = item.joinedAt || item.createdAt || item.memberSince;
+          const formattedDate = joined
+            ? new Date(joined).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+            : 'N/A';
+
+          return (
+            <div key={customerId} className="aff-card team-horizontal-card customer-item">
+              <div className="card-left">
+                <div className="user-avatar-rect">
+                  {name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="user-info-text">
+                  <strong>{name}</strong>
+                  <span>Joined {formattedDate}</span>
+                </div>
+              </div>
+              <div className="card-right">
+                <div className="v-stat">
+                  <small>Lifetime Spent</small>
+                  <strong className="spend-value">${(item.totalSpent || 0).toFixed(2)}</strong>
+                </div>
+                <div className="v-stat">
+                  <small>Email</small>
+                  <strong className="email-value">{item.email || '—'}</strong>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })
+      ) : (
+        <div className="aff-card empty-network-card">
+          <i className="fas fa-shopping-bag empty-network-icon"></i>
+          <h4 className="empty-network-title">No Customers Referred Yet</h4>
+          <p className="empty-network-desc">
+            Share your affiliate links to refer buyers and earn lifetime commissions on all their purchases.
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
       </div>
     </div>
   </div>

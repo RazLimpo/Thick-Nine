@@ -19,6 +19,42 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   GET /api/affiliate/links/performance
+// @desc    Fetch live performance metrics (clicks, conversions, analytics) for user's links
+router.get('/performance', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, msg: 'User not found' });
+    }
+
+    // Aggregating metrics from savedLinks or dedicated user metrics
+    const links = user.savedLinks || [];
+    const totalClicks = links.reduce((acc, link) => acc + (link.clicks || 0), 0);
+    const totalConversions = links.reduce((acc, link) => acc + (link.conversions || 0), 0);
+    const conversionRate = totalClicks > 0 ? parseFloat(((totalConversions / totalClicks) * 100).toFixed(2)) : 0;
+
+    return res.json({
+      success: true,
+      performance: {
+        totalClicks,
+        totalConversions,
+        conversionRate,
+        links: links.map((link) => ({
+          id: link._id,
+          name: link.name,
+          url: link.url,
+          clicks: link.clicks || 0,
+          conversions: link.conversions || 0,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching link performance:', err);
+    return res.status(500).json({ success: false, msg: 'Server error' });
+  }
+});
+
 // @route   POST /api/affiliate/links
 // @desc    Save a new affiliate link
 router.post('/', authMiddleware, async (req, res) => {
@@ -38,6 +74,8 @@ router.post('/', authMiddleware, async (req, res) => {
       _id: new mongoose.Types.ObjectId(),
       name: name || 'Untitled Link',
       url,
+      clicks: 0,
+      conversions: 0,
       date: new Date().toLocaleDateString()
     };
 
