@@ -898,53 +898,72 @@ useEffect(() => {
   </div>
 
   {/* PARTNER GROWTH WIDGET */}
-<div className="aff-card progression-card">
-  <div className="progression-header">
-    <h4>Partner Growth Progress</h4>
-    <span className="progression-percent">{progression.progressPercentage}%</span>
-  </div>
+<div className="aff-card glass-promo-widget">
+  <h4>Partner Growth</h4>
+  <p>Increase your commission by reaching your monthly volume goal.</p>
 
-  <div className="progress-bar-wrapper">
-    <div
-      className="progress-bar-fill"
-      style={{ width: `${progression.progressPercentage}%` }}
-    />
-  </div>
-
-  <div className="progression-footer">
-    <span className="progression-stat">
-      Monthly Volume: <strong>${progression.monthlySales.toFixed(2)}</strong>
-    </span>
-    <span className="progression-target">
-      Goal: <strong>${progression.targetSales.toFixed(2)}</strong>
-    </span>
-  </div>
-</div>
-
-  {/* PRESTIGE SHORTCUT */}
-<div
-  className="aff-card neumorphic-shortcut"
-  onClick={() => setActiveTab("prestige-roadmap")}
-  role="button"
-  tabIndex={0}
-  onKeyDown={(e) => e.key === "Enter" && setActiveTab("prestige-roadmap")}
->
-  <div className="prestige-shortcut-inner">
-    <div className="mini-badge-a">
-      {(currentTier || "Bronze").charAt(0).toUpperCase()}
+  <div className="progress-container">
+    <div className="progress-labels">
+      <span className="start-label">
+        ${progression?.monthlySales?.toFixed(0) ?? 0}
+      </span>
+      <span className="end-label">
+        ${progression?.targetSales?.toFixed(0) ?? 0}
+      </span>
     </div>
-    <div className="prestige-shortcut-text">
-      <h5 className="prestige-shortcut-title">AUTHORITY STATUS</h5>
-      <div className="prestige-shortcut-meta">
-        <small>
-          Rank: <strong>{currentTier || "Bronze"}</strong>
-        </small>
-        <i className="fas fa-chevron-right" />
+
+    <div className="progress-track-wrapper">
+      <div className="progress-bar-bg"></div>
+      <div
+        className="progress-bar-fill"
+        style={{ width: `${progression?.progressPercentage ?? 0}%` }}
+      >
+        <span className="progress-dot"></span>
       </div>
     </div>
+
+    <div className="progress-status">
+      {loadingProgression ? (
+        "Loading progress..."
+      ) : (
+        <>
+          Currently at <strong>{progression?.progressPercentage ?? 0}%</strong> of goal
+        </>
+      )}
+    </div>
   </div>
 </div>
+  
+  
+  {/* PRESTIGE SHORTCUT */}
+<div
+  className="aff-card neumorphic-shortcut"
+  onClick={() => setActiveTab("prestige-roadmap")}
+  role="button"
+  tabIndex={0}
+  onKeyDown={(e) => e.key === "Enter" && setActiveTab("prestige-roadmap")}
+>
+
+  <div className="prestige-shortcut-inner">
+    <div className="mini-badge-a">
+      {(currentTier || "Bronze").charAt(0).toUpperCase()}
+    </div>
+    <div className="prestige-shortcut-text">
+      <h5 className="prestige-shortcut-title">AUTHORITY STATUS</h5>
+      <div className="prestige-shortcut-meta">
+        <small>
+          Rank: <strong>{currentTier || "Bronze"}</strong>
+        </small>
+        <i className="fas fa-chevron-right" />
+      </div>
+    </div>
+  </div>
+</div>
+
 </aside>
+
+
+
         
         
         {/* =========================================================================
