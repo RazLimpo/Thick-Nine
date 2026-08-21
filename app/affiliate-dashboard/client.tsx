@@ -935,33 +935,30 @@ useEffect(() => {
 </div>
   
   
-  {/* PRESTIGE SHORTCUT */}
+ {/* PRESTIGE SHORTCUT */}
 <div
-  className="aff-card neumorphic-shortcut"
-  onClick={() => setActiveTab("prestige-roadmap")}
-  role="button"
-  tabIndex={0}
-  onKeyDown={(e) => e.key === "Enter" && setActiveTab("prestige-roadmap")}
+  className="aff-card neumorphic-shortcut"
+  onClick={() => setActiveTab("prestige-roadmap")}
+  role="button"
+  tabIndex={0}
+  onKeyDown={(e) => e.key === "Enter" && setActiveTab("prestige-roadmap")}
 >
-
-  <div className="prestige-shortcut-inner">
-    <div className="mini-badge-a">
-      {(currentTier || "Bronze").charAt(0).toUpperCase()}
-    </div>
-    <div className="prestige-shortcut-text">
-      <h5 className="prestige-shortcut-title">AUTHORITY STATUS</h5>
-      <div className="prestige-shortcut-meta">
-        <small>
-          Rank: <strong>{currentTier || "Bronze"}</strong>
-        </small>
-        <i className="fas fa-chevron-right" />
-      </div>
-    </div>
-  </div>
+  <div className="prestige-shortcut-inner">
+    <div className="mini-badge-a">
+      {(currentTier || "Bronze").charAt(0).toUpperCase()}
+    </div>
+    <div className="prestige-shortcut-text">
+      <h5 className="prestige-shortcut-title">AUTHORITY STATUS</h5>
+      <div className="prestige-shortcut-meta">
+        <small>
+          Rank: <strong>{currentTier || "Bronze"}</strong>
+        </small>
+        <i className="fas fa-chevron-right"></i>
+      </div>
+    </div>
+  </div>
 </div>
-
 </aside>
-
 
 
         
