@@ -28,6 +28,26 @@ interface ToastMessage {
   type: 'success' | 'removed';
 }
 
+// 👈 ADD THIS HELPER FUNCTION RIGHT HERE
+const getSourceIconClass = (source?: string) => {
+  switch (source?.toLowerCase()) {
+    case 'youtube':
+      return 'fab fa-youtube text-red-500';
+    case 'facebook':
+      return 'fab fa-facebook text-blue-600';
+    case 'twitter':
+    case 'x':
+      return 'fab fa-x-twitter text-slate-200';
+    case 'instagram':
+      return 'fab fa-instagram text-pink-500';
+    case 'linkedin':
+      return 'fab fa-linkedin text-blue-500';
+    case 'tiktok':
+      return 'fab fa-tiktok text-slate-100';
+    default:
+      return 'fas fa-link text-gray-400';
+  }
+};
 
 
 export default function AffiliateDashboardClient() {
@@ -1423,7 +1443,14 @@ useEffect(() => {
                           {memberName.substring(0, 2).toUpperCase()}
                         </div>
                         <div className="user-info-text">
-                          <strong>{memberName}</strong>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong>{memberName}</strong>
+                            {/* Dynamic Source Icon */}
+                            <i 
+                              className={getSourceIconClass(member.source)} 
+                              title={`Source: ${member.source || 'direct'}`} 
+                            />
+                          </div>
                           <span>Joined {formattedDate}</span>
                         </div>
                       </div>
@@ -1474,8 +1501,7 @@ useEffect(() => {
       </div>
     </div>
   </div>
-)}
-          
+)}          
           
           {/* =========================================================================
               SECTION 8 — TAB 6: PRESTIGE ROADMAP / AUTHORITY STATUS
