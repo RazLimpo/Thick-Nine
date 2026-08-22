@@ -652,7 +652,12 @@
 
 /* --- Updated View Container Logic --- */
 /* This ensures the container stays wide even when switching */ 
-.team-views-wrapper { width: 100%; min-height: 300px; /* Optional: prevents height jumping */ display: block; }
+.team-views-wrapper { 
+    width: 100%; 
+    min-height: 0; 
+    display: block; 
+    height: auto;
+}
 
 
 
