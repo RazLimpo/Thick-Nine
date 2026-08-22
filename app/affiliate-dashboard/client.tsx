@@ -1605,7 +1605,7 @@ useEffect(() => {
         <h1>Network Intelligence</h1>
         <p>You earn from these partners and customers for the lifetime of their accounts.</p>
         
-        <div className="custom-select-wrapper" style={{ marginTop: '25px' }}>
+        <div className="custom-select-wrapper">
           <select
             id="network-view-selector"
             className="glass-dropdown-select"
