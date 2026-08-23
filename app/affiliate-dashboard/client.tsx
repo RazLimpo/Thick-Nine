@@ -75,6 +75,19 @@ export default function AffiliateDashboardClient() {
   const [tierTargetEarnings, setTierTargetEarnings] = useState<number>(1000);
     
     
+    
+// --- TIER ROADMAP STATE ---
+const [tiers, setTiers] = useState<
+  { name: string; target: number; badge: string }[]
+>([
+  { name: 'Bronze', target: 0, badge: 'Rising Marketer' },
+  { name: 'Silver', target: 1000, badge: 'Network Builder' },
+  { name: 'Gold', target: 5000, badge: 'Influence Partner' },
+  { name: 'Platinum', target: 15000, badge: 'Authority Leader' },
+  { name: 'Diamond', target: 50000, badge: 'Elite Strategist' },
+]);
+    
+    
     // --- PROGRESSION STATE ---
   const [progression, setProgression] = useState({
     monthlySales: 0,
@@ -174,6 +187,14 @@ export default function AffiliateDashboardClient() {
             setTierTargetEarnings(data.tierInfo.tierTargetEarnings || 1000);
             setCurrentEarnings(data.tierInfo.currentEarnings || 0);
           }
+          
+          
+          // Tier Roadmap (dynamic)
+if (Array.isArray(data.tierInfo?.tiers) && data.tierInfo.tiers.length > 0) {
+  setTiers(data.tierInfo.tiers);
+} else if (Array.isArray(data.tiers) && data.tiers.length > 0) {
+  setTiers(data.tiers);
+}
 
           if (data.affiliateProfile) {
             setPrestigeLevel(data.affiliateProfile.prestigeLevel || 1);
@@ -280,7 +301,9 @@ const [loadingPerformance, setLoadingPerformance] = useState(false);
   const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null);
 
   // --- MODALS STATE ---
-  const [isMediaKitOpen, setIsMediaKitOpen] = useState<boolean>(false);
+const [isMediaKitOpen, setIsMediaKitOpen] = useState<boolean>(false);
+const [isDeleteVideoModalOpen, setIsDeleteVideoModalOpen] = useState(false);
+const [serviceToRemove, setServiceToRemove] = useState<number | null>(null);
 
  // --- PERSISTENCE & DOT COLOR EFFECT ---
   // Fetch saved links from DB on load
@@ -310,55 +333,58 @@ const [loadingPerformance, setLoadingPerformance] = useState(false);
     
     // Fetch link performance metrics on load
 useEffect(() => {
-  const token = localStorage.getItem('token'); 
-  if (!token) return;
+  if (!authToken) return;
 
   async function fetchPerformanceData() {
     setLoadingPerformance(true);
     try {
       const res = await fetch('/api/affiliate/links/performance', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
         },
       });
+
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
       const json = await res.json();
       if (json.success && json.performance) {
         setLinkPerformance(json.performance);
       }
     } catch (err) {
-      console.error('Error loading link performance stream:', err);
+      console.warn('Link performance API offline or unavailable:', err);
     } finally {
       setLoadingPerformance(false);
     }
   }
 
   fetchPerformanceData();
-}, []);    
+}, [authToken]); 
     
     
     
     
     
     // Fetch sub-affiliates (team members) on load
-  useEffect(() => {
-    if (!authToken) return;
+useEffect(() => {
+  if (!authToken) return;
 
-    fetch('/api/affiliate/network/partners', {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
+  fetch('/api/affiliate/network/partners', {
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      if (data.success && Array.isArray(data.partners)) {
+        setTeamMembers(data.partners);
       }
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.partners)) {
-          setTeamMembers(data.partners);
-        }
-      })
-      .catch((err) => console.error('Error loading sub-affiliates:', err))
-      .finally(() => setLoadingTeam(false));
-  }, [authToken]);
-
+    .catch((err) => console.warn('Partners network API offline or unavailable:', err))
+    .finally(() => setLoadingTeam(false));
+}, [authToken]);
+  
 
    // Fetch recruited freelancers on load
 useEffect(() => {
@@ -368,16 +394,17 @@ useEffect(() => {
     setLoadingFreelancers(true);
     try {
       const res = await fetch('/api/affiliate/network/freelancers', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
+        headers: { 'Authorization': `Bearer ${authToken}` },
       });
+
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
       const json = await res.json();
       if (json.success && json.freelancers) {
         setFreelancers(json.freelancers);
       }
     } catch (err) {
-      console.error('Error loading recruited freelancers:', err);
+      console.warn('Freelancers network API offline or unavailable:', err);
     } finally {
       setLoadingFreelancers(false);
     }
@@ -385,7 +412,7 @@ useEffect(() => {
 
   fetchFreelancers();
 }, [authToken]);
-    
+  
     
     // Fetch referred customers on load
 useEffect(() => {
@@ -395,16 +422,17 @@ useEffect(() => {
     setLoadingCustomers(true);
     try {
       const res = await fetch('/api/affiliate/network/customers', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
+        headers: { 'Authorization': `Bearer ${authToken}` },
       });
+
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
       const json = await res.json();
       if (json.success && json.customers) {
         setCustomers(json.customers);
       }
     } catch (err) {
-      console.error('Error loading referred customers:', err);
+      console.warn('Customers network API offline or unavailable:', err);
     } finally {
       setLoadingCustomers(false);
     }
@@ -412,7 +440,7 @@ useEffect(() => {
 
   fetchCustomers();
 }, [authToken]);
-    
+  
     
     // Fetch monthly sales progression
 useEffect(() => {
@@ -422,10 +450,11 @@ useEffect(() => {
     setLoadingProgression(true);
     try {
       const res = await fetch('/api/affiliate/progression/monthly-sales', {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: { Authorization: `Bearer ${authToken}` },
       });
+
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
       const json = await res.json();
       if (json.success) {
         setProgression({
@@ -435,7 +464,7 @@ useEffect(() => {
         });
       }
     } catch (err) {
-      console.error('Error loading monthly sales progression:', err);
+      console.warn('Progression API offline or unavailable:', err);
     } finally {
       setLoadingProgression(false);
     }
@@ -443,7 +472,7 @@ useEffect(() => {
 
   fetchProgression();
 }, [authToken]);
-    
+  
     
     // Fetch daily commissions chart data
 useEffect(() => {
@@ -453,16 +482,17 @@ useEffect(() => {
     setLoadingChart(true);
     try {
       const res = await fetch(`/api/affiliate/analytics/daily-commissions?days=${chartDays}`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
+        headers: { 'Authorization': `Bearer ${authToken}` },
       });
+
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
       const json = await res.json();
       if (json.success && json.chartData) {
         setChartData(json.chartData);
       }
     } catch (err) {
-      console.error('Error loading analytics chart:', err);
+      console.warn('Analytics chart API offline or unavailable:', err);
     } finally {
       setLoadingChart(false);
     }
@@ -470,41 +500,46 @@ useEffect(() => {
 
   fetchChartData();
 }, [authToken, chartDays]);
-    
+  
 
-  // NEW: Fetch live marketplace services on load
-  useEffect(() => {
-    fetch('/api/services')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.services)) {
-          setMarketplaceServices(data.services);
-        }
-      })
-      .catch((err) => console.error('Error loading marketplace services:', err));
-  }, []);
-
-    
-    
-    // Fetch transaction history when Payouts tab is active
-  useEffect(() => {
-    if (activeTab !== 'payouts' || !authToken) return;
-
-    fetch('/api/affiliate/payouts', {
-      headers: {
-        'Authorization': `Bearer ${authToken}`
+  
+  // Fetch live marketplace services on load
+useEffect(() => {
+  fetch('/api/services')
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      if (data.success && Array.isArray(data.services)) {
+        setMarketplaceServices(data.services);
       }
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.payouts)) {
-          setPayoutsHistory(data.payouts);
-        }
-      })
-      .catch((err) => console.error('Error fetching payouts:', err));
-  }, [activeTab, authToken]);
-    
-    
+    .catch((err) => console.warn('Marketplace services API offline or unavailable:', err));
+}, []);
+  
+
+// Fetch transaction history when Payouts tab is active
+useEffect(() => {
+  if (activeTab !== 'payouts' || !authToken) return;
+
+  fetch('/api/affiliate/payouts', {
+    headers: {
+      'Authorization': `Bearer ${authToken}`
+    }
+  })
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      if (data.success && Array.isArray(data.payouts)) {
+        setPayoutsHistory(data.payouts);
+      }
+    })
+    .catch((err) => console.warn('Payouts API offline or unavailable:', err));
+}, [activeTab, authToken]);
+      
     
   // Update dynamic CSS variable on active tab change
 
@@ -741,14 +776,17 @@ useEffect(() => {
   };
 
   const handleDeleteVideoData = () => {
-    if (confirm("Are you sure you want to remove the media?")) {
-      setVideoUrl('');
-      setFileNameDisplay('');
-      setVideoEmbedSrc('');
-      setVideoPreviewType('none');
-      triggerToast("Media removed", "removed");
-    }
-  };
+  setIsDeleteVideoModalOpen(true);
+};
+
+const confirmDeleteVideo = () => {
+  setVideoUrl('');
+  setFileNameDisplay('');
+  setVideoEmbedSrc('');
+  setVideoPreviewType('none');
+  setIsDeleteVideoModalOpen(false);
+  triggerToast("Media removed", "removed");
+};
 
  // --- HANDPICKED SERVICES HANDLERS ---
   const filteredServices = serviceSearch.trim()
@@ -773,12 +811,16 @@ useEffect(() => {
     handleSavePinnedServices(updated);
   };
 
-  const handleRemoveService = (id: number) => {
-    if (confirm("Remove this service from your recommendations?")) {
-      const updated = selectedServices.filter((s) => s.id !== id);
-      handleSavePinnedServices(updated);
-    }
-  };
+ const handleRemoveService = (id: number) => {
+  setServiceToRemove(id);
+};
+
+const confirmRemoveService = () => {
+  if (serviceToRemove === null) return;
+  const updated = selectedServices.filter((s) => s.id !== serviceToRemove);
+  handleSavePinnedServices(updated);
+  setServiceToRemove(null);
+};
     
 
   const handleDragStart = (index: number) => {
@@ -1823,16 +1865,127 @@ useEffect(() => {
           {/* =========================================================================
               SECTION 8 — TAB 6: PRESTIGE ROADMAP / AUTHORITY STATUS
           ========================================================================= */}
-          {activeTab === 'prestige-roadmap' && (
-  <div id="prestige-roadmap" className="tab-content active">          
-              <section id="authority-status-root">
-                <div className="placeholder-content" style={{ textAlign: 'center', padding: '60px' }}>
-                  <i className="fas fa-spinner fa-spin" style={{ color: '#cc0000', fontSize: '2rem' }}></i>
-                  <p style={{ marginTop: '15px', color: '#666' }}>Loading your Prestige Roadmap...</p>
-                </div>
-              </section>
+        {activeTab === 'prestige-roadmap' && (
+  <div id="prestige-roadmap" className="tab-content active">
+    <section id="authority-status-root">
+
+      {/* Current Status Card */}
+      <div className="aff-card prestige-status-card">
+        <div className="prestige-status-header">
+          <div className="prestige-badge-large">
+            {(currentTier || 'B').charAt(0)}
+          </div>
+          <div className="prestige-status-info">
+            <span className="prestige-status-label">Current Authority Rank</span>
+            <h2 className="prestige-status-title">
+              {currentTier || 'Bronze'} Tier
+              <span className="prestige-level-tag">Lvl {prestigeLevel}</span>
+            </h2>
+            <div className="prestige-badge-pill">
+              🏆 {prestigeBadge || 'Rising Marketer'}
             </div>
-          )}
+          </div>
+          <div className="prestige-points-box">
+            <span className="prestige-points-label">Prestige Points</span>
+            <div className="prestige-points-value">
+              {prestigePoints.toLocaleString()} PTS
+            </div>
+          </div>
+        </div>
+
+        {/* Progress to Next Tier */}
+        <div className="prestige-progress-section">
+          <div className="prestige-progress-labels">
+            <span>Progress to <strong>{nextTier || 'Silver'} Tier</strong></span>
+            <span>
+              ${currentEarnings.toLocaleString()} / ${tierTargetEarnings.toLocaleString()}
+              ({tierProgressPercent}%)
+            </span>
+          </div>
+          <div className="prestige-progress-track">
+            <div
+              className="prestige-progress-fill"
+              style={{ width: `${tierProgressPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+          {/* Tier Roadmap */}
+<div className="aff-card prestige-roadmap-card">
+  <h3 className="island-title">Authority Roadmap</h3>
+  <p className="section-desc">
+    Climb the ranks by increasing your lifetime earnings and network performance.
+  </p>
+
+  <div className="roadmap-timeline">
+    {tiers.map((tier, index) => {
+      const isCurrent = (currentTier || 'Bronze') === tier.name;
+      const isCompleted = currentEarnings >= tier.target;
+
+      return (
+        <div
+          key={tier.name}
+          className={`roadmap-step ${isCurrent ? 'current' : ''} ${isCompleted ? 'completed' : ''}`}
+        >
+          <div className="roadmap-marker">
+            <span className="roadmap-marker-inner">
+              {isCompleted ? <i className="fas fa-check"></i> : index + 1}
+            </span>
+          </div>
+          <div className="roadmap-content">
+            <strong className="roadmap-tier-name">{tier.name} Tier</strong>
+            <span className="roadmap-tier-badge">{tier.badge}</span>
+            <span className="roadmap-tier-target">
+              {tier.target === 0
+                ? 'Starting Rank'
+                : `$${tier.target.toLocaleString()} earnings`}
+            </span>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+     
+      {/* Benefits / Perks */}
+      <div className="aff-card prestige-perks-card">
+        <h3 className="island-title">Rank Benefits</h3>
+        <div className="perks-grid">
+          <div className="perk-item">
+            <i className="fas fa-percentage"></i>
+            <div>
+              <strong>Higher Commissions</strong>
+              <p>Unlock increased commission rates as you rank up.</p>
+            </div>
+          </div>
+          <div className="perk-item">
+            <i className="fas fa-users"></i>
+            <div>
+              <strong>Network Overrides</strong>
+              <p>Earn more from your sub-affiliates and freelancers.</p>
+            </div>
+          </div>
+          <div className="perk-item">
+            <i className="fas fa-crown"></i>
+            <div>
+              <strong>Exclusive Badge</strong>
+              <p>Display your authority status across the platform.</p>
+            </div>
+          </div>
+          <div className="perk-item">
+            <i className="fas fa-headset"></i>
+            <div>
+              <strong>Priority Support</strong>
+              <p>Get faster responses from the partner success team.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+)}
 
         </main>
       </div>
@@ -1854,6 +2007,42 @@ useEffect(() => {
     </div>
   </div>
 )}
+        
+        
+        
+        
+        {/* DELETE VIDEO CONFIRMATION MODAL */}
+{isDeleteVideoModalOpen && (
+  <div className="modal-overlay is-active">
+    <div className="modal-content">
+      <div className="modal-icon"><i className="fas fa-exclamation-circle"></i></div>
+      <h3>Remove Media?</h3>
+      <p>Are you sure you want to remove the featured video?</p>
+      <div className="modal-actions">
+        <button className="btn-cancel" onClick={() => setIsDeleteVideoModalOpen(false)}>Cancel</button>
+        <button className="btn-confirm-delete" onClick={confirmDeleteVideo}>Remove</button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* REMOVE SERVICE CONFIRMATION MODAL */}
+{serviceToRemove !== null && (
+  <div className="modal-overlay is-active">
+    <div className="modal-content">
+      <div className="modal-icon"><i className="fas fa-exclamation-circle"></i></div>
+      <h3>Remove Service?</h3>
+      <p>Remove this service from your recommendations?</p>
+      <div className="modal-actions">
+        <button className="btn-cancel" onClick={() => setServiceToRemove(null)}>Cancel</button>
+        <button className="btn-confirm-delete" onClick={confirmRemoveService}>Remove</button>
+      </div>
+    </div>
+  </div>
+)}
+        
+        
+        
 
       {/* BRAND MEDIA KIT MODAL */}
 {isMediaKitOpen && (
