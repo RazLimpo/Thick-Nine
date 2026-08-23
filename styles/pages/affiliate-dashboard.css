@@ -713,12 +713,6 @@
 
 
 
-
-
-.deactivated .amt-positive {
-    color: #a0aec0 !important;
-}
-
 .btn-outline-small {
     background: transparent;
     border: 1px solid var(--primary-color);
@@ -1157,10 +1151,10 @@
 }
 
 .section-desc {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    margin-bottom: 20px;
-    line-height: 1.5;
+    color: var(--text-muted, #718096);
+    font-size: 0.875rem; /* Happy middle ground between 0.85rem and 0.9rem */
+    line-height: 1.45;
+    margin: 0 0 16px 0; /* Clean margin bottom replacement */
 }
 
 /* 2. Video URL Input Group (Soft Dark Glass) */
@@ -1295,7 +1289,8 @@
     border-radius: 16px;
     margin-bottom: 12px;
     gap: 15px;
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: default;
 }
 
 .managed-service-item:hover {
@@ -1520,10 +1515,7 @@
     cursor: grabbing;
 }
 
-.managed-service-item {
-    transition: transform 0.2s, box-shadow 0.2s;
-    cursor: default;
-}
+
 
 
 
@@ -2419,12 +2411,7 @@
   color: #1a202c;
 }
 
-.section-desc {
-  margin: 0 0 10px 0;
-  font-size: 0.85rem;
-  color: #718096;
-  line-height: 1.4;
-}
+
 
 /* Responsive */
 @media (max-width: 640px) {

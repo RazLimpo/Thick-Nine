@@ -306,6 +306,24 @@ const [isDeleteVideoModalOpen, setIsDeleteVideoModalOpen] = useState(false);
 const [serviceToRemove, setServiceToRemove] = useState<number | null>(null);
 
  // --- PERSISTENCE & DOT COLOR EFFECT ---
+  // Initial state hydration from localStorage
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+
+  const localSaved = localStorage.getItem('savedLinks');
+  if (localSaved) {
+    try {
+      const parsed = JSON.parse(localSaved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setSavedLinks(parsed);
+      }
+    } catch (err) {
+      console.warn('Failed to parse cached savedLinks:', err);
+    }
+  }
+}, []);
+  
+  
   // Fetch saved links from DB on load
   useEffect(() => {
     if (!authToken) return;
@@ -596,8 +614,7 @@ useEffect(() => {
 
 
 
-
-  // --- LINK GENERATOR HANDLERS ---
+// --- LINK GENERATOR HANDLERS ---
   const handleGenerateLink = () => {
     const sanitizedUrl = sanitizeInput(targetUrl);
 
@@ -624,7 +641,7 @@ useEffect(() => {
     triggerToast("Generator cleared", "removed");
   };
 
-  const handleSaveLink = () => {
+  const handleSaveLink = async () => {
     if (!generatedLink) return;
     const nickname = linkNickname.trim() || "Untitled Link";
     const newLinkObj: SavedLink = {
@@ -634,14 +651,38 @@ useEffect(() => {
       date: new Date().toLocaleDateString(),
     };
 
+    // 1. Update React State
     const updated = [...savedLinks, newLinkObj];
     setSavedLinks(updated);
-    localStorage.setItem('myAffiliateLinks', JSON.stringify(updated));
+
+    // 2. Sync with LocalStorage (Matches your initial mount key 'myAffiliateLinks')
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('myAffiliateLinks', JSON.stringify(updated));
+    }
+
     setLinkNickname('');
     triggerToast("Link saved with nickname!");
+
+    // 3. Sync with Backend API if authenticated
+    if (authToken) {
+      try {
+        const res = await fetch('/api/affiliate/links', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newLinkObj),
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      } catch (err) {
+        console.warn('Failed to sync saved link with backend:', err);
+      }
+    }
   };
 
- const confirmDeleteSavedLink = async () => {
+  const confirmDeleteSavedLink = async () => {
     if (linkToDelete === null) return;
 
     try {
@@ -652,10 +693,20 @@ useEffect(() => {
         }
       });
 
+      // ADDED: Check res.ok before attempting to parse JSON
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        setSavedLinks((prev) => prev.filter((l) => l.id !== linkToDelete));
+      if (data.success) {
+        const updated = savedLinks.filter((l) => l.id !== linkToDelete);
+        setSavedLinks(updated);
+
+        // Keep LocalStorage in sync on delete
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('myAffiliateLinks', JSON.stringify(updated));
+        }
+
         triggerToast("Link successfully removed", "removed");
       } else {
         triggerToast(data.message || "Failed to delete link", "removed");
@@ -667,7 +718,6 @@ useEffect(() => {
       setLinkToDelete(null);
     }
   };
-
 
 // --- WITHDRAWAL HANDLER ---
   const handleRequestWithdrawal = async (e: React.FormEvent) => {
@@ -733,8 +783,15 @@ useEffect(() => {
 
  // --- MEDIA & STORE HANDLERS ---
   const handleUpdateVideoFromLink = async () => {
-    if (!videoUrl.trim()) {
+    const sanitizedUrl = sanitizeInput(videoUrl);
+
+    if (!sanitizedUrl) {
       triggerToast('Please enter a video URL first', 'removed');
+      return;
+    }
+
+    if (!isValidHttpUrl(sanitizedUrl)) {
+      triggerToast('Please enter a valid video URL (e.g. https://...)', 'removed');
       return;
     }
 
@@ -745,12 +802,14 @@ useEffect(() => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({ videoUrl: videoUrl.trim() })
+        body: JSON.stringify({ videoUrl: sanitizedUrl })
       });
 
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
       const data = await res.json();
-      if (res.ok && data.success) {
-        setVideoEmbedSrc(data.featuredVideoUrl || videoUrl.trim());
+      if (data.success) {
+        setVideoEmbedSrc(data.featuredVideoUrl || sanitizedUrl);
         setVideoPreviewType('embed');
         setVideoUrl('');
         triggerToast('Featured video updated successfully!');
@@ -762,7 +821,8 @@ useEffect(() => {
       triggerToast('Server error updating video', 'removed');
     }
   };
-    
+
+      
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1410,16 +1470,17 @@ const confirmRemoveService = () => {
                       <p>Search and add up to 6 services to feature them on your profile.</p>
                     </div>
                   ) : (
-                    selectedServices.map((service, index) => (
-                      <div
-                        key={service.id}
-                        className="managed-service-item"
-                        draggable
-                        onDragStart={() => handleDragStart(index)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => handleDrop(index)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', marginBottom: '8px' }}
-                      >
+                   selectedServices.map((service, index) => (
+  <div
+    key={service.id}
+    className="managed-service-item"
+    draggable
+    onDragStart={() => handleDragStart(index)}
+    onDragOver={(e) => e.preventDefault()}
+    onDrop={() => handleDrop(index)}
+    onDragEnd={() => setDragSourceIndex(null)}
+    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', marginBottom: '8px' }}
+  >
                         <img src={service.img} alt="Service" style={{ width: '40px', borderRadius: '6px' }} />
                         <div className="service-meta" style={{ flexGrow: 1 }}>
                           <strong>{service.title}</strong>
