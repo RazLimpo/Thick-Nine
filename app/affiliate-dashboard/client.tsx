@@ -6,8 +6,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import "@/styles/pages/affiliate-dashboard.css";
 
-// --- TYPES & INTERFACES ---
-interface SavedLink {
+// =========================================================================
+// TYPES & INTERFACES (REPLACED ALL 'any' TYPES)
+// =========================================================================
+
+export interface SavedLink {
   id?: string | number;
   _id?: string | number;
   url: string;
@@ -17,7 +20,7 @@ interface SavedLink {
   earnings?: number;
 }
 
-interface HandpickedService {
+export interface HandpickedService {
   id?: string | number;
   _id?: string | number;
   title: string;
@@ -26,14 +29,82 @@ interface HandpickedService {
   img: string;
 }
 
-interface ToastMessage {
+export interface ToastMessage {
   id: string | number;
   message: string;
   type: 'success' | 'removed';
 }
 
-// 👈 ADD THIS HELPER FUNCTION RIGHT HERE
-const getSourceIconClass = (source?: string) => {
+export interface TeamMember {
+  id?: string | number;
+  _id?: string | number;
+  displayName?: string;
+  fullName?: string;
+  username?: string;
+  source?: string;
+  memberSince?: string;
+  createdAt?: string;
+  joinedDate?: string;
+  sales?: number;
+  completedOrders?: number;
+  wallet?: { lifetimeEarnings?: number };
+  metrics?: { referralCount?: number; totalEarnings?: number };
+  commissionEarned?: number;
+  earnings?: number;
+}
+
+export interface Freelancer {
+  id?: string | number;
+  _id?: string | number;
+  name?: string;
+  email?: string;
+  status?: 'active' | 'inactive';
+  joinedAt?: string;
+  completedOrders?: number;
+  earnings?: number;
+}
+
+export interface Customer {
+  id?: string | number;
+  _id?: string | number;
+  name?: string;
+  email?: string;
+  totalSpent?: number;
+  ordersCount?: number;
+  joinedDate?: string;
+}
+
+export interface PerformanceMetric {
+  date: string;
+  amount: number;
+  clicks?: number;
+}
+
+export interface RoadmapTier {
+  name: string;
+  target: number;
+  badge: string;
+}
+
+
+// =========================================================================
+// STATIC CONSTANTS
+// =========================================================================
+const TAB_COLORS: Record<string, string> = {
+  dashboard: "var(--color-dashboard, #3b82f6)",
+  links: "var(--color-links, #10b981)",
+  payouts: "var(--color-payouts, #f59e0b)",
+  referrals: "var(--color-referrals, #8b5cf6)",
+  "store-management": "var(--primary-color, #ff2d55)",
+  "prestige-roadmap": "var(--primary-color, #ff2d55)",
+};
+
+// =========================================================================
+// HELPER & UTILITY FUNCTIONS
+// =========================================================================
+
+// Returns FontAwesome icon classes based on referral or social source
+const getSourceIconClass = (source?: string): string => {
   switch (source?.toLowerCase()) {
     case 'youtube':
       return 'fab fa-youtube text-red-500';
@@ -53,6 +124,39 @@ const getSourceIconClass = (source?: string) => {
   }
 };
 
+// Calculates safe maximum ceiling value for chart scales
+const getSafeMaxChartValue = (data: Array<{ amount?: number; earnings?: number; count?: number }>): number => {
+  if (!Array.isArray(data) || data.length === 0) return 100;
+  
+  const max = data.reduce((currentMax, item) => {
+    const val = item.amount ?? item.earnings ?? item.count ?? 0;
+    return val > currentMax ? val : currentMax;
+  }, 0);
+
+  return max === 0 ? 100 : max;
+};
+
+// Safe date formatter to prevent hydration mismatches
+const formatDate = (dateInput?: string | Date | null): string => {
+  if (!dateInput) return 'N/A';
+  try {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return 'N/A';
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return 'N/A';
+  }
+};
+
+
+
+  // ========================================================================= 
+  // MAIN CLIENT COMPONENT 
+  // =========================================================================
 
 export default function AffiliateDashboardClient() {
   const router = useRouter();
@@ -165,10 +269,35 @@ export default function AffiliateDashboardClient() {
     100,
     Math.round((currentEarnings / (tierTargetEarnings || 1)) * 100)
   );
+    
+    
+   // =========================================================================
+  // GLOBAL ESCAPE KEY HANDLER FOR MODALS (ACCESSIBILITY)
+  // =========================================================================
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (linkToDelete !== null) setLinkToDelete(null);
+        if (isDeleteVideoModalOpen) setIsDeleteVideoModalOpen(false);
+        if (serviceToRemove !== null) setServiceToRemove(null);
+        if (isMediaKitOpen) setIsMediaKitOpen(false);
+        if (isWithdrawModalOpen) setIsWithdrawModalOpen(false);
+      }
+    };
 
-  // --- 3. ALL USEEFFECTS & SIDE-EFFECTS ---
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    linkToDelete,
+    isDeleteVideoModalOpen,
+    serviceToRemove,
+    isMediaKitOpen,
+    isWithdrawModalOpen,
+  ]);
 
-  // Route Protection & Profile Hydration
+  // =========================================================================
+  // ROUTE PROTECTION & PROFILE HYDRATION (WITH ABORTCONTROLLER)
+  // =========================================================================
   useEffect(() => {
     const token = localStorage.getItem('token');
     const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -185,8 +314,11 @@ export default function AffiliateDashboardClient() {
       setAffiliateId(storedUserId);
     }
 
+    const controller = new AbortController();
+
     fetch('/api/users/affiliate/me', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     })
       .then((res) => res.json())
       .then((data) => {
@@ -224,13 +356,21 @@ export default function AffiliateDashboardClient() {
           }
         }
       })
-      .catch((err) => console.error('Error loading affiliate profile:', err))
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.error('Error loading affiliate profile:', err);
+        }
+      })
       .finally(() => {
         setIsAuthLoading(false);
         setIsLoading(false);
       });
-  }, [router]);
 
+    return () => controller.abort();
+  }, [router]);
+    
+    
+    
   // Keep activeTab updated on tabParam URL changes
   useEffect(() => {
     if (tabParam === 'campaigns') {
@@ -265,27 +405,38 @@ export default function AffiliateDashboardClient() {
   useEffect(() => {
     if (!authToken) return;
 
+    const controller = new AbortController();
+
     fetch('/api/affiliate/links', {
-      headers: { Authorization: `Bearer ${authToken}` }
+      headers: { Authorization: `Bearer ${authToken}` },
+      signal: controller.signal,
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.links)) {
-          const formatted = data.links.map((link: any) => ({
+          const formatted = data.links.map((link: { _id: string; url: string; name: string; createdAt: string }) => ({
             id: link._id,
             url: link.url,
             name: link.name,
-            date: new Date(link.createdAt).toLocaleDateString()
+            date: new Date(link.createdAt).toLocaleDateString(),
           }));
           setSavedLinks(formatted);
         }
       })
-      .catch((err) => console.error('Error fetching affiliate links:', err));
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.error('Error fetching affiliate links:', err);
+        }
+      });
+
+    return () => controller.abort();
   }, [authToken]);
 
   // Fetch link performance metrics
   useEffect(() => {
     if (!authToken) return;
+
+    const controller = new AbortController();
 
     async function fetchPerformanceData() {
       setLoadingPerformance(true);
@@ -295,6 +446,7 @@ export default function AffiliateDashboardClient() {
             Authorization: `Bearer ${authToken}`,
             'Content-Type': 'application/json',
           },
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
@@ -304,21 +456,29 @@ export default function AffiliateDashboardClient() {
           setLinkPerformance(json.performance);
         }
       } catch (err) {
-        console.warn('Link performance API offline or unavailable:', err);
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.warn('Link performance API offline or unavailable:', err);
+        }
       } finally {
         setLoadingPerformance(false);
       }
     }
 
     fetchPerformanceData();
-  }, [authToken]);
 
-  // Fetch partners network
+    return () => controller.abort();
+  }, [authToken]);
+    
+    
+  /// Fetch partners network
   useEffect(() => {
     if (!authToken) return;
 
+    const controller = new AbortController();
+
     fetch('/api/affiliate/network/partners', {
-      headers: { Authorization: `Bearer ${authToken}` }
+      headers: { Authorization: `Bearer ${authToken}` },
+      signal: controller.signal,
     })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
@@ -329,19 +489,28 @@ export default function AffiliateDashboardClient() {
           setTeamMembers(data.partners);
         }
       })
-      .catch((err) => console.warn('Partners network API offline or unavailable:', err))
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.warn('Partners network API offline or unavailable:', err);
+        }
+      })
       .finally(() => setLoadingTeam(false));
+
+    return () => controller.abort();
   }, [authToken]);
 
   // Fetch freelancers network
   useEffect(() => {
     if (!authToken) return;
 
+    const controller = new AbortController();
+
     async function fetchFreelancers() {
       setLoadingFreelancers(true);
       try {
         const res = await fetch('/api/affiliate/network/freelancers', {
           headers: { Authorization: `Bearer ${authToken}` },
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
@@ -351,24 +520,32 @@ export default function AffiliateDashboardClient() {
           setFreelancers(json.freelancers);
         }
       } catch (err) {
-        console.warn('Freelancers network API offline or unavailable:', err);
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.warn('Freelancers network API offline or unavailable:', err);
+        }
       } finally {
         setLoadingFreelancers(false);
       }
     }
 
     fetchFreelancers();
-  }, [authToken]);
 
+    return () => controller.abort();
+  }, [authToken]);
+    
+    
   // Fetch customers network
   useEffect(() => {
     if (!authToken) return;
+
+    const controller = new AbortController();
 
     async function fetchCustomers() {
       setLoadingCustomers(true);
       try {
         const res = await fetch('/api/affiliate/network/customers', {
           headers: { Authorization: `Bearer ${authToken}` },
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
@@ -378,24 +555,31 @@ export default function AffiliateDashboardClient() {
           setCustomers(json.customers);
         }
       } catch (err) {
-        console.warn('Customers network API offline or unavailable:', err);
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.warn('Customers network API offline or unavailable:', err);
+        }
       } finally {
         setLoadingCustomers(false);
       }
     }
 
     fetchCustomers();
+
+    return () => controller.abort();
   }, [authToken]);
 
   // Fetch monthly sales progression
   useEffect(() => {
     if (!authToken) return;
 
+    const controller = new AbortController();
+
     async function fetchProgression() {
       setLoadingProgression(true);
       try {
         const res = await fetch('/api/affiliate/progression/monthly-sales', {
           headers: { Authorization: `Bearer ${authToken}` },
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
@@ -409,24 +593,32 @@ export default function AffiliateDashboardClient() {
           });
         }
       } catch (err) {
-        console.warn('Progression API offline or unavailable:', err);
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.warn('Progression API offline or unavailable:', err);
+        }
       } finally {
         setLoadingProgression(false);
       }
     }
 
     fetchProgression();
-  }, [authToken]);
 
+    return () => controller.abort();
+  }, [authToken]);
+    
+    
   // Fetch analytics chart data
   useEffect(() => {
     if (!authToken) return;
+
+    const controller = new AbortController();
 
     async function fetchChartData() {
       setLoadingChart(true);
       try {
         const res = await fetch(`/api/affiliate/analytics/daily-commissions?days=${chartDays}`, {
           headers: { Authorization: `Bearer ${authToken}` },
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
@@ -436,18 +628,26 @@ export default function AffiliateDashboardClient() {
           setChartData(json.chartData);
         }
       } catch (err) {
-        console.warn('Analytics chart API offline or unavailable:', err);
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.warn('Analytics chart API offline or unavailable:', err);
+        }
       } finally {
         setLoadingChart(false);
       }
     }
 
     fetchChartData();
+
+    return () => controller.abort();
   }, [authToken, chartDays]);
 
   // Fetch marketplace services
   useEffect(() => {
-    fetch('/api/services')
+    const controller = new AbortController();
+
+    fetch('/api/services', {
+      signal: controller.signal,
+    })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
         return res.json();
@@ -457,15 +657,24 @@ export default function AffiliateDashboardClient() {
           setMarketplaceServices(data.services);
         }
       })
-      .catch((err) => console.warn('Marketplace services API offline or unavailable:', err));
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.warn('Marketplace services API offline or unavailable:', err);
+        }
+      });
+
+    return () => controller.abort();
   }, []);
 
   // Fetch payouts history
   useEffect(() => {
     if (activeTab !== 'payouts' || !authToken) return;
 
+    const controller = new AbortController();
+
     fetch('/api/affiliate/payouts', {
-      headers: { Authorization: `Bearer ${authToken}` }
+      headers: { Authorization: `Bearer ${authToken}` },
+      signal: controller.signal,
     })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
@@ -476,23 +685,30 @@ export default function AffiliateDashboardClient() {
           setPayoutsHistory(data.payouts);
         }
       })
-      .catch((err) => console.warn('Payouts API offline or unavailable:', err));
-  }, [activeTab, authToken]);
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.warn('Payouts API offline or unavailable:', err);
+        }
+      });
 
+    return () => controller.abort();
+  }, [activeTab, authToken]);
+    
+    
   // Dynamic CSS Dot Color Effect
   useEffect(() => {
-    const tabColors: Record<string, string> = {
-      dashboard: "var(--color-dashboard, #3b82f6)",
-      links: "var(--color-links, #10b981)",
-      payouts: "var(--color-payouts, #f59e0b)",
-      referrals: "var(--color-referrals, #8b5cf6)",
-      "store-management": "var(--primary-color, #ff2d55)",
-      "prestige-roadmap": "var(--primary-color, #ff2d55)",
-    };
-
-    const targetColor = tabColors[activeTab] || "var(--primary-color, #ff2d55)";
+    const targetColor = TAB_COLORS[activeTab] || "var(--primary-color, #ff2d55)";
     document.documentElement.style.setProperty("--active-dot-color", targetColor);
   }, [activeTab]);
+
+  // Cleanup blob URL when component unmounts or videoEmbedSrc changes
+  useEffect(() => {
+    return () => {
+      if (videoEmbedSrc?.startsWith('blob:')) {
+        URL.revokeObjectURL(videoEmbedSrc);
+      }
+    };
+  }, [videoEmbedSrc]);
 
   // Render auth loading screen
   if (isAuthLoading) {
@@ -502,7 +718,7 @@ export default function AffiliateDashboardClient() {
       </div>
     );
   }
-
+  
   // --- 4. ACTION HANDLERS & HELPERS ---
   const triggerToast = (message: string, type: 'success' | 'removed' = 'success') => {
     const id = Date.now();
@@ -751,12 +967,23 @@ export default function AffiliateDashboardClient() {
       triggerToast('Server error updating video', 'removed');
     }
   };
+    
+    
+    // ========================================================================= 
+    // MEDIA & VIDEO HANDLERS (WITH BLOB URL MEMORY CLEANUP) 
+    // =========================================================================
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setFileNameDisplay(file.name);
       const fileUrl = URL.createObjectURL(file);
+
+      // Revoke previous blob URL to prevent memory leaks
+      if (videoEmbedSrc && videoEmbedSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(videoEmbedSrc);
+      }
+
       setVideoEmbedSrc(fileUrl);
       setVideoPreviewType('file');
       setVideoUrl('');
@@ -769,6 +996,11 @@ export default function AffiliateDashboardClient() {
   };
 
   const confirmDeleteVideo = () => {
+    // Revoke object URL from memory if it was a local file upload
+    if (videoEmbedSrc && videoEmbedSrc.startsWith('blob:')) {
+      URL.revokeObjectURL(videoEmbedSrc);
+    }
+
     setVideoUrl('');
     setFileNameDisplay('');
     setVideoEmbedSrc('');
@@ -1116,7 +1348,7 @@ export default function AffiliateDashboardClient() {
             ) : chartData && chartData.length > 0 ? (
               <div className="mock-chart">
                 {(() => {
-                  const maxVal = Math.max(...chartData.map((d) => d.amount ?? 0), 1);
+                  const maxVal = getSafeMaxChartValue(chartData);
 
                   return chartData.map((item) => {
                     const heightPercent = Math.max(((item.amount ?? 0) / maxVal) * 100, 8);
