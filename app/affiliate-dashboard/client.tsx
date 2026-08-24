@@ -158,7 +158,7 @@ export default function AffiliateDashboardClient() {
   // Modals State
   const [isMediaKitOpen, setIsMediaKitOpen] = useState<boolean>(false);
   const [isDeleteVideoModalOpen, setIsDeleteVideoModalOpen] = useState<boolean>(false);
-  const [serviceToRemove, setServiceToRemove] = useState<number | null>(null);
+  const [serviceToRemove, setServiceToRemove] = useState<string | number | null>(null);
 
   // Derived Values
   const tierProgressPercent = Math.min(
@@ -799,9 +799,10 @@ export default function AffiliateDashboardClient() {
     handleSavePinnedServices(updated);
   };
 
-  const handleRemoveService = (id: number) => {
-    setServiceToRemove(id);
-  };
+  const handleRemoveService = (id?: string | number) => {
+  if (id === undefined) return;
+  setServiceToRemove(id);
+};
 
   const confirmRemoveService = () => {
     if (serviceToRemove === null) return;
@@ -1549,7 +1550,11 @@ export default function AffiliateDashboardClient() {
                     <button
                       className="btn-outline"
                       title="Share"
-                      onClick={() => setActiveShareSheetId(activeShareSheetId === currentLinkId ? null : currentLinkId)}
+                      onClick={() => {
+  const targetId = currentLinkId ?? null;
+  if (targetId === null) return;
+  setActiveShareSheetId(activeShareSheetId === targetId ? null : targetId);
+}}
                     >
                       <i className="fas fa-share-alt"></i>
                     </button>
@@ -1560,7 +1565,7 @@ export default function AffiliateDashboardClient() {
                       className="btn-outline"
                       style={{ color: '#e53e3e' }}
                       title="Delete"
-                      onClick={() => setLinkToDelete(currentLinkId)}
+                      onClick={() => setLinkToDelete(currentLinkId ?? null)}
                     >
                       <i className="fas fa-trash"></i>
                     </button>
