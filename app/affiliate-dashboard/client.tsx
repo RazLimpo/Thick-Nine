@@ -194,7 +194,7 @@ export default function AffiliateDashboardClient() {
   const [marketplaceServices, setMarketplaceServices] = useState<HandpickedService[]>([]);
 
   // Application & Tab State
-  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab());
   const [networkView, setNetworkView] = useState<string>('view-partners');
   const [activeShareSheetId, setActiveShareSheetId] = useState<string | number | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -244,6 +244,7 @@ export default function AffiliateDashboardClient() {
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoPreviewType, setVideoPreviewType] = useState<'embed' | 'file' | 'none'>('none');
   const [videoEmbedSrc, setVideoEmbedSrc] = useState<string>('');
+  const videoEmbedSrcRef = useRef(videoEmbedSrc);
   const [fileNameDisplay, setFileNameDisplay] = useState<string>('');
   const [serviceSearch, setServiceSearch] = useState<string>('');
   const [selectedServices, setSelectedServices] = useState<HandpickedService[]>([]);
@@ -713,14 +714,19 @@ export default function AffiliateDashboardClient() {
     document.documentElement.style.setProperty("--active-dot-color", targetColor);
   }, [activeTab]);
 
-  // Cleanup blob URL when component unmounts or videoEmbedSrc changes
+  // Keep ref in sync with state
+  useEffect(() => {
+    videoEmbedSrcRef.current = videoEmbedSrc;
+  }, [videoEmbedSrc]);
+
+  // Cleanup blob URL on component unmount ONLY
   useEffect(() => {
     return () => {
-      if (videoEmbedSrc?.startsWith('blob:')) {
-        URL.revokeObjectURL(videoEmbedSrc);
+      if (videoEmbedSrcRef.current?.startsWith('blob:')) {
+        URL.revokeObjectURL(videoEmbedSrcRef.current);
       }
     };
-  }, [videoEmbedSrc]);
+  }, []);
 
  
   
@@ -1004,11 +1010,11 @@ export default function AffiliateDashboardClient() {
     triggerToast("Media removed", "removed");
   };
 
-  const filteredServices = serviceSearch.trim()
+  const filteredServices = serviceSearch?.trim()
   ? (marketplaceServices ?? []).filter(
       (s) =>
-        s.title.toLowerCase().includes(serviceSearch.toLowerCase()) ||
-        s.category.toLowerCase().includes(serviceSearch.toLowerCase())
+        s.title?.toLowerCase()?.includes(serviceSearch.toLowerCase()) ||
+        s.category?.toLowerCase()?.includes(serviceSearch.toLowerCase())
     )
   : [];
 
@@ -1416,23 +1422,23 @@ export default function AffiliateDashboardClient() {
           <tr><th>Service Item</th><th>Clicks</th><th>Earnings</th><th>Status</th></tr>
         </thead>
         <tbody>
-          {!savedLinks || savedLinks.length === 0 ? (
-            <tr>
-              <td colSpan={4} style={{ textAlign: 'center', color: '#718096' }}>
-                No recent link activity recorded.
-              </td>
-            </tr>
-          ) : (
-            savedLinks.map((link) => (
-              <tr key={link.id || link._id}>
-                <td>{link.name}</td>
-                <td>{link.clicks ?? 0}</td>
-                <td>${(link.earnings ?? 0).toFixed(2)}</td>
-                <td><span className="tag-status green">Active</span></td>
-              </tr>
-            ))
-          )}
-        </tbody>
+  {!savedLinks || savedLinks.length === 0 ? (
+    <tr>
+      <td colSpan={4} style={{ textAlign: 'center', color: '#718096' }}>
+        No recent link activity recorded.
+      </td>
+    </tr>
+  ) : (
+    savedLinks?.map((link) => (
+      <tr key={link.id || link._id}>
+        <td>{link.name ?? 'Untitled Link'}</td>
+        <td>{link.clicks ?? 0}</td>
+        <td>${(link.earnings ?? 0).toFixed(2)}</td>
+        <td><span className="tag-status green">Active</span></td>
+      </tr>
+    ))
+  )}
+</tbody>
       </table>
     </div>
   </div>
@@ -2007,7 +2013,7 @@ export default function AffiliateDashboardClient() {
                     <div key={memberId} className="aff-card team-horizontal-card">
                       <div className="card-left">
                         <div className="user-avatar-rect">
-                          {memberName.substring(0, 2).toUpperCase()}
+                          {memberName?.substring(0, 2)?.toUpperCase() ?? '??'}
                         </div>
                         <div className="user-info-text">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
