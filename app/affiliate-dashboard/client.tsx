@@ -1,4 +1,4 @@
-//app/affiliate-dashboard
+//app/affiliate-dashboard.tsx
 
 'use client';
 
