@@ -1,4 +1,4 @@
-//affiliate-dashboard
+//app/affiliate-dashboard
 
 'use client';
 
