@@ -8,14 +8,18 @@ import "@/styles/pages/affiliate-dashboard.css";
 
 // --- TYPES & INTERFACES ---
 interface SavedLink {
-  id: string | number;
+  id?: string | number;
+  _id?: string | number;
   url: string;
   name: string;
   date: string;
+  clicks?: number;
+  earnings?: number;
 }
 
 interface HandpickedService {
-  id: number;
+  id?: string | number;
+  _id?: string | number;
   title: string;
   category: string;
   price: number;
@@ -23,7 +27,7 @@ interface HandpickedService {
 }
 
 interface ToastMessage {
-  id: number;
+  id: string | number;
   message: string;
   type: 'success' | 'removed';
 }
