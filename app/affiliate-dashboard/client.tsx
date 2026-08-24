@@ -152,6 +152,18 @@ const formatDate = (dateInput?: string | Date | null): string => {
   }
 };
 
+  
+  const sanitizeInput = (str: string): string => str.replace(/[<>]/g, '').trim();
+
+  const isValidHttpUrl = (str: string): boolean => {
+    try {
+      const url = new URL(str);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch (_) {
+      return false;
+    }
+  };
+
 
 
   // ========================================================================= 
@@ -710,14 +722,7 @@ export default function AffiliateDashboardClient() {
     };
   }, [videoEmbedSrc]);
 
-  // Render auth loading screen
-  if (isAuthLoading) {
-    return (
-      <div className="aff-dash-bg" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
-        <p>Verifying authentication...</p>
-      </div>
-    );
-  }
+ 
   
   // --- 4. ACTION HANDLERS & HELPERS ---
   const triggerToast = (message: string, type: 'success' | 'removed' = 'success') => {
@@ -728,17 +733,7 @@ export default function AffiliateDashboardClient() {
     }, 3500);
   };
 
-  const sanitizeInput = (str: string): string => str.replace(/[<>]/g, '').trim();
-
-  const isValidHttpUrl = (str: string): boolean => {
-    try {
-      const url = new URL(str);
-      return url.protocol === "http:" || url.protocol === "https:";
-    } catch (_) {
-      return false;
-    }
-  };
-
+  
   const handleSaveStoreConfig = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingStore(true);
@@ -1010,12 +1005,12 @@ export default function AffiliateDashboardClient() {
   };
 
   const filteredServices = serviceSearch.trim()
-    ? marketplaceServices.filter(
-        (s) =>
-          s.title.toLowerCase().includes(serviceSearch.toLowerCase()) ||
-          s.category.toLowerCase().includes(serviceSearch.toLowerCase())
-      )
-    : [];
+  ? (marketplaceServices ?? []).filter(
+      (s) =>
+        s.title.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+        s.category.toLowerCase().includes(serviceSearch.toLowerCase())
+    )
+  : [];
 
   const handleAddHandpickedService = (service: HandpickedService) => {
     if (selectedServices.find((s) => s.id === service.id)) {
@@ -1088,6 +1083,15 @@ export default function AffiliateDashboardClient() {
     }
   };
 
+    
+     // Render auth loading screen
+  if (isAuthLoading) {
+    return (
+      <div className="aff-dash-bg" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
+        <p>Verifying authentication...</p>
+      </div>
+    );
+  }
   
     
     return (
