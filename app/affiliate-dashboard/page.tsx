@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 import AffiliateDashboardClient from './client';
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function AffiliateDashboardPage() {
-  return <AffiliateDashboardClient />;
+  return (
+    <Suspense fallback={<div className="aff-card p-8 text-center">Loading dashboard...</div>}>
+      <AffiliateDashboardClient />
+    </Suspense>
+  );
 }
