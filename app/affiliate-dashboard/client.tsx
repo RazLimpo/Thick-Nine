@@ -2142,55 +2142,108 @@ export default function AffiliateDashboardClient() {
   <div id="prestige-roadmap" className="tab-content active">
     <section id="authority-status-root">
 
-      {/* CURRENT STATUS CARD */}
+           {/* CURRENT STATUS CARD — screenshot-style */}
 <div className="aff-card prestige-status-card">
   <div className="prestige-status-header">
-    <div className="prestige-badge-large">
-      {(currentTier || 'B').charAt(0)}
+    {/* Left: current rank badge */}
+    <div className="prestige-rank-block">
+      <div className="prestige-badge-large">
+        <span className="prestige-badge-current-label">Current</span>
+        <span className="prestige-badge-letter">
+          {(currentTier || 'B').charAt(0)}
+        </span>
+      </div>
+      <span className="prestige-rank-name">{currentTier || 'Bronze'}</span>
     </div>
 
+    {/* Right: next milestone + progress */}
     <div className="prestige-status-info">
-      <span className="prestige-status-label">Current Authority Rank</span>
       <h2 className="prestige-status-title">
-        {currentTier || 'Bronze'} Tier
-        <span className="prestige-level-tag">Lvl {prestigeLevel ?? 1}</span>
+        Next Milestone: {nextTier || 'Silver'}
       </h2>
-      <div className="prestige-badge-pill">
-        🏆 {prestigeBadge || 'Rising Marketer'}
-      </div>
-    </div>
+      <p className="prestige-status-desc">
+        Complete your professional roadmap to increase Account Authority
+        and unlock elite platform features.
+      </p>
 
-    <div className="prestige-points-box">
-      <span className="prestige-points-label">Prestige Points</span>
-      <div className="prestige-points-value">
-        {(prestigePoints ?? 0).toLocaleString()} PTS
-      </div>
+      {(() => {
+        const safeProgress = Math.min(100, Math.max(0, Number(tierProgressPercent) || 0));
+        return (
+          <div className="prestige-progress-section">
+            <div className="prestige-progress-track">
+              <div
+                className="prestige-progress-fill"
+                style={{ width: `${safeProgress}%` }}
+              />
+            </div>
+            <div className="prestige-progress-labels">
+              <span className="prestige-badge-pill">
+                🏆 {prestigeBadge || 'Rising Marketer'}
+              </span>
+              <span className="prestige-points-value">
+                ${(currentEarnings ?? 0).toLocaleString()} / $
+                {(tierTargetEarnings ?? 0).toLocaleString()} Authority
+              </span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   </div>
 
-  {/* PROGRESS TO NEXT TIER */}
-  {(() => {
-    const safeProgress = Math.min(100, Math.max(0, Number(tierProgressPercent) || 0));
-    return (
-      <div className="prestige-progress-section">
-        <div className="prestige-progress-labels">
-          <span>Progress to <strong>{nextTier || 'Silver'} Tier</strong></span>
-          <span>
-            ${(currentEarnings ?? 0).toLocaleString()} / ${(tierTargetEarnings ?? 0).toLocaleString()}
-            ({safeProgress}%)
-          </span>
-        </div>
-        <div className="prestige-progress-track">
-          <div
-            className="prestige-progress-fill"
-            style={{ width: `${safeProgress}%` }}
-          />
-        </div>
+  {/* Metric strip (like your screenshots) */}
+  <div className="prestige-metrics-row">
+    <div className="prestige-metric-card">
+      <div className="prestige-metric-top">
+        <span className="prestige-metric-label">Prestige Level</span>
+        <span className="prestige-metric-value">
+          Lvl {prestigeLevel ?? 1}
+        </span>
       </div>
-    );
-  })()}
+      <div className="prestige-metric-track">
+        <div
+          className="prestige-metric-fill"
+          style={{ width: `${Math.min(100, (prestigeLevel ?? 1) * 20)}%` }}
+        />
+      </div>
+    </div>
+
+    <div className="prestige-metric-card">
+      <div className="prestige-metric-top">
+        <span className="prestige-metric-label">Prestige Points</span>
+        <span className="prestige-metric-value">
+          {(prestigePoints ?? 0).toLocaleString()} PTS
+        </span>
+      </div>
+      <div className="prestige-metric-track">
+        <div
+          className="prestige-metric-fill"
+          style={{
+            width: `${Math.min(100, ((prestigePoints ?? 0) % 1000) / 10)}%`,
+          }}
+        />
+      </div>
+    </div>
+
+    <div className="prestige-metric-card">
+      <div className="prestige-metric-top">
+        <span className="prestige-metric-label">Monthly Volume</span>
+        <span className="prestige-metric-value">
+          ${(progression?.monthlySales ?? 0).toLocaleString()} / $
+          {(progression?.targetSales ?? 0).toLocaleString()}
+        </span>
+      </div>
+      <div className="prestige-metric-track">
+        <div
+          className="prestige-metric-fill"
+          style={{
+            width: `${Math.min(100, Number(progression?.progressPercentage) || 0)}%`,
+          }}
+        />
+      </div>
+    </div>
+  </div>
 </div>
-      
       
       
       {/* TIER ROADMAP */}
