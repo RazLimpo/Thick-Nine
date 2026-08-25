@@ -1256,39 +1256,6 @@ export default function AffiliateDashboardClient() {
 {activeTab === 'dashboard' && ( 
   <div id="dashboard" className="tab-content active">
 
-    {/* TIER & PRESTIGE GAMIFICATION CARD */}
-    <div className="tier-card-container">
-      <div className="tier-card-header">
-        <div className="tier-card-info">
-          <span className="tier-card-label">Current Rank</span>
-          <h2 className="tier-card-title">
-            {currentTier || 'Bronze'} Tier <span className="tier-card-level">(Lvl {prestigeLevel ?? 1})</span>
-          </h2>
-          <div className="tier-card-badge">
-            🏆 {prestigeBadge || 'Rising Marketer'}
-          </div>
-        </div>
-        <div className="tier-card-points-wrapper">
-          <span className="tier-card-points-label">Prestige Points</span>
-          <div className="tier-card-points-val">{(prestigePoints ?? 0).toLocaleString()} PTS</div>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="tier-card-progress-wrapper">
-        <div className="tier-card-progress-labels">
-          <span>Progress to <strong>{nextTier || 'Silver'} Tier</strong></span>
-          <span>${(currentEarnings ?? 0).toLocaleString()} / ${(tierTargetEarnings ?? 0).toLocaleString()} ({tierProgressPercent ?? 0}%)</span>
-        </div>
-        <div className="tier-card-progress-track">
-          <div 
-            className="tier-card-progress-fill"
-            style={{ width: `${tierProgressPercent ?? 0}%` }} 
-          />
-        </div>
-      </div>
-    </div>
-
     {/* --- STATISTICAL METRICS GRID WITH SHIMMER LOADING --- */}
     {isLoading || loadingPerformance ? (
       <div className="aff-stats-row">
@@ -2176,52 +2143,56 @@ export default function AffiliateDashboardClient() {
     <section id="authority-status-root">
 
       {/* CURRENT STATUS CARD */}
-      <div className="aff-card prestige-status-card">
-        <div className="prestige-status-header">
-          <div className="prestige-badge-large">
-            {(currentTier || 'B').charAt(0)}
-          </div>
-          <div className="prestige-status-info">
-            <span className="prestige-status-label">Current Authority Rank</span>
-            <h2 className="prestige-status-title">
-              {currentTier || 'Bronze'} Tier
-              <span className="prestige-level-tag">Lvl {prestigeLevel ?? 1}</span>
-            </h2>
-            <div className="prestige-badge-pill">
-              🏆 {prestigeBadge || 'Rising Marketer'}
-            </div>
-          </div>
-          <div className="prestige-points-box">
-            <span className="prestige-points-label">Prestige Points</span>
-            <div className="prestige-points-value">
-              {(prestigePoints ?? 0).toLocaleString()} PTS
-            </div>
-          </div>
-        </div>
+<div className="aff-card prestige-status-card">
+  <div className="prestige-status-header">
+    <div className="prestige-badge-large">
+      {(currentTier || 'B').charAt(0)}
+    </div>
 
-        {/* PROGRESS TO NEXT TIER */}
-        {(() => {
-          const safeProgress = Math.min(100, Math.max(0, Number(tierProgressPercent) || 0));
-          return (
-            <div className="prestige-progress-section">
-              <div className="prestige-progress-labels">
-                <span>Progress to <strong>{nextTier || 'Silver'} Tier</strong></span>
-                <span>
-                  ${(currentEarnings ?? 0).toLocaleString()} / ${(tierTargetEarnings ?? 0).toLocaleString()}
-                  ({safeProgress}%)
-                </span>
-              </div>
-              <div className="prestige-progress-track">
-                <div
-                  className="prestige-progress-fill"
-                  style={{ width: `${safeProgress}%` }}
-                />
-              </div>
-            </div>
-          );
-        })()}
+    <div className="prestige-status-info">
+      <span className="prestige-status-label">Current Authority Rank</span>
+      <h2 className="prestige-status-title">
+        {currentTier || 'Bronze'} Tier
+        <span className="prestige-level-tag">Lvl {prestigeLevel ?? 1}</span>
+      </h2>
+      <div className="prestige-badge-pill">
+        🏆 {prestigeBadge || 'Rising Marketer'}
       </div>
+    </div>
 
+    <div className="prestige-points-box">
+      <span className="prestige-points-label">Prestige Points</span>
+      <div className="prestige-points-value">
+        {(prestigePoints ?? 0).toLocaleString()} PTS
+      </div>
+    </div>
+  </div>
+
+  {/* PROGRESS TO NEXT TIER */}
+  {(() => {
+    const safeProgress = Math.min(100, Math.max(0, Number(tierProgressPercent) || 0));
+    return (
+      <div className="prestige-progress-section">
+        <div className="prestige-progress-labels">
+          <span>Progress to <strong>{nextTier || 'Silver'} Tier</strong></span>
+          <span>
+            ${(currentEarnings ?? 0).toLocaleString()} / ${(tierTargetEarnings ?? 0).toLocaleString()}
+            ({safeProgress}%)
+          </span>
+        </div>
+        <div className="prestige-progress-track">
+          <div
+            className="prestige-progress-fill"
+            style={{ width: `${safeProgress}%` }}
+          />
+        </div>
+      </div>
+    );
+  })()}
+</div>
+      
+      
+      
       {/* TIER ROADMAP */}
       <div className="aff-card prestige-roadmap-card">
         <h3 className="island-title">Authority Roadmap</h3>
