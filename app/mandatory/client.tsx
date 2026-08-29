@@ -1291,15 +1291,22 @@ if (!trimmedCity) {
                 )}
 
                 <input
-                  id="country-search-input"
-                  type="text"
-                  role="combobox"
-                  placeholder="Type to search country..."
-                  value={
-                    ui.isCountryOpen
-                      ? ui.countrySearch
-                      : selectedCountryObj?.name || ''
-                  }
+  id="country-search-input"
+  type="text"
+  role="combobox"
+  aria-expanded={ui.isCountryOpen}
+  aria-controls="country-dropdown-list"
+  aria-haspopup="listbox"
+  placeholder="Type to search country..."
+  value={
+    ui.isCountryOpen
+      ? ui.countrySearch
+      : selectedCountryObj?.name || ''
+  }
+  
+                  
+                  
+                  
                   onChange={(e) => {
                     const val = e.target.value;
                     setUi((prev) => ({
@@ -1335,6 +1342,7 @@ if (!trimmedCity) {
               {/* Floating Dropdown List */}
               {ui.isCountryOpen && (
                 <ul
+                  id="country-dropdown-list"
                   className="country-dropdown-list"
                   role="listbox"
                   style={{
@@ -1358,6 +1366,7 @@ if (!trimmedCity) {
                   {!ui.countrySearch && POPULAR_COUNTRIES.length > 0 && (
                     <>
                       <li
+                        role="presentation"
                         style={{
                           padding: '6px 12px',
                           fontSize: '0.75rem',
@@ -1392,6 +1401,7 @@ if (!trimmedCity) {
                         </li>
                       ))}
                       <li
+                        role="presentation"
                         style={{
                           padding: '6px 12px',
                           fontSize: '0.75rem',
@@ -1432,13 +1442,14 @@ if (!trimmedCity) {
                       </li>
                     ))
                   ) : (
-                    <li style={{ padding: '12px', textAlign: 'center', color: '#888', fontSize: '0.9rem' }}>
+                    <li role="presentation" style={{ padding: '12px', textAlign: 'center', color: '#888', fontSize: '0.9rem' }}>
                       No countries found
                     </li>
                   )}
                 </ul>
               )}
-
+              
+              
               {errors.country && (
                 <small id="country-error" className="error-text" role="alert">
                   {errors.country}
