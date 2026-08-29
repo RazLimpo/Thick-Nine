@@ -781,11 +781,11 @@ UserSchema.methods.isTopRatedSeller = function () {
 };
 
 
+
 /* ===========================================================
    MODEL EXPORT
    =========================================================== */
 
-module.exports = mongoose.model(
-    "User",
-    UserSchema
-);
+module.exports = (mongoose.models && mongoose.models.User) 
+  ? mongoose.models.User 
+  : mongoose.model('User', UserSchema);

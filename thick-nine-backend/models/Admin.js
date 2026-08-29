@@ -2,7 +2,7 @@
 
 const mongoose = require('mongoose');
 
-const adminSchema = new mongoose.Schema(
+const AdminSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -42,4 +42,11 @@ const adminSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.models.Admin || mongoose.model('Admin', adminSchema);
+
+/* ===========================================================
+   MODEL EXPORT
+   =========================================================== */
+
+module.exports = (mongoose.models && mongoose.models.Admin) 
+  ? mongoose.models.Admin 
+  : mongoose.model('Admin', AdminSchema);

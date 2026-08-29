@@ -108,4 +108,11 @@ const OrderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Order', OrderSchema);
+
+/* ===========================================================
+   MODEL EXPORT
+   =========================================================== */
+
+module.exports = (mongoose.models && mongoose.models.Order) 
+  ? mongoose.models.Order 
+  : mongoose.model('Order', OrderSchema);

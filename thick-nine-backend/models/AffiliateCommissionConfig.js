@@ -28,4 +28,11 @@ const AffiliateCommissionConfigSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('AffiliateCommissionConfig', AffiliateCommissionConfigSchema);
+
+/* ===========================================================
+   MODEL EXPORT
+   =========================================================== */
+
+module.exports = (mongoose.models && mongoose.models.AffiliateCommissionConfig) 
+  ? mongoose.models.AffiliateCommissionConfig 
+  : mongoose.model('AffiliateCommissionConfig', AffiliateCommissionConfigSchema);

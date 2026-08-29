@@ -1,3 +1,5 @@
+// models/Job.js
+
 const mongoose = require('mongoose');
 
 const JobSchema = new mongoose.Schema({
@@ -53,4 +55,11 @@ JobSchema.virtual('proposalCount').get(function() {
   return this.proposals ? this.proposals.length : 0;
 });
 
-module.exports = mongoose.model('Job', JobSchema);
+
+/* ===========================================================
+   MODEL EXPORT
+   =========================================================== */
+
+module.exports = (mongoose.models && mongoose.models.Job) 
+  ? mongoose.models.Job 
+  : mongoose.model('Job', JobSchema);

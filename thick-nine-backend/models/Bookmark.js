@@ -1,3 +1,5 @@
+// models/Bookmark.js
+
 const mongoose = require('mongoose');
 
 const BookmarkSchema = new mongoose.Schema({
@@ -31,4 +33,11 @@ const BookmarkSchema = new mongoose.Schema({
 // This ensures a user cannot bookmark the same exact job twice
 BookmarkSchema.index({ user: 1, itemId: 1 }, { unique: true });
 
-module.exports = mongoose.model('Bookmark', BookmarkSchema);
+
+/* ===========================================================
+   MODEL EXPORT
+   =========================================================== */
+
+module.exports = (mongoose.models && mongoose.models.Bookmark) 
+  ? mongoose.models.Bookmark 
+  : mongoose.model('Bookmark', BookmarkSchema);

@@ -2,7 +2,7 @@
 
 const mongoose = require('mongoose');
 
-const messageSchema = new mongoose.Schema(
+const MessageSchema = new mongoose.Schema(
   {
     // Option A: Linked to a registered user account
     senderId: {
@@ -58,4 +58,11 @@ const messageSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model('Message', messageSchema);
+
+/* ===========================================================
+   MODEL EXPORT
+   =========================================================== */
+
+module.exports = (mongoose.models && mongoose.models.Message) 
+  ? mongoose.models.Message 
+  : mongoose.model('Message', MessageSchema);

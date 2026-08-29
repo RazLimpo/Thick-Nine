@@ -49,4 +49,10 @@ const TransactionSchema = new mongoose.Schema(
 // Indexes for high-performance time-range aggregations
 TransactionSchema.index({ affiliateId: 1, type: 1, status: 1, createdAt: -1 });
 
-module.exports = mongoose.model('Transaction', TransactionSchema);
+/* ===========================================================
+   MODEL EXPORT
+   =========================================================== */
+
+module.exports = (mongoose.models && mongoose.models.Transaction) 
+  ? mongoose.models.Transaction 
+  : mongoose.model('Transaction', TransactionSchema);

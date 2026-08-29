@@ -123,13 +123,11 @@ export default function ClientCheckout() {
   const handlePayNow = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Validate Card Fields
     if (!cardNumber.trim() || !expiry.trim() || !cvv.trim()) {
       showToast('Please enter complete credit/debit card details.', 'error');
       return;
     }
 
-    // 2. Validate Terms Acceptance
     if (!termsAccepted) {
       showToast('Please accept the Terms of Service and Cancellation Policy.', 'error');
       setTermsError(true);
@@ -151,7 +149,7 @@ export default function ClientCheckout() {
       selectedAddons: serviceData.addons,
       requirements: instructions,
       affiliateCode: affiliateCode,
-      paymentMethod: 'card', // Enforced strictly as card
+      paymentMethod: 'card',
     };
 
     try {
@@ -161,7 +159,15 @@ export default function ClientCheckout() {
         body: JSON.stringify(orderPayload),
       });
 
-      const data = await response.json();
+      // Guard: Extract raw text first to avoid JSON syntax crash on HTML responses
+      const rawText = await response.text();
+      let data: any = {};
+      
+      try {
+        data = JSON.parse(rawText);
+      } catch (jsonErr) {
+        throw new Error(`Server returned status ${response.status}. Endpoint /api/checkout/service might be missing or throwing an unhandled route error.`);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Checkout failed.');
