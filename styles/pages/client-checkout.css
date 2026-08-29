@@ -17,9 +17,9 @@
   color: var(--secondary-color);
 }
 
-input[type="text"], 
-input[type="search"], 
-textarea {
+.checkout-page-container input[type="text"], 
+.checkout-page-container input[type="search"], 
+.checkout-page-container textarea {
   width: 100%;
   padding: 12px 15px;
   border: 1px solid #ccc;
@@ -188,16 +188,26 @@ textarea {
 /* Terms Checkbox */
 .terms-check label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  gap: 5px;
   font-size: 0.9em;
   font-weight: 400; /* Overrides .form-group label */
+  line-height: 1.4;
 }
 
 .terms-check input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  margin-right: 10px;
+ margin: 2px 0 0 0;
+  flex-shrink: 0;
 }
+
+/* NEW: Force space around links inside the label */
+.terms-check label a {
+  margin: 0 3px;           /* 3px space before + after each link */
+}
+.terms-check label a:first-of-type { margin-left: 0; }
+.terms-check label a:last-of-type { margin-right: 0; }
 
 
 /* Sidebar and Order Summary */
