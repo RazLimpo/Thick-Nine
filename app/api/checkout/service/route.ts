@@ -6,6 +6,7 @@ import AffiliateCommissionConfig from '@/thick-nine-backend/models/AffiliateComm
 import { calculateOrderFees } from '@/lib/commissionHelper';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const MONGODB_URI = process.env.MONGODB_URI || '';
 
