@@ -1073,74 +1073,57 @@ if (!trimmedCity) {
       )}
 
       <input
-        id="country-search-input"
-        type="text"
-        role="combobox"
-        aria-expanded={ui.isCountryOpen}
-        aria-controls="country-dropdown-list"
-        aria-haspopup="listbox"
-        aria-autocomplete="list"
-        aria-activedescendant={
-          ui.isCountryOpen && ui.highlightedIndex >= 0
-            ? `country-option-${ui.highlightedIndex}`
-            : undefined
-        }
-        placeholder="Type to search country..."
-        value={
-          ui.isCountryOpen
-            ? ui.countrySearch
-            : selectedCountryObj?.name || ''
-        }
-        onChange={(e) => {
-  const val = e.target.value;
-  setUi((prev) => ({
-    ...prev,
-    countrySearch: val,
-    isCountryOpen: true,
-    highlightedIndex: 0,          
-  }));
-}}
-onFocus={() =>
-  setUi((prev) => ({
-    ...prev,
-    isCountryOpen: true,
-    countrySearch: '',
-    highlightedIndex: 0,
-  }))
-}
-        onKeyDown={handleCountryKeyDown}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setUi((prev) => ({
-                    ...prev,
-                    countrySearch: val,
-                    isCountryOpen: true,
-                    highlightedIndex: 0,
-                  }));
-                }}
-                onFocus={() =>
-                  setUi((prev) => ({
-                    ...prev,
-                    isCountryOpen: true,
-                    countrySearch: '',
-                    highlightedIndex: 0,
-                  }))
-                }
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  width: '100%',
-                  background: 'transparent',
-                  fontSize: '1rem',
-                }}
-              />
+  id="country-search-input"
+  type="text"
+  role="combobox"
+  aria-expanded={ui.isCountryOpen}
+  aria-controls="country-dropdown-list"
+  aria-haspopup="listbox"
+  aria-autocomplete="list"
+  aria-activedescendant={
+    ui.isCountryOpen && ui.highlightedIndex >= 0
+      ? `country-option-${ui.highlightedIndex}`
+      : undefined
+  }
+  placeholder="Type to search country..."
+  value={
+    ui.isCountryOpen
+      ? ui.countrySearch
+      : selectedCountryObj?.name || ''
+  }
+  onKeyDown={handleCountryKeyDown}
+  onChange={(e) => {
+    const val = e.target.value;
+    setUi((prev) => ({
+      ...prev,
+      countrySearch: val,
+      isCountryOpen: true,
+      highlightedIndex: 0,
+    }));
+  }}
+  onFocus={() =>
+    setUi((prev) => ({
+      ...prev,
+      isCountryOpen: true,
+      countrySearch: '',
+      highlightedIndex: 0,
+    }))
+  }
+  style={{
+    border: 'none',
+    outline: 'none',
+    width: '100%',
+    background: 'transparent',
+    fontSize: '1rem',
+  }}
+/>
 
-              <i
-                className={`fas ${ui.isCountryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}
-                style={{ color: '#888', marginLeft: '0.5rem', cursor: 'pointer' }}
-              />
+<i
+  className={`fas ${ui.isCountryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}
+  style={{ color: '#888', marginLeft: '0.5rem', cursor: 'pointer' }}
+/>
     </div>
-
+      
     {/* Floating Dropdown List */}
     {ui.isCountryOpen && (
       <ul
