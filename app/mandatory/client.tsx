@@ -1297,42 +1297,36 @@ if (!trimmedCity) {
   aria-expanded={ui.isCountryOpen}
   aria-controls="country-dropdown-list"
   aria-haspopup="listbox"
+  aria-autocomplete="list"
   placeholder="Type to search country..."
   value={
     ui.isCountryOpen
       ? ui.countrySearch
       : selectedCountryObj?.name || ''
   }
-  
-                  
-                  
-                  
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setUi((prev) => ({
-                      ...prev,
-                      countrySearch: val,
-                      isCountryOpen: true,
-                    }));
-                  }}
-                  onFocus={() =>
-                    setUi((prev) => ({
-                      ...prev,
-                      isCountryOpen: true,
-                      countrySearch: '',
-                    }))
-                  }
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    width: '100%',
-                    background: 'transparent',
-                    fontSize: '1rem',
-                  }}
-                  aria-autocomplete="list"
-                  aria-expanded={ui.isCountryOpen}
-                />
-
+  onChange={(e) => {
+    const val = e.target.value;
+    setUi((prev) => ({
+      ...prev,
+      countrySearch: val,
+      isCountryOpen: true,
+    }));
+  }}
+  onFocus={() =>
+    setUi((prev) => ({
+      ...prev,
+      isCountryOpen: true,
+      countrySearch: '',
+    }))
+  }
+  style={{
+    border: 'none',
+    outline: 'none',
+    width: '100%',
+    background: 'transparent',
+    fontSize: '1rem',
+  }}
+/>
                 <i
                   className={`fas ${ui.isCountryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}
                   style={{ color: '#888', marginLeft: '0.5rem', cursor: 'pointer' }}

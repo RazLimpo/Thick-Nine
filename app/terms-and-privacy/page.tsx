@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import TermsClientLayout from './client';
 
 export const metadata: Metadata = {
-  title: 'Legal Information | Thick 9',
+  title: 'Terms & Privacy | Thick 9',
   description: 'Thick 9 International Terms of Service and Privacy Policy.',
 };
 
