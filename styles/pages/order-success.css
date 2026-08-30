@@ -1,0 +1,75 @@
+.order-success-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 70vh;
+    padding: 24px;
+  }
+  
+  .order-success-card {
+    max-width: 560px;
+    width: 100%;
+    padding: 40px 32px;
+    background-color: #ffffff;
+    border: 1px solid #eaecf0;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  
+  .success-icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background-color: #d1fae5;
+    color: #10b981;
+    font-size: 1.75rem;
+    font-weight: bold;
+    border-radius: 50%;
+    margin-bottom: 20px;
+  }
+  
+  .order-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 12px;
+  }
+  
+  .order-subtitle {
+    font-size: 1rem;
+    color: #4b5563;
+    line-height: 1.6;
+    margin-bottom: 32px;
+  }
+  
+  .order-id {
+    color: #111827;
+  }
+  
+  .order-actions {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .btn-dashboard {
+    display: inline-block;
+    padding: 12px 28px;
+    background-color: #10b981;
+    color: #ffffff;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+  }
+  
+  .btn-dashboard:hover {
+    background-color: #059669;
+  }
+  
+  .btn-dashboard:active {
+    transform: scale(0.98);
+  }
