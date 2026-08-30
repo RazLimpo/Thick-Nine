@@ -10,6 +10,7 @@ import React, {
   useState,
   type ChangeEvent,
   type FormEvent,
+  type KeyboardEvent,
 } from 'react';
 
 import Link from 'next/link';
@@ -32,8 +33,6 @@ interface RegistrationData {
   fullName: string;
   gender: string;
   email: string;
-  password: string;
-  retypePassword: string;
   country: string;
   city: string;
   role: UserRole;
@@ -44,39 +43,22 @@ interface RegistrationData {
 interface UIState {
   isSubmitting: boolean;
   showSuccess: boolean;
-
-  passwordVisible: boolean;
-  confirmVisible: boolean;
-
   resendCooldown: number;
-
-  passwordStrength: number;
-  strengthText: PasswordStrengthLabel;
-  
-  isCountryOpen: boolean; 
+  isCountryOpen: boolean;
   countrySearch: string;
+  highlightedIndex: number;
 }
-
-type PasswordStrengthLabel =
-  | 'Too short'
-  | 'Weak'
-  | 'Fair'
-  | 'Good'
-  | 'Strong';
 
 interface FormErrors {
   fullName?: string;
   gender?: string;
   email?: string;
-  password?: string;
-  retypePassword?: string;
   country?: string;
   city?: string;
   role?: string;
   referralCode?: string;
   agreedToTerms?: string;
 }
-
 
 
 
@@ -114,8 +96,6 @@ export default function MandatoryClientPage() {
       fullName: '',
       gender: '',
       email: '',
-      password: '',
-      retypePassword: '',
       country: '',
       city: '',
       role: 'client',
@@ -138,21 +118,12 @@ export default function MandatoryClientPage() {
 
   const [ui, setUi] = useState<UIState>({
     isSubmitting: false,
-
     showSuccess: false,
-
-    passwordVisible: false,
-    confirmVisible: false,
-
     resendCooldown: 0,
-
-    passwordStrength: 0,
-    strengthText: 'Too short',
-    
-    isCountryOpen: false, 
+    isCountryOpen: false,
     countrySearch: '',
-  });
-    
+    highlightedIndex: -1,
+  });    
     
     
     // ==================================================
@@ -171,18 +142,8 @@ export default function MandatoryClientPage() {
       
       
       
- // ==================================================
-// SECTION 7 — ROLE SELECTION STATE
-// ==================================================
-
-/**
- * Removed separate selectedRole state to prevent duplication.
- * We now rely only on formData.role for both logic and UI.
- */
-      
-      
       // ==================================================
-  // SECTION 8 — REFS / TIMER MANAGEMENT
+  // SECTION 7 — REFS / TIMER MANAGEMENT
   // ==================================================
 
   /**
@@ -201,7 +162,7 @@ export default function MandatoryClientPage() {
       
       
       // ==================================================
-  // SECTION 9 — LOAD TEMPORARY AUTH DATA EFFECT
+  // SECTION 8 — LOAD TEMPORARY AUTH DATA EFFECT
   // ==================================================
 
   /**
@@ -273,82 +234,11 @@ export default function MandatoryClientPage() {
       
       
       
-      // ==================================================
-  // SECTION 10 — PASSWORD STRENGTH EFFECT
-  // ==================================================
-
-  /**
-   * Live password strength analysis.
-   * Updates strength meter and labels
-   * as the user types.
-   */
-
-  useEffect(() => {
-
-    const password = formData.password;
-
-    /**
-     * Password strength scoring:
-     *
-     * +1 → minimum length
-     * +1 → uppercase character
-     * +1 → numeric character
-     * +1 → special character
-     */
-
-    const calculateStrength = (
-      value: string
-    ): number => {
-
-      let score = 0;
-
-      if (value.length >= 8) {
-        score += 1;
-      }
-
-      if (/[A-Z]/.test(value)) {
-        score += 1;
-      }
-
-      if (/[0-9]/.test(value)) {
-        score += 1;
-      }
-
-      if (/[^A-Za-z0-9]/.test(value)) {
-        score += 1;
-      }
-
-      return score;
-    };
-
-    const strength =
-      calculateStrength(password);
-
-    const strengthLabels: PasswordStrengthLabel[] = [
-      'Too short',
-      'Weak',
-      'Fair',
-      'Good',
-      'Strong',
-    ];
-
-    setUi((prev) => ({
-      ...prev,
-
-      passwordStrength: strength,
-
-      strengthText:
-        strengthLabels[strength] ||
-        'Too short',
-    }));
-
-  }, [formData.password]);
-      
-      
+          
       
       
     // ==================================================
-  // SECTION 11 — RESEND COOLDOWN EFFECT
+  // SECTION 9 — RESEND COOLDOWN EFFECT
   // ==================================================
 
   /**
@@ -385,7 +275,7 @@ export default function MandatoryClientPage() {
       
       
     // ==================================================
-  // SECTION 12 — UNMOUNT CLEANUP EFFECT
+  // SECTION 10 — UNMOUNT CLEANUP EFFECT
   // ==================================================
 
   useEffect(() => {
@@ -405,24 +295,29 @@ export default function MandatoryClientPage() {
       
       
       // ==================================================
-  // SECTION 13 A - SEARCHABLE COUNTRY FILTER & CLOSE ON CLICK OUTSIDE
+  // SECTION 11 - SEARCHABLE COUNTRY FILTER & CLOSE ON CLICK OUTSIDE
   // ==================================================
   const countryContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Close country dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        countryContainerRef.current &&
-        !countryContainerRef.current.contains(event.target as Node)
-      ) {
-        setUi((prev) => ({ ...prev, isCountryOpen: false }));
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      countryContainerRef.current &&
+      !countryContainerRef.current.contains(event.target as Node)
+    ) {
+      setUi((prev) => ({
+        ...prev,
+        isCountryOpen: false,
+        countrySearch: '',
+        highlightedIndex: -1,
+      }));
+    }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+}, []);
+    
   // Filter countries based on name or code or aliases (e.g. USA -> United States)
   const filteredCountries = ALL_COUNTRIES.filter((country) => {
     const query = ui.countrySearch.toLowerCase().trim();
@@ -440,12 +335,129 @@ export default function MandatoryClientPage() {
   const selectedCountryObj = ALL_COUNTRIES.find(
     (c) => c.code === formData.country
   );
+    
+    
+    // Keep highlightedIndex valid whenever the visible list changes
+useEffect(() => {
+  if (!ui.isCountryOpen) return;
+
+  const list = ui.countrySearch
+    ? filteredCountries
+    : [...POPULAR_COUNTRIES, ...filteredCountries];
+
+  setUi((prev) => {
+    if (list.length === 0) {
+      return prev.highlightedIndex === -1
+        ? prev
+        : { ...prev, highlightedIndex: -1 };
+    }
+
+    const next = Math.min(
+      Math.max(prev.highlightedIndex, 0),
+      list.length - 1
+    );
+
+    return next === prev.highlightedIndex
+      ? prev
+      : { ...prev, highlightedIndex: next };
+  });
+}, [ui.countrySearch, ui.isCountryOpen]); // removed filteredCountries    
+    
+
+// ---------- Keyboard navigation helpers ----------
+    const getVisibleCountries = () => {
+  if (ui.countrySearch) return filteredCountries;
+  return [...POPULAR_COUNTRIES, ...filteredCountries];
+};
+
+const handleCountryKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const list = getVisibleCountries();
+  const max = list.length - 1;
+
+  // Open the dropdown with ArrowDown / Enter when closed
+  if (!ui.isCountryOpen) {
+    if (e.key === 'ArrowDown' || e.key === 'Enter') {
+      e.preventDefault();
+      setUi((prev) => ({
+        ...prev,
+        isCountryOpen: true,
+        countrySearch: '',
+        highlightedIndex: list.length > 0 ? 0 : -1,
+      }));
+    }
+    return;
+  }
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      if (list.length === 0) return;
+      setUi((prev) => ({
+        ...prev,
+        highlightedIndex:
+          prev.highlightedIndex < max ? prev.highlightedIndex + 1 : 0,
+      }));
+      break;
+
+    case 'ArrowUp':
+      e.preventDefault();
+      if (list.length === 0) return;
+      setUi((prev) => ({
+        ...prev,
+        highlightedIndex:
+          prev.highlightedIndex > 0 ? prev.highlightedIndex - 1 : max,
+      }));
+      break;
+
+    case 'Home':
+      e.preventDefault();
+      if (list.length === 0) return;
+      setUi((prev) => ({ ...prev, highlightedIndex: 0 }));
+      break;
+
+    case 'End':
+      e.preventDefault();
+      if (list.length === 0) return;
+      setUi((prev) => ({ ...prev, highlightedIndex: max }));
+      break;
+
+    case 'Enter':
+      e.preventDefault();
+      if (ui.highlightedIndex >= 0 && list[ui.highlightedIndex]) {
+        const c = list[ui.highlightedIndex];
+        setFormData((prev) => ({ ...prev, country: c.code }));
+        setErrors((prev) => ({ ...prev, country: undefined }));
+        setUi((prev) => ({
+          ...prev,
+          isCountryOpen: false,
+          countrySearch: '',
+          highlightedIndex: -1,
+        }));
+      }
+      break;
+
+    case 'Escape':
+      e.preventDefault();
+      setUi((prev) => ({
+        ...prev,
+        isCountryOpen: false,
+        countrySearch: '',
+        highlightedIndex: -1,
+      }));
+      break;
+
+    default:
+      break;
+  }
+};
+  
+    // ---------- end keyboard helpers ----------
       
       
       
       
       // ==================================================
-  // SECTION 13 B — INPUT CHANGE HANDLER
+  // SECTION 12 — INPUT CHANGE HANDLER
   // ==================================================
 
   /**
@@ -525,7 +537,7 @@ export default function MandatoryClientPage() {
       
       
       // ==================================================
-  // SECTION 14 — ROLE CHANGE HANDLER
+  // SECTION 13 — ROLE CHANGE HANDLER
   // ==================================================
 
   const handleRoleChange = (role: UserRole) => {
@@ -538,7 +550,7 @@ export default function MandatoryClientPage() {
       
       
       // ==================================================
-  // SECTION 15 — FORM VALIDATION
+  // SECTION 14 — FORM VALIDATION
   // ==================================================
 
   /**
@@ -611,39 +623,7 @@ export default function MandatoryClientPage() {
       }
     }
 
-    // --------------------------------------------------
-    // PASSWORD VALIDATION
-    // --------------------------------------------------
-
-    if (!formData.password) {
-
-      newErrors.password =
-        'Password is required.';
-
-    } else if (formData.password.length < 8) {
-
-      newErrors.password =
-        'Password must be at least 8 characters.';
-    }
-
-    // --------------------------------------------------
-    // CONFIRM PASSWORD VALIDATION
-    // --------------------------------------------------
-
-    if (!formData.retypePassword) {
-
-      newErrors.retypePassword =
-        'Please confirm your password.';
-
-    } else if (
-      formData.password !==
-      formData.retypePassword
-    ) {
-
-      newErrors.retypePassword =
-        'Passwords do not match.';
-    }
-
+    
     // --------------------------------------------------
     // COUNTRY VALIDATION
     // --------------------------------------------------
@@ -706,7 +686,7 @@ if (!trimmedCity) {
       
       
    // ==================================================
-  // SECTION 16 — SUBMIT HANDLER (UPDATE PROFILE)
+  // SECTION 15 — SUBMIT HANDLER (UPDATE PROFILE)
   // ==================================================   
       
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -802,7 +782,7 @@ if (!trimmedCity) {
       
       
       // ==================================================
-  // SECTION 17 — RESEND VERIFICATION HANDLER
+  // SECTION 16 — RESEND VERIFICATION HANDLER
   // ==================================================
 
   /**
@@ -862,7 +842,7 @@ if (!trimmedCity) {
       
       
       // ==================================================
-  // SECTION 18 — MAIN LAYOUT WRAPPER
+  // SECTION 17 — MAIN LAYOUT WRAPPER
   // ==================================================
 
   return (
@@ -878,7 +858,7 @@ if (!trimmedCity) {
         
         
         {/* ==================================================
-            SECTION 19 — HEADER / INSTRUCTIONS
+            SECTION 18 — HEADER / INSTRUCTIONS
         ================================================== */}
 
         <header className="form-header">
@@ -898,7 +878,7 @@ if (!trimmedCity) {
         
         
         {/* ==================================================
-            SECTION 20 — FORM WRAPPER + FULL NAME FIELD
+            SECTION 19 — FORM WRAPPER + FULL NAME FIELD
         ================================================== */}
 
         <form
@@ -951,7 +931,7 @@ if (!trimmedCity) {
 
 
 {/* ==================================================
-              SECTION 21 — GENDER FIELD
+              SECTION 20 — GENDER FIELD
           ================================================== */}
 
           <div className="form-group">
@@ -1007,7 +987,7 @@ if (!trimmedCity) {
 
 
 {/* ==================================================
-              SECTION 22 — EMAIL FIELD
+              SECTION 21 — EMAIL FIELD
           ================================================== */}
 
           <div className="form-group">
@@ -1052,410 +1032,288 @@ if (!trimmedCity) {
 
 
 
-        
-
-{/* ==================================================
-              SECTION 23 — PASSWORD FIELD
-          ================================================== */}
-
-          <div className="form-group">
-
-            <label htmlFor="password">
-              Password
-            </label>
-
-            <div className="password-wrapper">
-
-              <input
-                type={
-                  ui.passwordVisible
-                    ? 'text'
-                    : 'password'
-                }
-                id="password"
-                name="password"
-                placeholder="Min 8 characters"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                maxLength={128}
-                value={formData.password}
-                onChange={handleInputChange}
-                aria-invalid={
-                  !!errors.password
-                }
-                aria-describedby={
-                  errors.password
-                    ? 'password-error'
-                    : 'strength-text'
-                }
-              />
-
-              <button
-                type="button"
-                className="toggle-password"
-                aria-label={
-                  ui.passwordVisible
-                    ? 'Hide password'
-                    : 'Show password'
-                }
-                aria-pressed={
-                  ui.passwordVisible
-                }
-                onClick={() =>
-                  setUi((prev) => ({
-                    ...prev,
-
-                    passwordVisible:
-                      !prev.passwordVisible,
-                  }))
-                }
-              >
-
-                <i
-                  className={`fas ${
-                    ui.passwordVisible
-                      ? 'fa-eye-slash'
-                      : 'fa-eye'
-                  }`}
-                  aria-hidden="true"
-                ></i>
-
-              </button>
-
-            </div>
-
-            {/* Password Strength Meter */}
-            <div
-              className="strength-meter"
-              aria-hidden="true"
-            >
-
-              <div
-                className={`strength-bar ${
-                  ui.passwordStrength === 1
-                    ? 'strength-weak'
-                    : ui.passwordStrength === 2 ||
-                      ui.passwordStrength === 3
-                    ? 'strength-medium'
-                    : ui.passwordStrength === 4
-                    ? 'strength-strong'
-                    : ''
-                }`}
-                style={{
-                  width: `${
-                    (ui.passwordStrength / 4) * 100
-                  }%`,
-                }}
-              ></div>
-
-            </div>
-
-            <small id="strength-text">
-              Strength: {ui.strengthText}
-            </small>
-
-            {errors.password && (
-              <small
-                id="password-error"
-                className="error-text"
-                role="alert"
-              >
-                {errors.password}
-              </small>
-            )}
-
-          </div>
-
-
-
-
-{/* ==================================================
-              SECTION 24 — CONFIRM PASSWORD FIELD
-          ================================================== */}
-
-          <div className="form-group">
-
-            <label htmlFor="retypePassword">
-              Confirm Password
-            </label>
-
-            <div className="password-wrapper">
-
-              <input
-                type={
-                  ui.confirmVisible
-                    ? 'text'
-                    : 'password'
-                }
-                id="retypePassword"
-                name="retypePassword"
-                placeholder="Confirm your password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                maxLength={128}
-                value={formData.retypePassword}
-                onChange={handleInputChange}
-                aria-invalid={
-                  !!errors.retypePassword
-                }
-                aria-describedby={
-                  errors.retypePassword
-                    ? 'confirm-password-error'
-                    : undefined
-                }
-              />
-
-              <button
-                type="button"
-                className="toggle-password"
-                aria-label={
-                  ui.confirmVisible
-                    ? 'Hide password'
-                    : 'Show password'
-                }
-                aria-pressed={
-                  ui.confirmVisible
-                }
-                onClick={() =>
-                  setUi((prev) => ({
-                    ...prev,
-
-                    confirmVisible:
-                      !prev.confirmVisible,
-                  }))
-                }
-              >
-
-                <i
-                  className={`fas ${
-                    ui.confirmVisible
-                      ? 'fa-eye-slash'
-                      : 'fa-eye'
-                  }`}
-                  aria-hidden="true"
-                ></i>
-
-              </button>
-
-            </div>
-
-            {errors.retypePassword && (
-              <small
-                id="confirm-password-error"
-                className="error-text"
-                role="alert"
-              >
-                {errors.retypePassword}
-              </small>
-            )}
-
-          </div>
-
-
 
 
            {/* ==================================================
-              SECTION 25 — SEARCHABLE COUNTRY SELECTOR
-          ================================================== */}
+          SECTION 22 — SEARCHABLE COUNTRY SELECTOR
+================================================== */}
 
-          <div className="form-group" ref={countryContainerRef}>
-            <label htmlFor="country-search-input">Country of Origin</label>
+<div className="form-group" ref={countryContainerRef}>
+  <label htmlFor="country-search-input">Country of Origin</label>
 
-            <div className="custom-country-select-wrapper" style={{ position: 'relative' }}>
-              {/* Selected Flag & Input Field */}
-              <div
-                className="country-input-box"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  border: errors.country ? '1px solid #e53e3e' : '1px solid #ccc',
-                  borderRadius: '6px',
-                  padding: '0.5rem 0.75rem',
-                  backgroundColor: '#fff',
-                  cursor: 'text',
+  <div className="custom-country-select-wrapper" style={{ position: 'relative' }}>
+    {/* Selected Flag & Input Field */}
+    <div
+      className="country-input-box"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        border: errors.country ? '1px solid #e53e3e' : '1px solid #ccc',
+        borderRadius: '6px',
+        padding: '0.5rem 0.75rem',
+        backgroundColor: '#fff',
+        cursor: 'text',
+      }}
+      onClick={() =>
+        setUi((prev) => ({
+          ...prev,
+          isCountryOpen: true,
+          highlightedIndex: 0,
+        }))
+      }
+    >
+      {formData.country && (
+        <span style={{ marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
+          <ReactCountryFlag
+            countryCode={formData.country}
+            svg
+            style={{ width: '1.4rem', height: '1.4rem' }}
+          />
+        </span>
+      )}
+
+      <input
+        id="country-search-input"
+        type="text"
+        role="combobox"
+        aria-expanded={ui.isCountryOpen}
+        aria-controls="country-dropdown-list"
+        aria-haspopup="listbox"
+        aria-autocomplete="list"
+        aria-activedescendant={
+          ui.isCountryOpen && ui.highlightedIndex >= 0
+            ? `country-option-${ui.highlightedIndex}`
+            : undefined
+        }
+        placeholder="Type to search country..."
+        value={
+          ui.isCountryOpen
+            ? ui.countrySearch
+            : selectedCountryObj?.name || ''
+        }
+        onChange={(e) => {
+  const val = e.target.value;
+  setUi((prev) => ({
+    ...prev,
+    countrySearch: val,
+    isCountryOpen: true,
+    highlightedIndex: 0,          
+  }));
+}}
+onFocus={() =>
+  setUi((prev) => ({
+    ...prev,
+    isCountryOpen: true,
+    countrySearch: '',
+    highlightedIndex: 0,
+  }))
+}
+        onKeyDown={handleCountryKeyDown}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setUi((prev) => ({
+                    ...prev,
+                    countrySearch: val,
+                    isCountryOpen: true,
+                    highlightedIndex: 0,
+                  }));
                 }}
-                onClick={() =>
-                  setUi((prev) => ({ ...prev, isCountryOpen: true }))
+                onFocus={() =>
+                  setUi((prev) => ({
+                    ...prev,
+                    isCountryOpen: true,
+                    countrySearch: '',
+                    highlightedIndex: 0,
+                  }))
                 }
-              >
-                {formData.country && (
-                  <span style={{ marginRight: '0.5rem', display: 'flex', alignItems: 'center' }}>
-                    <ReactCountryFlag
-                      countryCode={formData.country}
-                      svg
-                      style={{ width: '1.4rem', height: '1.4rem' }}
-                    />
-                  </span>
-                )}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  width: '100%',
+                  background: 'transparent',
+                  fontSize: '1rem',
+                }}
+              />
 
-                <input
-  id="country-search-input"
-  type="text"
-  role="combobox"
-  aria-expanded={ui.isCountryOpen}
-  aria-controls="country-dropdown-list"
-  aria-haspopup="listbox"
-  aria-autocomplete="list"
-  placeholder="Type to search country..."
-  value={
-    ui.isCountryOpen
-      ? ui.countrySearch
-      : selectedCountryObj?.name || ''
-  }
-  onChange={(e) => {
-    const val = e.target.value;
-    setUi((prev) => ({
-      ...prev,
-      countrySearch: val,
-      isCountryOpen: true,
-    }));
-  }}
-  onFocus={() =>
-    setUi((prev) => ({
-      ...prev,
-      isCountryOpen: true,
-      countrySearch: '',
-    }))
-  }
-  style={{
-    border: 'none',
-    outline: 'none',
-    width: '100%',
-    background: 'transparent',
-    fontSize: '1rem',
-  }}
-/>
-                <i
-                  className={`fas ${ui.isCountryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}
-                  style={{ color: '#888', marginLeft: '0.5rem', cursor: 'pointer' }}
-                ></i>
-              </div>
+              <i
+                className={`fas ${ui.isCountryOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}
+                style={{ color: '#888', marginLeft: '0.5rem', cursor: 'pointer' }}
+              />
+    </div>
 
-              {/* Floating Dropdown List */}
-              {ui.isCountryOpen && (
-                <ul
-                  id="country-dropdown-list"
-                  className="country-dropdown-list"
-                  role="listbox"
+    {/* Floating Dropdown List */}
+    {ui.isCountryOpen && (
+      <ul
+        id="country-dropdown-list"
+        className="country-dropdown-list"
+        role="listbox"
+        style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          maxHeight: '220px',
+          overflowY: 'auto',
+          backgroundColor: '#fff',
+          border: '1px solid #ccc',
+          borderRadius: '6px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 1000,
+          margin: '4px 0 0 0',
+          padding: 0,
+          listStyle: 'none',
+        }}
+      >
+        {/* Popular choices (only when not searching) */}
+        {!ui.countrySearch && POPULAR_COUNTRIES.length > 0 && (
+          <>
+            <li
+              role="presentation"
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                color: '#888',
+                backgroundColor: '#f8f9fa',
+              }}
+            >
+              POPULAR CHOICES
+            </li>
+            {POPULAR_COUNTRIES.map((c, idx) => {
+              const isHighlighted = ui.highlightedIndex === idx;
+              return (
+                <li
+                  key={`pop-${c.code}`}
+                  id={`country-option-${idx}`}
+                  role="option"
+                  aria-selected={formData.country === c.code}
+                  onClick={() => {
+                    setFormData((prev) => ({ ...prev, country: c.code }));
+                    setErrors((prev) => ({ ...prev, country: undefined }));
+                    setUi((prev) => ({
+                      ...prev,
+                      isCountryOpen: false,
+                      countrySearch: '',
+                      highlightedIndex: -1,
+                    }));
+                  }}
+                  onMouseEnter={() =>
+                    setUi((prev) => ({ ...prev, highlightedIndex: idx }))
+                  }
                   style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    maxHeight: '220px',
-                    overflowY: 'auto',
-                    backgroundColor: '#fff',
-                    border: '1px solid #ccc',
-                    borderRadius: '6px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    zIndex: 1000,
-                    margin: '4px 0 0 0',
-                    padding: '0',
-                    listStyle: 'none',
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: isHighlighted
+                      ? '#e8f0fe'
+                      : formData.country === c.code
+                      ? '#f0f7ff'
+                      : '#fff',
                   }}
                 >
-                  {/* Popular choices header if no search query active */}
-                  {!ui.countrySearch && POPULAR_COUNTRIES.length > 0 && (
-                    <>
-                      <li
-                        role="presentation"
-                        style={{
-                          padding: '6px 12px',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                          color: '#888',
-                          backgroundColor: '#f8f9fa',
-                        }}
-                      >
-                        POPULAR CHOICES
-                      </li>
-                      {POPULAR_COUNTRIES.map((c) => (
-                        <li
-                          key={`pop-${c.code}`}
-                          role="option"
-                          aria-selected={formData.country === c.code}
-                          onClick={() => {
-                            setFormData((prev) => ({ ...prev, country: c.code }));
-                            setErrors((prev) => ({ ...prev, country: undefined }));
-                            setUi((prev) => ({ ...prev, isCountryOpen: false, countrySearch: '' }));
-                          }}
-                          style={{
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            backgroundColor: formData.country === c.code ? '#f0f7ff' : '#fff',
-                          }}
-                        >
-                          <ReactCountryFlag countryCode={c.code} svg style={{ width: '1.2rem', height: '1.2rem' }} />
-                          <span>{c.name}</span>
-                        </li>
-                      ))}
-                      <li
-                        role="presentation"
-                        style={{
-                          padding: '6px 12px',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                          color: '#888',
-                          backgroundColor: '#f8f9fa',
-                          borderTop: '1px solid #eee',
-                        }}
-                      >
-                        ALL COUNTRIES
-                      </li>
-                    </>
-                  )}
+                  <ReactCountryFlag
+                    countryCode={c.code}
+                    svg
+                    style={{ width: '1.2rem', height: '1.2rem' }}
+                  />
+                  <span>{c.name}</span>
+                </li>
+              );
+            })}
+            <li
+              role="presentation"
+              style={{
+                padding: '6px 12px',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                color: '#888',
+                backgroundColor: '#f8f9fa',
+                borderTop: '1px solid #eee',
+              }}
+            >
+              ALL COUNTRIES
+            </li>
+          </>
+        )}
 
-                  {/* Filtered Country List */}
-                  {filteredCountries.length > 0 ? (
-                    filteredCountries.map((c) => (
-                      <li
-                        key={`all-${c.code}`}
-                        role="option"
-                        aria-selected={formData.country === c.code}
-                        onClick={() => {
-                          setFormData((prev) => ({ ...prev, country: c.code }));
-                          setErrors((prev) => ({ ...prev, country: undefined }));
-                          setUi((prev) => ({ ...prev, isCountryOpen: false, countrySearch: '' }));
-                        }}
-                        style={{
-                          padding: '8px 12px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          backgroundColor: formData.country === c.code ? '#f0f7ff' : '#fff',
-                        }}
-                      >
-                        <ReactCountryFlag countryCode={c.code} svg style={{ width: '1.2rem', height: '1.2rem' }} />
-                        <span>{c.name}</span>
-                      </li>
-                    ))
-                  ) : (
-                    <li role="presentation" style={{ padding: '12px', textAlign: 'center', color: '#888', fontSize: '0.9rem' }}>
-                      No countries found
-                    </li>
-                  )}
-                </ul>
-              )}
-              
-              
-              {errors.country && (
-                <small id="country-error" className="error-text" role="alert">
-                  {errors.country}
-                </small>
-              )}
-            </div>
-          </div>
+        {/* Filtered / All Countries list */}
+        {filteredCountries.length > 0 ? (
+          filteredCountries.map((c, idx) => {
+            // When popular section is visible, offset the index
+            const absoluteIndex = !ui.countrySearch
+              ? POPULAR_COUNTRIES.length + idx
+              : idx;
+            const isHighlighted = ui.highlightedIndex === absoluteIndex;
 
+            return (
+              <li
+                key={`all-${c.code}`}
+                id={`country-option-${absoluteIndex}`}
+                role="option"
+                aria-selected={formData.country === c.code}
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, country: c.code }));
+                  setErrors((prev) => ({ ...prev, country: undefined }));
+                  setUi((prev) => ({
+                    ...prev,
+                    isCountryOpen: false,
+                    countrySearch: '',
+                    highlightedIndex: -1,
+                  }));
+                }}
+                onMouseEnter={() =>
+                  setUi((prev) => ({ ...prev, highlightedIndex: absoluteIndex }))
+                }
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: isHighlighted
+                    ? '#e8f0fe'
+                    : formData.country === c.code
+                    ? '#f0f7ff'
+                    : '#fff',
+                }}
+              >
+                <ReactCountryFlag
+                  countryCode={c.code}
+                  svg
+                  style={{ width: '1.2rem', height: '1.2rem' }}
+                />
+                <span>{c.name}</span>
+              </li>
+            );
+          })
+        ) : (
+          <li
+            role="presentation"
+            style={{
+              padding: '12px',
+              textAlign: 'center',
+              color: '#888',
+              fontSize: '0.9rem',
+            }}
+          >
+            No countries found
+          </li>
+        )}
+      </ul>
+    )}
 
+    {errors.country && (
+      <small id="country-error" className="error-text" role="alert">
+        {errors.country}
+      </small>
+    )}
+  </div>
+</div>
 
 {/* ==================================================
-              SECTION 25.5 — CITY FIELD
+              SECTION 23 — CITY FIELD
           ================================================== */}
 
           <div className="form-group">
@@ -1485,7 +1343,7 @@ if (!trimmedCity) {
 
 
           {/* ==================================================
-              SECTION 26 — ROLE SELECTION CARDS
+              SECTION 24 — ROLE SELECTION CARDS
           ================================================== */}
 
           <div className="form-group">
@@ -1555,7 +1413,7 @@ if (!trimmedCity) {
           </div>
 
           {/* ==================================================
-              SECTION 27 — REFERRAL FIELD + CONDITIONAL DISPLAY
+              SECTION 25 — REFERRAL FIELD + CONDITIONAL DISPLAY
           ================================================== */}
 
           <div
@@ -1595,7 +1453,7 @@ if (!trimmedCity) {
 
 
         {/* ==================================================
-              SECTION 28 — TERMS & CONDITIONS CHECKBOX
+              SECTION 26 — TERMS & CONDITIONS CHECKBOX
           ================================================== */}
 
           <div className="form-group terms-check">
@@ -1664,7 +1522,7 @@ if (!trimmedCity) {
 
 
 {/* ==================================================
-              SECTION 29 — SUBMIT BUTTON + LOGIN LINK
+              SECTION 27 — SUBMIT BUTTON + LOGIN LINK
           ================================================== */}
 
           <button
@@ -1694,15 +1552,11 @@ if (!trimmedCity) {
 
           {/* Login Link */}
           <p className="login-link">
-
-            Already have an account?{' '}
-
-            <Link href="/login">
-              Sign In
-            </Link>
-
-          </p>
-
+  Already have an account?{' '}
+  <Link href="/?auth=login">
+    Sign In
+  </Link>
+</p>
         </form>
 
 
@@ -1710,7 +1564,7 @@ if (!trimmedCity) {
 
      
 {/* ==================================================
-          SECTION 30 — SUCCESS OVERLAY WRAPPER
+          SECTION 28 — SUCCESS OVERLAY WRAPPER
       ================================================== */}
 
       {ui.showSuccess && (
@@ -1727,7 +1581,7 @@ if (!trimmedCity) {
           <div className="overlay-content">
             
             {/* ==================================================
-                SECTION 31 — SUCCESS CONTENT + PROFILE COMPLETE UI
+                SECTION 29 — SUCCESS CONTENT + PROFILE COMPLETE UI
             ================================================== */}            
                         
             <i
@@ -1763,7 +1617,7 @@ if (!trimmedCity) {
       )}
 
       {/* ==================================================
-          SECTION 32 — FINAL JSX CLOSURE
+          SECTION 30 — FINAL JSX CLOSURE
       ================================================== */}           
 
     </main>

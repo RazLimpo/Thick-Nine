@@ -241,6 +241,19 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+    
+    // Open auth modal when landing with ?auth=login or ?auth=register
+useEffect(() => {
+  if (!isMounted) return;
+
+  const authParam = searchParams.get('auth');
+  if (authParam === 'login' || authParam === 'register') {
+    openAuthModal(authParam);
+    // Optional: clean the URL so refreshing doesn't reopen the modal
+    router.replace('/', { scroll: false });
+  }
+}, [isMounted, searchParams, openAuthModal, router]);
+    
   // ====================== GLOBAL SEARCH FORM ROUTER ======================
   const handleSearch = (e: React.FormEvent) => {
     // Ensure standard HTML forms do not trigger heavy browser-reloading actions
