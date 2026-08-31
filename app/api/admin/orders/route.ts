@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     let grossAdminProfit = 0;
     let inEscrow = 0;
 
-    orders.forEach((ord) => {
+    orders.forEach((ord: any) => {
       totalVolume += ord.grandTotal || 0;
       grossAdminProfit += (ord.buyerServiceFee || 0) + (ord.sellerPlatformFee || 0);
       if (ord.status === 'pending' || ord.status === 'in_progress') {
