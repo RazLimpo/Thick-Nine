@@ -11,12 +11,13 @@ interface DashboardStats {
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchStats() {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        
+
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         };
@@ -30,28 +31,18 @@ export default function AdminDashboardPage() {
           headers,
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.stats) {
-            setStats(data.stats);
-            return;
-          }
-        }
+        const data = await res.json();
 
-        // Fallback mock stats if backend response isn't successful
-        setStats({
-          totalClients: 14,
-          pendingPayouts: 280.00,
-          platformRevenue: 70.00,
-        });
-      } catch (err) {
+        if (res.ok && data.success && data.stats) {
+          setStats(data.stats);
+          setError(null);
+        } else {
+          // Expose exact backend failure message
+          setError(data.message || `API error (${res.status})`);
+        }
+      } catch (err: any) {
         console.error('Error loading dashboard stats:', err);
-        // Fallback mock stats on network failure
-        setStats({
-          totalClients: 14,
-          pendingPayouts: 280.00,
-          platformRevenue: 70.00,
-        });
+        setError(`Client network error: ${err.message}`);
       } finally {
         setLoading(false);
       }
@@ -66,6 +57,17 @@ export default function AdminDashboardPage() {
         <div className="page-header">
           <h1>Overview Dashboard</h1>
           <p>Loading real-time platform metrics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-page">
+        <div className="page-header">
+          <h1>Overview Dashboard</h1>
+          <p style={{ color: '#ef4444', fontWeight: 600 }}>⚠️ Connection Error: {error}</p>
         </div>
       </div>
     );
