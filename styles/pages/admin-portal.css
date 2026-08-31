@@ -217,3 +217,30 @@ padding: 2px 8px;
 border-radius: 4px;
 letter-spacing: 0.05em;
 }
+
+
+
+/* --- HELPER CLASSES & STATUS BADGES --- */
+.text-green { color: #10b981; }
+.text-amber { color: #f59e0b; }
+.text-blue { color: #2563eb; }
+.text-center { text-align: center; padding: 32px; color: #64748b; }
+.font-semibold { font-weight: 600; }
+
+.escrow-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.escrow-badge.released {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.escrow-badge.held {
+  background-color: #fef3c7;
+  color: #92400e;
+}

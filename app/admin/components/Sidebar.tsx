@@ -19,6 +19,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: 'fa-chart-line' },
   { name: 'Clients', path: '/admin/clients', icon: 'fa-users', permission: 'users:read' },
+  { name: 'Orders & Escrow', path: '/admin/orders', icon: 'fa-receipt', permission: 'orders:read' },
   { name: 'Withdrawals', path: '/admin/withdrawals', icon: 'fa-wallet', permission: 'payouts:read' },
   { name: 'Messages', path: '/admin/messages', icon: 'fa-envelope', permission: 'messages:read' },
   { name: 'Team Roles', path: '/admin/sub-admins', icon: 'fa-user-shield', permission: 'roles:manage' },
