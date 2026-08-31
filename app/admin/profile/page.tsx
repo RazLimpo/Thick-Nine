@@ -36,7 +36,7 @@ export default function AdminProfilePage() {
   // Fetch Admin Profile
   useEffect(() => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second client timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     const token = localStorage.getItem('token') || '';
 
@@ -175,53 +175,44 @@ export default function AdminProfilePage() {
       </div>
 
       {toast && (
-        <div className={`toast ${toast.type === 'error' ? 'removed' : ''}`} style={{ marginBottom: '20px' }}>
+        <div className={`profile-toast ${toast.type === 'error' ? 'removed' : ''}`}>
           <i className={`fas ${toast.type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'}`}></i>
           <span>{toast.message}</span>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+      <div className="profile-grid">
         {/* PERSONAL DETAILS CARD */}
-        <div className="table-wrapper" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '16px', fontWeight: 600 }}>Account Details</h2>
+        <div className="table-wrapper profile-card">
+          <h2 className="profile-card-title">Account Details</h2>
           <form onSubmit={handleSaveProfile}>
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                Full Name
-              </label>
+            <div className="profile-form-group">
+              <label className="profile-form-label">Full Name</label>
               <input
                 type="text"
-                className="search-input"
-                style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                className="profile-input"
                 value={profile.name}
                 onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                 required
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                Email Address
-              </label>
+            <div className="profile-form-group">
+              <label className="profile-form-label">Email Address</label>
               <input
                 type="email"
-                className="search-input"
-                style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                className="profile-input"
                 value={profile.email}
                 onChange={(e) => setProfile({ ...profile, email: e.target.value })}
                 required
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                System Role
-              </label>
+            <div className="profile-form-group last">
+              <label className="profile-form-label">System Role</label>
               <input
                 type="text"
-                className="search-input"
-                style={{ width: '100%', padding: '10px 12px', background: '#e2e8f0', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'not-allowed' }}
+                className="profile-input"
                 value={profile.role}
                 disabled
               />
@@ -229,8 +220,7 @@ export default function AdminProfilePage() {
 
             <button
               type="submit"
-              className="btn-action"
-              style={{ backgroundColor: '#0f172a', color: '#ffffff', border: 'none', padding: '10px 18px', fontWeight: 600 }}
+              className="btn-action btn-save-profile"
               disabled={isSavingProfile}
             >
               {isSavingProfile ? 'Saving...' : 'Save Changes'}
@@ -239,45 +229,36 @@ export default function AdminProfilePage() {
         </div>
 
         {/* SECURITY & PASSWORD CARD */}
-        <div className="table-wrapper" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '16px', fontWeight: 600 }}>Security Settings</h2>
+        <div className="table-wrapper profile-card">
+          <h2 className="profile-card-title">Security Settings</h2>
           <form onSubmit={handleUpdatePassword}>
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                Current Password
-              </label>
+            <div className="profile-form-group">
+              <label className="profile-form-label">Current Password</label>
               <input
                 type="password"
-                className="search-input"
-                style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                className="profile-input"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="••••••••"
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                New Password
-              </label>
+            <div className="profile-form-group">
+              <label className="profile-form-label">New Password</label>
               <input
                 type="password"
-                className="search-input"
-                style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                className="profile-input"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="At least 8 characters"
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: '20px' }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                Confirm New Password
-              </label>
+            <div className="profile-form-group last">
+              <label className="profile-form-label">Confirm New Password</label>
               <input
                 type="password"
-                className="search-input"
-                style={{ width: '100%', padding: '10px 12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                className="profile-input"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
@@ -286,8 +267,7 @@ export default function AdminProfilePage() {
 
             <button
               type="submit"
-              className="btn-action"
-              style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '10px 18px', fontWeight: 600 }}
+              className="btn-action btn-update-password"
               disabled={isUpdatingPassword}
             >
               {isUpdatingPassword ? 'Updating...' : 'Update Password'}
