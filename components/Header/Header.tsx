@@ -82,15 +82,22 @@ const Header = () => {
   }, []);
 
 
-  // ====================== ACCOUNT ROLE ROTATION ENGINE ======================
+// ====================== ACCOUNT ROLE ROTATION ENGINE ======================
   const handleAccountSwitching = () => {
+    // Guard: admins do not rotate roles
+    if (userRole === 'admin') {
+      closeAllUI();
+      showToast("You are logged in as Administrator", "fa-shield-alt");
+      return;
+    }
+
     // 1. Grab values safely from browser environment storage with default fallbacks
     const currentRole = localStorage.getItem('userRole') || 'client';
     const storageStrength = localStorage.getItem('accountStrength');
-    
+
     // Parse baseline tier strength safely (default to 50 matching starter DB tier schemas)
     const strength = storageStrength ? parseInt(storageStrength, 10) : 50;
-    
+
     let newRole: 'client' | 'freelancer' | 'affiliate' = 'client';
 
     // 2. Set up the explicit circular account rotation
@@ -104,21 +111,22 @@ const Header = () => {
 
     // 3. THE PRODUCTION SECURITY GATE: Stop execution if profile strength criteria is unmet
     if (newRole === 'freelancer' && strength < 60) {
-      closeAllUI(); // Cleanly close dropdown menu overlay
-      showToast(`Profile strength too low (${strength}%). Please complete your profile to unlock Freelancing!`, "fa-lock");
-      return; // HARD ABORT: Do not alter local states or push route switches
+      closeAllUI();
+      showToast(
+        `Profile strength too low (${strength}%). Please complete your profile to unlock Freelancing!`,
+        "fa-lock"
+      );
+      return;
     }
 
     // 4. Commit verified authorization changes to local records and update states
     localStorage.setItem('userRole', newRole);
     setUserRole(newRole);
-    
-    // Announce configuration changes cleanly to secondary mounted event listeners
+
     window.dispatchEvent(new Event('userRoleChanged'));
     closeAllUI();
     showToast(`Switched to ${newRole.toUpperCase()} mode`, "fa-exchange-alt");
 
-    // Push the browser route context directly based on the new validated tier
     if (newRole === 'freelancer') {
       router.push('/freelancer-dashboard');
     } else if (newRole === 'affiliate') {
@@ -127,13 +135,16 @@ const Header = () => {
       router.push('/client-dashboard');
     }
   };
-    
+
   // Generates clean action button strings dynamically depending on the active state
   const getSwitcherText = () => {
+    if (userRole === 'admin') return "Admin Mode";
     if (userRole === 'client') return "Switch to Freelancing";
     if (userRole === 'freelancer') return "Switch to Affiliate";
     return "Switch to Buying";
   };
+
+
 
   // Clears active authorization records cleanly and routes back to the root page context
   const handleSignOut = () => {
@@ -309,6 +320,30 @@ useEffect(() => {
       </li>
     );
 
+    // Inside getMenuItems():
+
+if (userRole === 'admin') {
+  items.push(
+    <li key="adm-dash">
+      <Link href="/admin/dashboard" onClick={closeAllUI}>
+        <i className="fas fa-shield-alt"></i> Admin Dashboard
+      </Link>
+    </li>,
+    <li key="adm-clients">
+      <Link href="/admin/clients" onClick={closeAllUI}>
+        <i className="fas fa-users"></i> Manage Clients
+      </Link>
+    </li>,
+    <li key="adm-orders">
+      <Link href="/admin/orders" onClick={closeAllUI}>
+        <i className="fas fa-file-invoice-dollar"></i> Orders & Escrow
+      </Link>
+    </li>
+  );
+}
+
+
+
     // Append Role-Specific Sub-Menu Lists
     if (userRole === 'freelancer') {
       items.push(
@@ -459,12 +494,13 @@ try {
         closeAllUI();      
         showToast(`Welcome back, ${data.user.fullName || 'User'}!`, "fa-sign-in-alt");
 
-        // Route dynamically to user's active dashboard
-        setTimeout(() => {
-          if (userRole === 'freelancer') router.push('/freelancer-dashboard');
-          else if (userRole === 'affiliate') router.push('/affiliate-dashboard');
-          else router.push('/client-dashboard');
-        }, 1200);
+        // Inside handleLogin after successful response:
+setTimeout(() => {
+  if (userRole === 'admin') router.push('/admin/dashboard');
+  else if (userRole === 'freelancer') router.push('/freelancer-dashboard');
+  else if (userRole === 'affiliate') router.push('/affiliate-dashboard');
+  else router.push('/client-dashboard');
+}, 1200);
 
       } else {
         showToast(data.msg || "Invalid credentials", "fa-lock");
