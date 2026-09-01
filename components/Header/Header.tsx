@@ -202,10 +202,18 @@ const Header = () => {
     // Bind current credentials to DOM attribute triggers for CSS selection architecture
     document.body.setAttribute('data-user-role', effectiveRole); 
 
-    // Setup safe context directories accessible without active registration tokens
-    const safePages = [
-      '/', '/search-results', '/about', '/terms-and-privacy', '/service-details', '/freelancer-profile', '/verify-email', '/mandatory'
-    ];
+   // Setup safe context directories accessible without active registration tokens
+const safePages = [
+  '/', 
+  '/search-results', 
+  '/about', 
+  '/terms-and-privacy', 
+  '/service-details', 
+  '/freelancer-profile', 
+  '/verify-email', 
+  '/mandatory',
+  '/admin/login'
+];
     const isSafePage = safePages.includes(currentPath || '');
 
     if (!isSafePage) {
