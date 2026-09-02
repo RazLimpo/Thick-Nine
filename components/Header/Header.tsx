@@ -216,15 +216,15 @@ const safePages = [
 ];
     const isSafePage = safePages.includes(currentPath || '');
 
-    if (!isSafePage) {
-      if (!loggedIn) {
-        setTimeout(() => openAuthModal('login'), 100); 
-      } else if (!emailVerified && currentPath !== '/verify-email') {
-        router.push('/verify-email');
-      } else if (emailVerified && !profileDone && currentPath !== '/mandatory') {
-        router.push('/mandatory');
-      }
-    }
+   if (!isSafePage) {
+  if (!loggedIn) {
+    router.replace('/?auth=login'); 
+  } else if (!emailVerified && currentPath !== '/verify-email') {
+    router.push('/verify-email');
+  } else if (emailVerified && !profileDone && currentPath !== '/mandatory') {
+    router.push('/mandatory');
+  }
+}
   }, [currentPath, router, openAuthModal]);
     
   // Primary mount synchronization hook (Defeats Next.js server pre-render hydration mismatches)
