@@ -33,8 +33,15 @@ export default function AdminDashboardPage() {
 
         const data = await res.json();
 
-        if (res.ok && data.success && data.stats) {
-          setStats(data.stats);
+        // Fallback to data.metrics or data.stats depending on which backend endpoint responds
+        const statsPayload = data.metrics || data.stats;
+
+        if (res.ok && data.success && statsPayload) {
+          setStats({
+            totalClients: statsPayload.totalUsers ?? statsPayload.totalClients ?? 0,
+            pendingPayouts: statsPayload.pendingWithdrawals ?? statsPayload.pendingPayouts ?? 0,
+            platformRevenue: statsPayload.grossAdminProfit ?? statsPayload.totalRevenue ?? statsPayload.platformRevenue ?? 0,
+          });
           setError(null);
         } else {
           // Expose exact backend failure message

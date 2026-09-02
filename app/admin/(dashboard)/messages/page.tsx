@@ -98,7 +98,9 @@ export default function AdminMessagesPage() {
                 <small>{new Date(msg.createdAt).toLocaleDateString()}</small>
               </div>
               {msg.subject && <h4 style={{ margin: '0.25rem 0' }}>{msg.subject}</h4>}
-              <p style={{ margin: 0 }}>{msg.message}</p>
+              <p style={{ margin: 0 }}>
+              {msg.message || (msg as any).body || 'No content provided.'}
+              </p>
             </div>
           ))
         )}
