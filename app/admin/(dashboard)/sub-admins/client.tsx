@@ -32,6 +32,7 @@ export default function SubAdminsClient() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('sub_admin'); 
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -73,24 +74,26 @@ export default function SubAdminsClient() {
           name,
           email,
           password,
-          permissions: selectedPermissions,
+          role,
+          permissions: role === 'super_admin' ? ['*'] : selectedPermissions,
         }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Failed to create sub-admin');
+        throw new Error(data.message || 'Failed to create admin');
       }
 
       // Reset & Refresh
       setName('');
       setEmail('');
       setPassword('');
+      setRole('sub_admin');
       setSelectedPermissions([]);
       setShowModal(false);
       fetchSubAdmins();
     } catch (err: any) {
-      setError(err.message || 'Error creating sub-admin');
+      setError(err.message || 'Error creating admin');
     } finally {
       setSaving(false);
     }
@@ -206,21 +209,35 @@ export default function SubAdminsClient() {
                 />
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>Permissions</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {AVAILABLE_PERMISSIONS.map((perm) => (
-                    <label key={perm.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedPermissions.includes(perm.key)}
-                        onChange={() => handlePermissionToggle(perm.key)}
-                      />
-                      {perm.label}
-                    </label>
-                  ))}
-                </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px' }}>Administrative Role</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
+                >
+                  <option value="sub_admin">Sub-Admin (Granular Permissions)</option>
+                  <option value="super_admin">Super Admin (Full Platform Access)</option>
+                </select>
               </div>
+
+              {role === 'sub_admin' && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>Permissions</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {AVAILABLE_PERMISSIONS.map((perm) => (
+                      <label key={perm.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPermissions.includes(perm.key)}
+                          onChange={() => handlePermissionToggle(perm.key)}
+                        />
+                        {perm.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                 <button type="button" className="btn-action" onClick={() => setShowModal(false)}>Cancel</button>

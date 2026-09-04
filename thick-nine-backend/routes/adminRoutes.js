@@ -46,11 +46,12 @@ router.get('/stats', auth, async (req, res) => {
 // GET /api/admin/messages - Protected by 'messages:read'
 router.get('/messages', auth, requirePermission('messages:read'), async (req, res) => {
   try {
-    const messages = await Message.find()
-      .populate('senderId', 'fullName email avatar')
-      .populate('repliedBy', 'fullName email')
-      .sort({ createdAt: -1 })
-      .lean();
+    // GET /api/admin/messages
+const messages = await Message.find()
+  .populate('senderId', 'fullName email avatar')
+  .populate({ path: 'repliedBy', model: 'Admin', select: 'name email' })
+  .sort({ createdAt: -1 })
+  .lean();
 
     return res.status(200).json({
       success: true,
@@ -98,13 +99,13 @@ router.post('/messages/reply', auth, requirePermission('messages:reply'), async 
 });
 
 // ==================================================================
-// SUB-ADMIN MANAGEMENT ROUTES (Protected by 'roles:manage')
+// SUB-ADMIN & SUPER ADMIN MANAGEMENT ROUTES (Protected by 'roles:manage')
 // ==================================================================
 
-// 1. POST /api/admin/sub-admins - Create a new Sub-Admin
+// 1. POST /api/admin/sub-admins - Create a new Admin (Sub-Admin or Super Admin)
 router.post('/sub-admins', auth, requirePermission('roles:manage'), async (req, res) => {
   try {
-    const { name, email, password, permissions } = req.body;
+    const { name, email, password, permissions, role = 'sub_admin' } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
@@ -119,35 +120,35 @@ router.post('/sub-admins', auth, requirePermission('roles:manage'), async (req, 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newSubAdmin = await Admin.create({
+    const newAdmin = await Admin.create({
       name,
       email,
       password: hashedPassword,
-      role: 'sub_admin',
-      permissions: permissions || [],
+      role: role,
+      permissions: role === 'super_admin' ? ['*'] : (permissions || []),
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Sub-admin created successfully.',
+      message: `${role === 'super_admin' ? 'Super Admin' : 'Sub-admin'} created successfully.`,
       data: {
-        id: newSubAdmin._id,
-        name: newSubAdmin.name,
-        email: newSubAdmin.email,
-        role: newSubAdmin.role,
-        permissions: newSubAdmin.permissions,
+        id: newAdmin._id,
+        name: newAdmin.name,
+        email: newAdmin.email,
+        role: newAdmin.role,
+        permissions: newAdmin.permissions,
       },
     });
   } catch (err) {
-    console.error('Error creating sub-admin:', err);
-    return res.status(500).json({ success: false, message: 'Server error creating sub-admin.' });
+    console.error('Error creating admin:', err);
+    return res.status(500).json({ success: false, message: 'Server error creating admin account.' });
   }
 });
 
-// 2. GET /api/admin/sub-admins - List all Sub-Admins
+// 2. GET /api/admin/sub-admins - List all Admins (Sub-Admins & Super Admins)
 router.get('/sub-admins', auth, requirePermission('roles:manage'), async (req, res) => {
   try {
-    const subAdmins = await Admin.find({ role: 'sub_admin' })
+    const subAdmins = await Admin.find({})
       .select('-password')
       .sort({ createdAt: -1 });
 
@@ -156,8 +157,8 @@ router.get('/sub-admins', auth, requirePermission('roles:manage'), async (req, r
       data: subAdmins,
     });
   } catch (err) {
-    console.error('Error fetching sub-admins:', err);
-    return res.status(500).json({ success: false, message: 'Failed to retrieve sub-admins.' });
+    console.error('Error fetching admins:', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve admins.' });
   }
 });
 
