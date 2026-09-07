@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createSubAdminSchema, ALLOWED_PERMISSIONS } from '@/lib/schemas/subAdmin';
 
 interface SubAdmin {
   _id: string;
@@ -23,6 +24,26 @@ const AVAILABLE_PERMISSIONS = [
   { key: 'roles:manage', label: 'Manage Team Roles' },
 ];
 
+const ROLE_PRESETS = {
+  support: {
+    label: 'Support Staff',
+    permissions: ['messages:read', 'messages:reply', 'users:read', 'orders:read'],
+  },
+  moderator: {
+    label: 'Content Moderator',
+    permissions: ['services:read', 'services:moderate', 'messages:read', 'reviews:manage'],
+  },
+  senior_support: {
+    label: 'Senior Support / Lead',
+    permissions: ['messages:read', 'messages:reply', 'users:read', 'users:manage', 'services:moderate'],
+  },
+  custom: {
+    label: 'Custom Sub-Admin',
+    permissions: [],
+  },
+};
+
+
 export default function SubAdminsClient() {
   const [subAdmins, setSubAdmins] = useState<SubAdmin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +58,15 @@ export default function SubAdminsClient() {
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
   const [saving, setSaving] = useState(false);
+
+
+  const handleRoleChange = (selectedRole: string) => {
+  setRole(selectedRole);
+
+  // Automatically pre-check permissions based on the chosen role template
+  const presetPermissions = ROLE_PRESETS[selectedRole as keyof typeof ROLE_PRESETS]?.permissions || [];
+  setSelectedPermissions(presetPermissions);
+};
 
   const getAuthHeaders = () => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -128,11 +158,16 @@ export default function SubAdminsClient() {
         headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          password,
-          role,
-          permissions: role === 'super_admin' ? ['*'] : selectedPermissions,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role,
+        permissions:
+        role === 'super_admin'
+          ? ['*']
+          : role === 'admin'
+            ? ['users:read', 'users:write', 'messages:read', 'messages:reply', 'payouts:read']
+            : selectedPermissions,
         }),
       });
 
@@ -447,7 +482,8 @@ export default function SubAdminsClient() {
                 </p>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
+ 
+             <div style={{ marginBottom: '16px' }}>
                 <label
                   style={{
                     display: 'block',
@@ -461,13 +497,7 @@ export default function SubAdminsClient() {
                 <select
                   value={role}
                   disabled={saving}
-                  onChange={(e) => {
-                    const newRole = e.target.value;
-                    setRole(newRole);
-                    if (newRole === 'super_admin') {
-                      setSelectedPermissions([]);
-                    }
-                  }}
+                  onChange={(e) => handleRoleChange(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '8px 12px',
@@ -476,12 +506,23 @@ export default function SubAdminsClient() {
                     backgroundColor: '#fff',
                   }}
                 >
-                  <option value="sub_admin">Sub-Admin (Granular Permissions)</option>
-                  <option value="super_admin">Super Admin (Full Platform Access)</option>
+                  <option value="super_admin">Super Admin (Full Access)</option>
+                  <option value="admin">Standard Admin (No Role Management)</option>
+
+                  <optgroup label="Sub-Admin Templates">
+                    <option value="support">Support Staff</option>
+                    <option value="moderator">Content Moderator</option>
+                    <option value="senior_support">Senior Support</option>
+                    <option value="custom">Custom Sub-Admin</option>
+                  </optgroup>
                 </select>
               </div>
 
-              {role === 'sub_admin' && (
+              {/* Show permission checkboxes only for sub-admin style roles */}
+              {(role === 'support' ||
+                role === 'moderator' ||
+                role === 'senior_support' ||
+                role === 'custom') && (
                 <div style={{ marginBottom: '20px' }}>
                   <label
                     style={{
