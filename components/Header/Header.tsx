@@ -12,6 +12,20 @@ interface ToastState {
   icon: string;
 }
 
+
+ // Helper for all administrative roles
+const ADMIN_ROLES = [
+  'super_admin',
+  'admin',
+  'support',
+  'moderator',
+  'senior_support',
+  'custom',
+  'sub_admin',
+];
+const isAdminRole = (role: string) => ADMIN_ROLES.includes(role);
+
+
 const Header = () => {
   const router = useRouter();
   const currentPath = usePathname();
@@ -83,66 +97,66 @@ const Header = () => {
 
 
 // ====================== ACCOUNT ROLE ROTATION ENGINE ======================
-  const handleAccountSwitching = () => {
-    // Guard: admins do not rotate roles
-    if (userRole === 'admin') {
-      closeAllUI();
-      showToast("You are logged in as Administrator", "fa-shield-alt");
-      return;
-    }
-
-    // 1. Grab values safely from browser environment storage with default fallbacks
-    const currentRole = localStorage.getItem('userRole') || 'client';
-    const storageStrength = localStorage.getItem('accountStrength');
-
-    // Parse baseline tier strength safely (default to 50 matching starter DB tier schemas)
-    const strength = storageStrength ? parseInt(storageStrength, 10) : 50;
-
-    let newRole: 'client' | 'freelancer' | 'affiliate' = 'client';
-
-    // 2. Set up the explicit circular account rotation
-    if (currentRole === 'client') {
-      newRole = 'freelancer';
-    } else if (currentRole === 'freelancer') {
-      newRole = 'affiliate';
-    } else {
-      newRole = 'client';
-    }
-
-    // 3. THE PRODUCTION SECURITY GATE: Stop execution if profile strength criteria is unmet
-    if (newRole === 'freelancer' && strength < 60) {
-      closeAllUI();
-      showToast(
-        `Profile strength too low (${strength}%). Please complete your profile to unlock Freelancing!`,
-        "fa-lock"
-      );
-      return;
-    }
-
-    // 4. Commit verified authorization changes to local records and update states
-    localStorage.setItem('userRole', newRole);
-    setUserRole(newRole);
-
-    window.dispatchEvent(new Event('userRoleChanged'));
+const handleAccountSwitching = () => {
+  // Guard: administrative roles do not rotate
+  if (isAdminRole(userRole)) {
     closeAllUI();
-    showToast(`Switched to ${newRole.toUpperCase()} mode`, "fa-exchange-alt");
+    showToast("You are logged in as an Administrator", "fa-shield-alt");
+    return;
+  }
 
-    if (newRole === 'freelancer') {
-      router.push('/freelancer-dashboard');
-    } else if (newRole === 'affiliate') {
-      router.push('/affiliate-dashboard');
-    } else {
-      router.push('/client-dashboard');
-    }
-  };
+  // 1. Grab values safely from browser environment storage with default fallbacks
+  const currentRole = localStorage.getItem('userRole') || 'client';
+  const storageStrength = localStorage.getItem('accountStrength');
+
+  // Parse baseline tier strength safely (default to 50 matching starter DB tier schemas)
+  const strength = storageStrength ? parseInt(storageStrength, 10) : 50;
+
+  let newRole: 'client' | 'freelancer' | 'affiliate' = 'client';
+
+  // 2. Set up the explicit circular account rotation
+  if (currentRole === 'client') {
+    newRole = 'freelancer';
+  } else if (currentRole === 'freelancer') {
+    newRole = 'affiliate';
+  } else {
+    newRole = 'client';
+  }
+
+  // 3. THE PRODUCTION SECURITY GATE: Stop execution if profile strength criteria is unmet
+  if (newRole === 'freelancer' && strength < 60) {
+    closeAllUI();
+    showToast(
+      `Profile strength too low (${strength}%). Please complete your profile to unlock Freelancing!`,
+      "fa-lock"
+    );
+    return;
+  }
+
+  // 4. Commit verified authorization changes to local records and update states
+  localStorage.setItem('userRole', newRole);
+  setUserRole(newRole);
+
+  window.dispatchEvent(new Event('userRoleChanged'));
+  closeAllUI();
+  showToast(`Switched to ${newRole.toUpperCase()} mode`, "fa-exchange-alt");
+
+  if (newRole === 'freelancer') {
+    router.push('/freelancer-dashboard');
+  } else if (newRole === 'affiliate') {
+    router.push('/affiliate-dashboard');
+  } else {
+    router.push('/client-dashboard');
+  }
+};
 
   // Generates clean action button strings dynamically depending on the active state
   const getSwitcherText = () => {
-    if (userRole === 'admin') return "Admin Mode";
-    if (userRole === 'client') return "Switch to Freelancing";
-    if (userRole === 'freelancer') return "Switch to Affiliate";
-    return "Switch to Buying";
-  };
+  if (isAdminRole(userRole)) return "Admin Mode";
+  if (userRole === 'client') return "Switch to Freelancing";
+  if (userRole === 'freelancer') return "Switch to Affiliate";
+  return "Switch to Buying";
+};
 
 
 
@@ -216,15 +230,15 @@ const safePages = [
 ];
     const isSafePage = safePages.includes(currentPath || '');
 
-   if (!isSafePage) {
-  if (!loggedIn) {
-    router.replace('/?auth=login'); 
-  } else if (!emailVerified && currentPath !== '/verify-email') {
-    router.push('/verify-email');
-  } else if (emailVerified && !profileDone && currentPath !== '/mandatory') {
-    router.push('/mandatory');
-  }
-}
+    if (!isSafePage) {
+      if (!loggedIn) {
+        setTimeout(() => openAuthModal('login'), 100); 
+      } else if (!emailVerified && currentPath !== '/verify-email') {
+        router.push('/verify-email');
+      } else if (emailVerified && !profileDone && currentPath !== '/mandatory') {
+        router.push('/mandatory');
+      }
+    }
   }, [currentPath, router, openAuthModal]);
     
   // Primary mount synchronization hook (Defeats Next.js server pre-render hydration mismatches)
@@ -328,28 +342,41 @@ useEffect(() => {
       </li>
     );
 
-    // Inside getMenuItems():
 
-if (userRole === 'admin') {
-  items.push(
-    <li key="adm-dash">
-      <Link href="/admin/dashboard" onClick={closeAllUI}>
-        <i className="fas fa-shield-alt"></i> Admin Dashboard
-      </Link>
-    </li>,
-    <li key="adm-clients">
-      <Link href="/admin/clients" onClick={closeAllUI}>
-        <i className="fas fa-users"></i> Manage Clients
-      </Link>
-    </li>,
-    <li key="adm-orders">
-      <Link href="/admin/orders" onClick={closeAllUI}>
-        <i className="fas fa-file-invoice-dollar"></i> Orders & Escrow
-      </Link>
-    </li>
-  );
-}
+// ========== THE NEW ADMIN BLOCK ==========
+  if (isAdminRole(userRole)) {
+    items.push(
+      <li key="adm-dash">
+        <Link href="/admin/dashboard" onClick={closeAllUI}>
+          <i className="fas fa-shield-alt"></i> Admin Dashboard
+        </Link>
+      </li>,
+      <li key="adm-clients">
+        <Link href="/admin/clients" onClick={closeAllUI}>
+          <i className="fas fa-users"></i> Manage Clients
+        </Link>
+      </li>,
+      <li key="adm-orders">
+        <Link href="/admin/orders" onClick={closeAllUI}>
+          <i className="fas fa-file-invoice-dollar"></i> Orders & Escrow
+        </Link>
+      </li>
+    );
 
+    // Only Super Admins see the Team & Role Management link
+    if (userRole === 'super_admin') {
+      items.push(
+        <li key="adm-team">
+          <Link href="/admin/sub-admins" onClick={closeAllUI}>
+            <i className="fas fa-user-shield"></i> Team & Roles
+          </Link>
+        </li>
+      );
+    }
+  }
+
+
+    
 
 
     // Append Role-Specific Sub-Menu Lists
@@ -503,8 +530,8 @@ try {
         showToast(`Welcome back, ${data.user.fullName || 'User'}!`, "fa-sign-in-alt");
 
         // Inside handleLogin after successful response:
-setTimeout(() => {
-  if (userRole === 'admin') router.push('/admin/dashboard');
+   setTimeout(() => {
+  if (isAdminRole(userRole)) router.push('/admin/dashboard');
   else if (userRole === 'freelancer') router.push('/freelancer-dashboard');
   else if (userRole === 'affiliate') router.push('/affiliate-dashboard');
   else router.push('/client-dashboard');
