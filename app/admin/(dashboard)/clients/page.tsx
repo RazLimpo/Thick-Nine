@@ -6,7 +6,7 @@ interface ClientUser {
   _id: string;
   name: string;
   email: string;
-  role: 'user' | 'affiliate' | 'admin';
+  role: 'user' | 'affiliate' | 'admin' | 'super_admin' | 'sub_admin' | 'support' | 'moderator' | 'senior_support' | 'custom';
   status: 'active' | 'suspended' | 'pending';
   createdAt: string;
   wallet?: {
@@ -124,14 +124,23 @@ export default function AdminClientsPage() {
               borderRadius: '6px',
               fontSize: '0.85rem',
             }}
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-          >
-            <option value="all">All Roles</option>
-            <option value="user">User</option>
-            <option value="affiliate">Affiliate</option>
-            <option value="admin">Admin</option>
-          </select>
+            
+         value={roleFilter}
+  onChange={(e) => setRoleFilter(e.target.value)}
+>
+  <option value="all">All Roles</option>
+  <option value="user">User</option>
+  <option value="affiliate">Affiliate</option>
+  <optgroup label="Administrators">
+    <option value="super_admin">Super Admin</option>
+    <option value="admin">Standard Admin</option>
+    <option value="sub_admin">Sub Admin</option>
+    <option value="support">Support Staff</option>
+    <option value="moderator">Content Moderator</option>
+    <option value="senior_support">Senior Support</option>
+    <option value="custom">Custom Sub-Admin</option>
+  </optgroup>
+</select>
 
           <select
             className="search-input"
@@ -208,10 +217,19 @@ export default function AdminClientsPage() {
                         cursor: 'pointer',
                       }}
                     >
-                      <option value="user">User</option>
-                      <option value="affiliate">Affiliate</option>
-                      <option value="admin">Admin</option>
-                    </select>
+                      
+  <option value="user">User</option>
+  <option value="affiliate">Affiliate</option>
+  <optgroup label="Administrative Roles">
+    <option value="super_admin">Super Admin</option>
+    <option value="admin">Standard Admin</option>
+    <option value="sub_admin">Sub Admin</option>
+    <option value="support">Support</option>
+    <option value="moderator">Moderator</option>
+    <option value="senior_support">Senior Support</option>
+    <option value="custom">Custom</option>
+  </optgroup>
+</select>
                   </td>
                 </tr>
               ))
