@@ -363,16 +363,21 @@ useEffect(() => {
       </li>
     );
 
-    // Only Super Admins see the Team & Role Management link
-    if (userRole === 'super_admin') {
-      items.push(
-        <li key="adm-team">
-          <Link href="/admin/sub-admins" onClick={closeAllUI}>
-            <i className="fas fa-user-shield"></i> Team & Roles
-          </Link>
-        </li>
-      );
-    }
+   // Only Super Admins see Team & Roles + Audit Logs
+if (userRole === 'super_admin') {
+  items.push(
+    <li key="adm-team">
+      <Link href="/admin/sub-admins" onClick={closeAllUI}>
+        <i className="fas fa-user-shield"></i> Team & Roles
+      </Link>
+    </li>,
+    <li key="adm-audit">
+      <Link href="/admin/audit-logs" onClick={closeAllUI}>
+        <i className="fas fa-history"></i> Audit Logs
+      </Link>
+    </li>
+  );
+}
   }
 
 

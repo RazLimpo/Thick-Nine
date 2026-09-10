@@ -1,6 +1,7 @@
 // models/Admin.js
 
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const AdminSchema = new mongoose.Schema(
   {
@@ -19,17 +20,25 @@ const AdminSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
+      select: false, // Security: Excludes password hash from queries by default
     },
-    // Core Role Identifier
     role: {
       type: String,
-      enum: ['super_admin', 'sub_admin'],
-      default: 'sub_admin',
+      enum: [
+        'super_admin',
+        'admin',
+        'support',
+        'moderator',
+        'senior_support',
+        'custom',
+        'sub_admin',
+      ],
+      default: 'custom',
     },
-    // Granular Permissions Array (e.g. ['messages:read', 'messages:reply'])
     permissions: [
       {
         type: String,
+        trim: true,
       },
     ],
     isActive: {
@@ -42,11 +51,25 @@ const AdminSchema = new mongoose.Schema(
   }
 );
 
+// Password hashing before save
+AdminSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
 
-/* ===========================================================
-   MODEL EXPORT
-   =========================================================== */
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
-module.exports = (mongoose.models && mongoose.models.Admin) 
-  ? mongoose.models.Admin 
-  : mongoose.model('Admin', AdminSchema);
+// Compare password helper method
+AdminSchema.methods.comparePassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+module.exports =
+  mongoose.models && mongoose.models.Admin
+    ? mongoose.models.Admin
+    : mongoose.model('Admin', AdminSchema);

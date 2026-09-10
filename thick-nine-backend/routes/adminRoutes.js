@@ -7,16 +7,16 @@ const User = require('../models/User');
 const Service = require('../models/Service');
 const Message = require('../models/Message'); 
 const Admin = require('../models/Admin');
+const AuditLog = require('../models/AuditLog');
 const { requirePermission } = require('../middleware/rbac');
-// const { sendNotificationEmail } = require('../utils/emailService'); // Import your email helper here when ready
+
+// ==================================================================
+// GENERAL ADMIN ROUTES
+// ==================================================================
 
 // GET /api/admin/stats
-router.get('/stats', auth, async (req, res) => {
+router.get('/stats', auth, requirePermission('users:read'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'sub_admin') {
-      return res.status(403).json({ success: false, message: 'Access denied. Admin privileges required.' });
-    }
-
     const totalClients = await User.countDocuments({ role: 'client' });
 
     const pendingPayoutsAgg = await Service.aggregate([
@@ -43,15 +43,14 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
-// GET /api/admin/messages - Protected by 'messages:read'
+// GET /api/admin/messages
 router.get('/messages', auth, requirePermission('messages:read'), async (req, res) => {
   try {
-    // GET /api/admin/messages
-const messages = await Message.find()
-  .populate('senderId', 'fullName email avatar')
-  .populate({ path: 'repliedBy', model: 'Admin', select: 'name email' })
-  .sort({ createdAt: -1 })
-  .lean();
+    const messages = await Message.find()
+      .populate('senderId', 'fullName email avatar')
+      .populate({ path: 'repliedBy', model: 'Admin', select: 'name email' })
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       success: true,
@@ -63,7 +62,7 @@ const messages = await Message.find()
   }
 });
 
-// POST /api/admin/messages/reply - Protected by 'messages:reply'
+// POST /api/admin/messages/reply
 router.post('/messages/reply', auth, requirePermission('messages:reply'), async (req, res) => {
   try {
     const { messageId, replyText } = req.body;
@@ -99,38 +98,58 @@ router.post('/messages/reply', auth, requirePermission('messages:reply'), async 
 });
 
 // ==================================================================
-// SUB-ADMIN & SUPER ADMIN MANAGEMENT ROUTES (Protected by 'roles:manage')
+// SUB-ADMIN & SUPER ADMIN MANAGEMENT ROUTES
 // ==================================================================
 
-// 1. POST /api/admin/sub-admins - Create a new Admin (Sub-Admin or Super Admin)
+// 1. POST /api/admin/sub-admins - Create Admin
 router.post('/sub-admins', auth, requirePermission('roles:manage'), async (req, res) => {
   try {
-    const { name, email, password, permissions, role = 'sub_admin' } = req.body;
+    const { name, email, password, permissions, role = 'custom' } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
     }
 
-    const existingAdmin = await Admin.findOne({ email });
+    const existingAdmin = await Admin.findOne({ email: email.toLowerCase() });
     if (existingAdmin) {
       return res.status(400).json({ success: false, message: 'An admin with this email already exists.' });
     }
 
-    const bcrypt = require('bcryptjs');
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const finalPermissions = role === 'super_admin' ? ['*'] : (permissions || []);
 
+    // Pass plain password to Admin.create so schema pre('save') hook handles hashing safely
     const newAdmin = await Admin.create({
       name,
       email,
-      password: hashedPassword,
-      role: role,
-      permissions: role === 'super_admin' ? ['*'] : (permissions || []),
+      password, 
+      role,
+      permissions: finalPermissions,
     });
+
+    // ========== AUDIT LOG ==========
+    await AuditLog.create({
+      actor: {
+        id: req.user.id || req.user._id,
+        name: req.user.name || req.user.fullName || 'Admin User',
+        email: req.user.email,
+        role: req.user.role,
+      },
+      target: {
+        id: newAdmin._id,
+        name: newAdmin.name,
+        email: newAdmin.email,
+        role: newAdmin.role,
+      },
+      action: 'admin_created',
+      oldPermissions: [],
+      newPermissions: finalPermissions,
+      details: `Created new ${role} account`,
+    });
+    // ===============================
 
     return res.status(201).json({
       success: true,
-      message: `${role === 'super_admin' ? 'Super Admin' : 'Sub-admin'} created successfully.`,
+      message: `${role === 'super_admin' ? 'Super Admin' : 'Admin'} created successfully.`,
       data: {
         id: newAdmin._id,
         name: newAdmin.name,
@@ -145,7 +164,7 @@ router.post('/sub-admins', auth, requirePermission('roles:manage'), async (req, 
   }
 });
 
-// 2. GET /api/admin/sub-admins - List all Admins (Sub-Admins & Super Admins)
+// 2. GET /api/admin/sub-admins - List Admins
 router.get('/sub-admins', auth, requirePermission('roles:manage'), async (req, res) => {
   try {
     const subAdmins = await Admin.find({})
@@ -162,32 +181,87 @@ router.get('/sub-admins', auth, requirePermission('roles:manage'), async (req, r
   }
 });
 
-// 3. PUT /api/admin/sub-admins/:id/permissions - Update permissions or status
+// 3. PUT /api/admin/sub-admins/:id/permissions - Update Admin
 router.put('/sub-admins/:id/permissions', auth, requirePermission('roles:manage'), async (req, res) => {
   try {
-    const { permissions, isActive } = req.body;
+    const { permissions, isActive, role } = req.body;
+
+    const existingAdmin = await Admin.findById(req.params.id);
+    if (!existingAdmin) {
+      return res.status(404).json({ success: false, message: 'Admin not found.' });
+    }
+
+    // Protection: Don't allow modification of super_admin unless executing user is also super_admin
+    if (existingAdmin.role === 'super_admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Cannot modify Super Admin accounts.' });
+    }
+
+    const oldPermissions = [...existingAdmin.permissions];
 
     const updatedAdmin = await Admin.findByIdAndUpdate(
       req.params.id,
       {
-        ...(permissions && { permissions }),
+        ...(role && { role }),
+        ...(permissions && { permissions: role === 'super_admin' ? ['*'] : permissions }),
         ...(typeof isActive === 'boolean' && { isActive }),
       },
       { new: true }
     ).select('-password');
 
-    if (!updatedAdmin) {
-      return res.status(404).json({ success: false, message: 'Sub-admin not found.' });
-    }
+    // ========== AUDIT LOG ==========
+    await AuditLog.create({
+      actor: {
+        id: req.user.id || req.user._id,
+        name: req.user.name || req.user.fullName || 'Admin User',
+        email: req.user.email,
+        role: req.user.role,
+      },
+      target: {
+        id: updatedAdmin._id,
+        name: updatedAdmin.name,
+        email: updatedAdmin.email,
+        role: updatedAdmin.role,
+      },
+      action: permissions ? 'permissions_updated' : 'status_changed',
+      oldPermissions,
+      newPermissions: updatedAdmin.permissions,
+      details: role
+        ? `Role updated to ${role}`
+        : permissions
+        ? 'Permissions were updated'
+        : `Status changed to ${updatedAdmin.isActive ? 'Active' : 'Disabled'}`,
+    });
+    // ===============================
 
     return res.status(200).json({
       success: true,
-      message: 'Sub-admin permissions updated successfully.',
+      message: 'Admin updated successfully.',
       data: updatedAdmin,
     });
   } catch (err) {
-    console.error('Error updating sub-admin:', err);
-    return res.status(500).json({ success: false, message: 'Server error updating sub-admin.' });
+    console.error('Error updating admin:', err);
+    return res.status(500).json({ success: false, message: 'Server error updating admin.' });
+  }
+});
+
+// 4. GET /api/admin/audit-logs - View Audit History
+router.get('/audit-logs', auth, requirePermission('roles:manage'), async (req, res) => {
+  try {
+    const logs = await AuditLog.find({})
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: logs,
+    });
+  } catch (err) {
+    console.error('Error fetching audit logs:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve audit logs.',
+    });
   }
 });
 

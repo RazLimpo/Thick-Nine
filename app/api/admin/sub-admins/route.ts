@@ -4,8 +4,11 @@ import { NextResponse } from 'next/server';
 import { API_BASE_URL } from '@/lib/constants';
 import { createSubAdminSchema } from '@/lib/schemas/subAdmin';
 
+// 1. Target your exact frontend URL or use process.env NEXT_PUBLIC_SITE_URL
+const FRONTEND_ORIGIN = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // Change to your frontend domain in production
+  'Access-Control-Allow-Origin': FRONTEND_ORIGIN,
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie',
   'Access-Control-Allow-Credentials': 'true',
@@ -27,6 +30,15 @@ async function proxyToBackend(path: string, init: RequestInit) {
 
   const body = await backendRes.json().catch(() => ({}));
 
+  // Create response headers map
+  const responseHeaders = new Headers(corsHeaders);
+  
+  // 2. Forward Set-Cookie from Express back to the client if present
+  const setCookie = backendRes.headers.get('set-cookie');
+  if (setCookie) {
+    responseHeaders.set('Set-Cookie', setCookie);
+  }
+
   if (!backendRes.ok) {
     return NextResponse.json(
       {
@@ -36,14 +48,14 @@ async function proxyToBackend(path: string, init: RequestInit) {
       },
       {
         status: backendRes.status,
-        headers: corsHeaders,
+        headers: responseHeaders,
       }
     );
   }
 
   return NextResponse.json(body, {
     status: backendRes.status,
-    headers: corsHeaders,
+    headers: responseHeaders,
   });
 }
 

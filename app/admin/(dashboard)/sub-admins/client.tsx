@@ -1,3 +1,5 @@
+// app/admin/(dashboard)/sub-admins/client.tsx
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -22,27 +24,44 @@ const AVAILABLE_PERMISSIONS = [
   { key: 'messages:reply', label: 'Reply to Messages' },
   { key: 'payouts:read', label: 'View Withdrawals' },
   { key: 'roles:manage', label: 'Manage Team Roles' },
+  { key: 'services:read', label: 'View Services' },
+  { key: 'services:moderate', label: 'Moderate Services' },
+  { key: 'orders:read', label: 'View Orders' },
+  { key: 'reviews:manage', label: 'Manage Reviews' },
 ];
 
 const ROLE_PRESETS = {
   support: {
     label: 'Support Staff',
-    permissions: ['messages:read', 'messages:reply', 'users:read', 'orders:read'],
+    permissions: [
+      'messages:read',
+      'messages:reply',
+      'users:read',
+      'orders:read',
+    ],
   },
   moderator: {
     label: 'Content Moderator',
-    permissions: ['services:read', 'services:moderate', 'messages:read', 'reviews:manage'],
+    permissions: [
+      'services:read',
+      'services:moderate',
+      'messages:read',
+      'reviews:manage',
+    ],
   },
   senior_support: {
     label: 'Senior Support / Lead',
-    permissions: ['messages:read', 'messages:reply', 'users:read', 'users:manage', 'services:moderate'],
+    // Backend automatically inherits Support permissions; list only the direct extras here:
+    permissions: [
+      'users:write',
+      'services:moderate',
+    ],
   },
   custom: {
     label: 'Custom Sub-Admin',
     permissions: [],
   },
 };
-
 
 export default function SubAdminsClient() {
   const [subAdmins, setSubAdmins] = useState<SubAdmin[]>([]);
@@ -53,7 +72,7 @@ export default function SubAdminsClient() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('sub_admin');
+  const [role, setRole] = useState('custom');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
@@ -131,7 +150,7 @@ export default function SubAdminsClient() {
     setName('');
     setEmail('');
     setPassword('');
-    setRole('sub_admin');
+    setRole('custom'); // Set to 'custom' (or 'support') so it matches valid dropdown values
     setSelectedPermissions([]);
     setError('');
   };
@@ -140,10 +159,12 @@ export default function SubAdminsClient() {
     e.preventDefault();
     setError('');
 
-    if (role === 'sub_admin' && selectedPermissions.length === 0) {
-      setError('Please select at least one permission for a sub-admin account.');
-      return;
-    }
+    const granularRoles = ['support', 'moderator', 'senior_support', 'custom'];
+
+if (granularRoles.includes(role) && selectedPermissions.length === 0) {
+  setError('Please select at least one permission for this role.');
+  return;
+}
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters long.');
@@ -158,17 +179,12 @@ export default function SubAdminsClient() {
         headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password,
-        role,
-        permissions:
-        role === 'super_admin'
-          ? ['*']
-          : role === 'admin'
-            ? ['users:read', 'users:write', 'messages:read', 'messages:reply', 'payouts:read']
-            : selectedPermissions,
-        }),
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+          role,
+          permissions: role === 'super_admin' ? ['*'] : selectedPermissions,
+         }),
       });
 
       const data = await res.json();
@@ -590,3 +606,5 @@ export default function SubAdminsClient() {
     </div>
   );
 }
+
+
