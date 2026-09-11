@@ -13,7 +13,6 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -31,7 +30,7 @@ export default function AdminLoginPage() {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       const data = await response.json();
@@ -49,8 +48,15 @@ export default function AdminLoginPage() {
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', 'admin');
         localStorage.setItem('accountStrength', (data.user.accountStrength || 100).toString());
-        localStorage.setItem('isEmailVerified', 'true');
-        localStorage.setItem('isProfileComplete', 'true');
+        localStorage.setItem(
+  'isEmailVerified',
+  String(data.user.isEmailVerified ?? false)
+);
+
+localStorage.setItem(
+  'isProfileComplete',
+  String(data.user.isProfileComplete ?? false)
+);
 
         window.dispatchEvent(new Event('userRoleChanged'));
 
@@ -145,15 +151,7 @@ export default function AdminLoginPage() {
               </div>
 
               <div className="form-meta">
-                <label className="checkbox-container">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                  />
-                  <span className="checkmark"></span>
-                  Remember
-                </label>
+                
                 <a href="mailto:support@thick9.com" className="forgot-link">Forgotten?</a>
               </div>
 

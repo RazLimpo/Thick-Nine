@@ -1,6 +1,12 @@
 // lib/permissions.ts
 
-export type AdminRole = 'super_admin' | 'sub_admin';
+export type AdminRole =
+  | 'super_admin'
+  | 'admin'
+  | 'support'
+  | 'moderator'
+  | 'senior_support'
+  | 'custom';
 
 export interface AdminUser {
   id: string;
@@ -11,14 +17,27 @@ export interface AdminUser {
 }
 
 /**
- * Checks if the current admin has access to a required permission.
+ * Checks whether an administrator has a specific permission.
+ *
+ * This is a frontend/UI helper only.
+ * Backend RBAC remains the authoritative security boundary.
  */
-export function hasPermission(user: AdminUser | null, requiredPermission: string): boolean {
-  if (!user) return false;
+export function hasPermission(
+  user: AdminUser | null,
+  requiredPermission: string
+): boolean {
+  if (!user || !requiredPermission) {
+    return false;
+  }
 
-  // Super admins bypass all permission restrictions
-  if (user.role === 'super_admin') return true;
+  // Super Admins have unrestricted access.
+  if (user.role === 'super_admin') {
+    return true;
+  }
 
-  // Sub admins check their permissions array
-  return Boolean(user.permissions && user.permissions.includes(requiredPermission));
-} 
+  // All other roles must have the requested permission
+  // explicitly assigned by the backend/admin system.
+  return Boolean(
+    user.permissions?.includes(requiredPermission)
+  );
+}

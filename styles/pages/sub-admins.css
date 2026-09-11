@@ -1,0 +1,268 @@
+.sub-admins-page {
+  width: 100%;
+  min-width: 0;
+}
+
+.sub-admins-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.sub-admins-heading {
+  min-width: 0;
+}
+
+.sub-admins-heading h1 {
+  margin: 0;
+}
+
+.sub-admins-heading p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.sub-admin-add-button,
+.sub-admin-submit-button {
+  background-color: #0f172a;
+  color: #fff;
+}
+
+.sub-admin-list-error {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.sub-admin-loading {
+  margin: 0;
+  color: #64748b;
+}
+
+.sub-admin-empty {
+  text-align: center;
+  padding: 24px;
+}
+
+.permission-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.permission-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  font-size: 0.75rem;
+}
+
+.permission-badge-full {
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.permission-none {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.sub-admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.sub-admin-modal {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 28px;
+  background: #fff;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.sub-admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sub-admin-modal-header h2 {
+  margin: 0;
+}
+
+.sub-admin-modal-close {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sub-admin-modal-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sub-admin-form-error {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.sub-admin-form-group {
+  margin-bottom: 16px;
+}
+
+.sub-admin-form-group > label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sub-admin-form-group input,
+.sub-admin-form-group select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+}
+
+.sub-admin-form-group input:focus,
+.sub-admin-form-group select:focus {
+  outline: none;
+  border-color: #64748b;
+}
+
+.sub-admin-form-group input:disabled,
+.sub-admin-form-group select:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.sub-admin-field-help {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.sub-admin-role-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 0.82rem;
+}
+
+.sub-admin-role-notice strong {
+  font-size: 0.85rem;
+}
+
+.sub-admin-permissions-section {
+  margin-bottom: 20px;
+}
+
+.sub-admin-permissions-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sub-admin-permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sub-admin-permission-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.sub-admin-permission-option input {
+  flex: 0 0 auto;
+}
+
+.sub-admin-permission-option input:disabled {
+  cursor: not-allowed;
+}
+
+.sub-admin-permissions-help {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.sub-admin-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 700px) {
+  .sub-admins-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sub-admin-add-button {
+    width: 100%;
+  }
+
+  .sub-admin-modal {
+    padding: 20px;
+  }
+
+  .sub-admin-permissions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sub-admin-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .sub-admin-modal-actions button {
+    width: 100%;
+  }
+}
