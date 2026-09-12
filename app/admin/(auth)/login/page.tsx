@@ -18,10 +18,10 @@ export default function AdminLoginPage() {
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setErrorMsg('Please enter both email and password.');
-      return;
-    }
+ if (!email.trim() || !password) {
+  setErrorMsg('Please enter both email and password.');
+  return;
+}
 
     setIsLoading(true);
     setErrorMsg(null);
@@ -65,7 +65,7 @@ localStorage.setItem(
       } else {
         setErrorMsg(data.msg || data.message || 'Invalid administrator credentials.');
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Unable to connect to server. Check your network.');
     } finally {
       setIsLoading(false);

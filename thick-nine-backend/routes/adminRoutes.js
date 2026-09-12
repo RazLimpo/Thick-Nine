@@ -750,23 +750,28 @@ router.put(
         });
       }
 
-      // ------------------------------------------------------------
+     
+          // ------------------------------------------------------------
       // Update Admin record
       // ------------------------------------------------------------
+
+      const oldRole = existingAdmin.role;
 
       const oldPermissions = [
         ...(existingAdmin.permissions || []),
       ];
 
+      const oldIsActive = existingAdmin.isActive;
+
       const roleChanged =
-        existingAdmin.role !== newRole;
+        oldRole !== newRole;
 
       const permissionsChanged =
         JSON.stringify(oldPermissions) !==
         JSON.stringify(newPermissions);
 
       const statusChanged =
-        existingAdmin.isActive !== newIsActive;
+        oldIsActive !== newIsActive;
 
       existingAdmin.role = newRole;
       existingAdmin.permissions = newPermissions;
@@ -796,12 +801,18 @@ router.put(
           updatedAdmin.email
         );
 
-        // Roll back Admin update because an administrator without
-        // its authenticated User identity cannot function correctly.
-        existingAdmin.role =
-          existingAdmin.role === newRole
-            ? existingAdmin.role
-            : existingAdmin.role;
+        try {
+          existingAdmin.role = oldRole;
+          existingAdmin.permissions = oldPermissions;
+          existingAdmin.isActive = oldIsActive;
+
+          await existingAdmin.save();
+        } catch (rollbackError) {
+          console.error(
+            'Failed to roll back administrator update:',
+            rollbackError
+          );
+        }
 
         return res.status(500).json({
           success: false,
@@ -825,7 +836,7 @@ router.put(
 
       if (roleChanged) {
         auditAction = 'permissions_updated';
-        auditDetails = `Administrator role changed from ${existingAdmin.role} to ${newRole}.`;
+        auditDetails = `Administrator role changed from ${oldRole} to ${newRole}.`;
       } else if (statusChanged) {
         auditAction = 'status_changed';
         auditDetails = `Administrator status changed to ${
