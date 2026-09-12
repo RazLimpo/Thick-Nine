@@ -22,7 +22,14 @@ router.get('/resend-verification', auth, authController.resendVerification);
 router.post('/promote-admin', async (req, res) => {
   try {
     const { email, secretKey } = req.body;
-    const configuredKey = process.env.ADMIN_SECRET_KEY || "fe62ffdfa61542b2";
+   const configuredKey = process.env.ADMIN_SECRET_KEY;
+
+if (!configuredKey) {
+  return res.status(500).json({
+    success: false,
+    message: 'Admin bootstrap is not configured on the server.',
+  });
+}
 
     if (!secretKey || secretKey !== configuredKey) {
       return res.status(403).json({ success: false, message: "Forbidden: Invalid secret key" });
