@@ -24,10 +24,43 @@
   color: #64748b;
 }
 
+/* Base styles */
 .sub-admin-add-button,
 .sub-admin-submit-button {
   background-color: #0f172a;
-  color: #fff;
+  color: #ffffff;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+/* Hover state (mouse over) */
+.sub-admin-add-button:hover,
+.sub-admin-submit-button:hover {
+  background-color: #1e293b; /* Slightly lighter dark slate */
+}
+
+/* Active state (when pressed/clicked) */
+.sub-admin-add-button:active,
+.sub-admin-submit-button:active {
+  background-color: #334155; /* Medium dark slate */
+  transform: scale(0.98);    /* Slight tactile press effect */
+}
+
+/* Focus state (keyboard navigation / accessibility) */
+.sub-admin-add-button:focus-visible,
+.sub-admin-submit-button:focus-visible {
+  outline: 2px solid #3b82f6; /* Blue focus ring */
+  outline-offset: 2px;
+}
+
+/* Disabled state (optional safety) */
+.sub-admin-add-button:disabled,
+.sub-admin-submit-button:disabled {
+  background-color: #64748b;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
 }
 
 .sub-admin-list-error {
