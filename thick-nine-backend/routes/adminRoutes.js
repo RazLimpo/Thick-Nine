@@ -280,13 +280,17 @@ function sanitizePermissions(permissions) {
   }
 
   // roles:manage is intentionally not assignable to normal admins.
-  if (cleanedPermissions.includes('roles:manage')) {
-    return {
-      valid: false,
-      permissions: [],
-      message: 'The roles:manage permission cannot be assigned manually.',
-    };
-  }
+  if (
+  cleanedPermissions.includes('roles:manage') ||
+  cleanedPermissions.includes('payouts:read')
+) {
+  return {
+    valid: false,
+    permissions: [],
+    message:
+      'The roles:manage and payouts:read permissions cannot be assigned manually.',
+  };
+}
 
   const invalidPermission = cleanedPermissions.find(
     (permission) => !ALLOWED_PERMISSIONS.has(permission)
