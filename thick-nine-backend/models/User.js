@@ -670,10 +670,6 @@ UserSchema.virtual("profileCompletion").get(function () {
    DATABASE INDEXES
    =========================================================== */
 
-UserSchema.index({ email: 1 });
-
-UserSchema.index({ username: 1 });
-
 UserSchema.index({ role: 1 });
 
 UserSchema.index({ onlineStatus: 1 });
