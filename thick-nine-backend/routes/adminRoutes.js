@@ -1,3 +1,5 @@
+// routes/adminRoute
+
 const express = require('express');
 const router = express.Router();
 
@@ -44,7 +46,7 @@ router.get(
   auth,
   adminContext,
   requirePermission('users:read'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const totalClients = await User.countDocuments({
         role: 'client',
@@ -112,7 +114,7 @@ router.get(
   auth,
   adminContext,
   requirePermission('messages:read'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const messages = await Message.find()
         .populate('senderId', 'fullName email avatar')
@@ -146,7 +148,7 @@ router.post(
   auth,
   adminContext,
   requirePermission('messages:reply'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { messageId, replyText } = req.body;
 
@@ -322,7 +324,7 @@ router.post(
   auth,
   adminContext,
   requirePermission('roles:manage'),
-  async (req, res) => {
+  async (req, res, next) => {
     let createdUser = null;
 
     try {
@@ -569,7 +571,7 @@ router.get(
   auth,
   adminContext,
   requirePermission('roles:manage'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const subAdmins = await Admin.find({})
         .select('-password')
@@ -602,7 +604,7 @@ router.put(
   auth,
   adminContext,
   requirePermission('roles:manage'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { permissions, isActive, role } = req.body;
 
@@ -913,7 +915,7 @@ router.get(
   auth,
   adminContext,
   requirePermission('roles:manage'),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const logs = await AuditLog.find({})
         .sort({ createdAt: -1 })
