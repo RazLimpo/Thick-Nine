@@ -5,7 +5,6 @@ import { API_BASE_URL } from "@/lib/constants";
 
 export const runtime = "nodejs";
 
-// Handle preflight requests
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -15,29 +14,32 @@ export async function OPTIONS() {
   });
 }
 
-/* ---------- POST: Promote Existing User to Super Admin ---------- */
-export async function POST(req: Request) {
+/* ---------- POST: Promote Configured User to Super Admin ---------- */
+export async function POST() {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { email } = body;
+    const configuredEmail =
+      process.env.SUPER_ADMIN_BOOTSTRAP_EMAIL?.toLowerCase().trim();
 
-    if (!email || typeof email !== "string") {
+    const secretKey = process.env.ADMIN_SECRET_KEY;
+
+    if (!configuredEmail) {
+      console.error(
+        "SUPER_ADMIN_BOOTSTRAP_EMAIL is missing from the Next.js environment."
+      );
+
       return NextResponse.json(
         {
           success: false,
-          message: "Email is required",
+          message: "Super Admin promotion email is not configured.",
         },
-        { status: 400 }
+        { status: 500 }
       );
     }
 
-    // IMPORTANT:
-    // This must be a server-only environment variable.
-    // Never use NEXT_PUBLIC_ADMIN_SECRET_KEY.
-    const secretKey = process.env.ADMIN_SECRET_KEY;
-
     if (!secretKey) {
-      console.error("ADMIN_SECRET_KEY is missing from the Next.js environment.");
+      console.error(
+        "ADMIN_SECRET_KEY is missing from the Next.js environment."
+      );
 
       return NextResponse.json(
         {
@@ -56,7 +58,7 @@ export async function POST(req: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email.toLowerCase().trim(),
+          email: configuredEmail,
           secretKey,
         }),
         cache: "no-store",
