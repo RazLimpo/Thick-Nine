@@ -114,7 +114,7 @@ app.get('/', (req, res) => {
 // ====================== SERVICE MARKETPLACE LOGIC ENDPOINTS ======================
 
 // 0. Dynamic Location Aggregator for Filters
-app.get('/api/services/locations', async (req, res) => {
+app.get('/api/services/locations', async (req, res, next) => {
   if (skipDatabase) {
     return res.json({
       locations: [
@@ -168,7 +168,7 @@ app.get('/api/services/locations', async (req, res) => {
 });
 
 // 1. Dynamic Service Read Aggregator
-app.get('/api/services', async (req, res) => {
+app.get('/api/services', async (req, res, next) => {
   if (skipDatabase) {
     return res.json([
       {
@@ -240,7 +240,7 @@ app.get('/api/services', async (req, res) => {
 });
 
 // 2. Protected Service Creator Endpoint
-app.post('/api/services', auth, async (req, res) => {
+app.post('/api/services/draft', uploadMedia, async (req, res, next) => {
   console.log("--> DRAFT ENDPOINT HIT! Request body:", req.body);
   
   const { title, price, description, category, images } = req.body;
@@ -313,7 +313,7 @@ app.post('/api/services', auth, async (req, res) => {
 });
 
 // Draft Endpoint for Service Posting
-app.post('/api/services/draft', uploadMedia, async (req, res) => {
+app.post('/api/services/draft', uploadMedia, async (req, res, next) => {
   if (skipDatabase) {
     return res.status(201).json({
       success: true,
@@ -386,7 +386,7 @@ app.post('/api/services/draft', uploadMedia, async (req, res) => {
 });
 
 // PUT: Update existing draft by draftId
-app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
+app.put('/api/services/draft/update', uploadMedia, async (req, res, next) => {
   if (skipDatabase) {
     return res.status(200).json({
       success: true,
@@ -463,7 +463,7 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res) => {
 });
 
 // GET Draft Endpoint for Hydrating Form
-app.get('/api/services/draft/:id', async (req, res) => {
+app.get('/api/services/draft/:id', async (req, res, next) => {
   const { id } = req.params;
 
   if (skipDatabase) {
