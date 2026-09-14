@@ -22,7 +22,7 @@ router.get('/resend-verification', auth, authController.resendVerification);
 
 
 // 5. Super Admin Bootstrap / Promotion Endpoint
-router.post('/promote-admin', async (req, res) => {
+router.post('/promote-admin', async (req, res, next) => {
   try {
     const { email, secretKey } = req.body;
 
