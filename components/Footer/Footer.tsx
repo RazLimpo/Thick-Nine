@@ -1,8 +1,9 @@
+// components/Footer/Footer.tsx
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import '@/styles/pages/footer.css';
 
 export default function Footer() {
   // We use state for the year to avoid "Hydration" errors in Next.js
@@ -40,8 +41,8 @@ export default function Footer() {
           <h3>About</h3>
           <ul>
             <li><Link href="/careers">Careers</Link></li>
-            <li><Link href="/news">Press & News</Link></li>
             <li><Link href="/partners">Partnerships</Link></li>
+            <li><Link href="/contact-us">Contact Us</Link></li>
             <li><Link href="/terms-and-privacy">Privacy Policy</Link></li>
           </ul>
         </div>
