@@ -423,7 +423,7 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res, next) => {
 
     const subCategory = req.body.subCategory || req.body.subcategory || undefined;
 
-    // Update scalar fields when provided (allow empty-string values explicitly sent)
+    // Update scalar fields when provided
     if (typeof title !== 'undefined') draft.title = title;
     if (typeof category !== 'undefined') draft.category = category;
     if (typeof subCategory !== 'undefined') draft.subCategory = subCategory || "";
@@ -432,22 +432,41 @@ app.put('/api/services/draft/update', uploadMedia, async (req, res, next) => {
     if (typeof selectedPlan !== 'undefined') draft.selectedPlan = selectedPlan;
     if (typeof price !== 'undefined') draft.price = price ? Number(price) : draft.price;
 
-    // JSON fields (packages, attributes, addons, faqs, requirements)
+    // Parse JSON fields
     if (typeof packages !== 'undefined') draft.packages = typeof packages === 'string' ? JSON.parse(packages) : packages;
     if (typeof attributes !== 'undefined') draft.attributes = typeof attributes === 'string' ? JSON.parse(attributes) : attributes;
     if (typeof addons !== 'undefined') draft.addons = typeof addons === 'string' ? JSON.parse(addons) : addons;
     if (typeof faqs !== 'undefined') draft.faqs = typeof faqs === 'string' ? JSON.parse(faqs) : faqs;
     if (typeof requirements !== 'undefined') draft.requirements = typeof requirements === 'string' ? JSON.parse(requirements) : requirements;
 
-    // Media: if new files uploaded, replace the arrays; otherwise preserve existing
-    if (req.files?.images && req.files.images.length > 0) {
-      draft.images = req.files.images.map(f => f.path);
-    }
-    if (req.files?.videos && req.files.videos.length > 0) {
-      draft.videos = req.files.videos.map(f => f.path);
-    }
-    if (req.files?.audio && req.files.audio.length > 0) {
-      draft.audio = req.files.audio.map(f => f.path);
+    // 🟢 RECONCILE MEDIA STRATEGY (Retain Existing - Deleted + Append New)
+    const mediaStrategy = req.body.mediaStrategy || "merge";
+    const existingImages = JSON.parse(req.body.existingImages || "[]");
+    const existingVideos = JSON.parse(req.body.existingVideos || "[]");
+    const existingAudio = JSON.parse(req.body.existingAudio || "[]");
+    const deletedMediaKeys = JSON.parse(req.body.deletedMediaKeys || "[]");
+
+    const newUploadedImages = req.files?.images ? req.files.images.map((f) => f.path) : [];
+    const newUploadedVideos = req.files?.videos ? req.files.videos.map((f) => f.path) : [];
+    const newUploadedAudio = req.files?.audio ? req.files.audio.map((f) => f.path) : [];
+
+    if (mediaStrategy === "replaceAll") {
+      draft.images = newUploadedImages;
+      draft.videos = newUploadedVideos;
+      draft.audio = newUploadedAudio;
+    } else {
+      draft.images = [
+        ...existingImages.filter((url) => !deletedMediaKeys.includes(url)),
+        ...newUploadedImages,
+      ];
+      draft.videos = [
+        ...existingVideos.filter((url) => !deletedMediaKeys.includes(url)),
+        ...newUploadedVideos,
+      ];
+      draft.audio = [
+        ...existingAudio.filter((url) => !deletedMediaKeys.includes(url)),
+        ...newUploadedAudio,
+      ];
     }
 
     // Keep status as 'draft' (unless client explicitly changed it)

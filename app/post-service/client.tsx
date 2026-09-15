@@ -41,62 +41,94 @@ const toggleAddonSelected = (index: number) => {
 };
 
   
-  // Hydrate form fields if editing an existing draft
-useEffect(() => {
-  if (!draftId) return;
+ // Hydrate form fields if editing an existing draft
+  useEffect(() => {
+    if (!draftId) return;
 
-  async function loadDraft() {
-    try {
-      showToast("Loading saved draft...", "info");
-      const response = await fetch(`http://localhost:5000/api/services/draft/${draftId}`);
-      if (!response.ok) throw new Error("Failed to fetch draft");
+    async function loadDraft() {
+      try {
+        showToast("Loading saved draft...", "info");
+        
+        const response = await fetch(`/api/services/draft/${draftId}`);
+        if (!response.ok) throw new Error("Failed to fetch draft");
 
-      const data = await response.json();
+        const data = await response.json();
 
-      // Populate your existing form states
-      if (data.title) setServiceTitle(data.title);
-      if (data.description) setDescription(data.description);
-      if (data.category) setCategory(data.category);
-      if (data.subCategory) setSubCategory(data.subCategory);
-      if (data.keywords) setKeywords(Array.isArray(data.keywords) ? data.keywords.join(", ") : data.keywords);
-      if (data.selectedPlan) setSelectedPlan(data.selectedPlan);
-      
-      // Hydrate FAQs array
-      if (data.faqs && Array.isArray(data.faqs) && data.faqs.length > 0) {
-        setFaqs(data.faqs);
+        // 1. Existing hydrated fields
+        if (data.title) setServiceTitle(data.title);
+        if (data.description) setDescription(data.description);
+        if (data.category) setCategory(data.category);
+        if (data.subCategory) setSubCategory(data.subCategory);
+        if (data.keywords) setKeywords(Array.isArray(data.keywords) ? data.keywords.join(", ") : data.keywords);
+        if (data.selectedPlan) setSelectedPlan(data.selectedPlan);
+        
+        // 2. FAQs
+        if (data.faqs && Array.isArray(data.faqs) && data.faqs.length > 0) {
+          setFaqs(data.faqs);
+        }
+
+        // 3. Add-ons
+        if (data.addons && Array.isArray(data.addons) && data.addons.length > 0) {
+          setAddons(
+            data.addons.map((addon: any) => ({
+              ...addon,
+              enabled: addon.enabled !== undefined ? Boolean(addon.enabled) : true,
+              selected: Boolean(addon.selected),
+            }))
+          );
+        }
+        
+        // 4. Packages & Active Tier Controls
+        if (data.packages) {
+          setPackagesData(data.packages);
+          const initialTier = data.packages.basic || {};
+          setPkgTitle(initialTier.title || "");
+          setPkgDesc(initialTier.desc || "");
+          setPkgPrice(initialTier.price || "");
+          setPkgDelivery(initialTier.delivery || "3");
+          setPkgRevisions(initialTier.revisions || "1");
+          setPkgFeatures(initialTier.features || "");
+        }
+
+        // 5. Brief Intro & Requirements (req1..req4)
+        if (data.briefIntro) setBriefIntro(data.briefIntro);
+        if (Array.isArray(data.requirements)) {
+          if (data.requirements[0]) setReq1(data.requirements[0]);
+          if (data.requirements[1]) setReq2(data.requirements[1]);
+          if (data.requirements[2]) setReq3(data.requirements[2]);
+          if (data.requirements[3]) setReq4(data.requirements[3]);
+        }
+
+        // 6. Status & Dynamic Category Attributes
+        if (data.status) {
+          setServiceStatus(data.status === "paused" ? "paused" : "active");
+        }
+        if (Array.isArray(data.attributes)) {
+          setSelectedAttributes(data.attributes);
+        }
+
+        // 7. Existing Media URLs
+        if (Array.isArray(data.images)) setExistingImages(data.images);
+        if (Array.isArray(data.videos)) setExistingVideos(data.videos);
+        if (Array.isArray(data.audio)) setExistingAudios(data.audio);
+
+        // 8. Wizard Step & Active Editing Tier
+        if (data.currentStep && typeof data.currentStep === "number") {
+          setCurrentStep(data.currentStep);
+        }
+        if (data.currentEditingTier) {
+          setCurrentEditingTier(data.currentEditingTier);
+        }
+
+        showToast("Draft loaded successfully!", "success");
+      } catch (err) {
+        console.error("Error loading draft:", err);
+        showToast("Failed to load draft details.", "warning");
       }
-
-    
-      // Hydrate Add-ons array
-      if (data.addons && Array.isArray(data.addons) && data.addons.length > 0) {
-        setAddons(
-          data.addons.map((addon: any) => ({
-            ...addon,
-            enabled: addon.enabled !== undefined ? Boolean(addon.enabled) : true,
-            selected: Boolean(addon.selected),
-          }))
-        );
-      }
-      
-      
-      // Populate package data if returned
-      if (data.packages) {
-        setPackagesData(data.packages);
-        setPkgTitle(data.packages.basic?.title || "");
-        setPkgDesc(data.packages.basic?.desc || "");
-        setPkgPrice(data.packages.basic?.price || "");
-      }
-
-      showToast("Draft loaded successfully!", "success");
-    } catch (err) {
-      console.error("Error loading draft:", err);
-      showToast("Failed to load draft details.", "warning");
     }
-  }
 
-  loadDraft();
-}, [draftId]);  
-  
+    loadDraft();
+  }, [draftId]);
   
   // Ref for scrolling to images container without DOM lookup 
   const imagesSectionRef = useRef<HTMLDivElement>(null);
@@ -109,10 +141,19 @@ const [packagesData, setPackagesData] = useState({
 });
 const [currentEditingTier, setCurrentEditingTier] = useState<"basic" | "standard" | "premium">("basic");
 
-// --- Media ---
+// --- Media State (Separated Remote vs. Local Files) ---
+// Newly staged local File objects
 const [selectedImages, setSelectedImages] = useState<File[]>([]);
 const [selectedVideos, setSelectedVideos] = useState<File[]>([]);
 const [selectedAudios, setSelectedAudios] = useState<File[]>([]);
+
+// Existing remote media URLs/metadata loaded from draft backend
+const [existingImages, setExistingImages] = useState<string[]>([]);
+const [existingVideos, setExistingVideos] = useState<string[]>([]);
+const [existingAudios, setExistingAudios] = useState<string[]>([]);
+
+// Track IDs/Keys of existing remote media marked for deletion
+const [deletedMediaKeys, setDeletedMediaKeys] = useState<string[]>([]);
 
 
 // --- View & Pagination ---
@@ -121,7 +162,27 @@ const [currentStep, setCurrentStep] = useState<number>(1);
   
 const [isSubmitting, setIsSubmitting] = useState(false);
 
+// Helper to commit current package form inputs into package state object
+const syncCurrentPackageTier = () => {
+  setPackagesData((prev) => ({
+    ...prev,
+    [currentEditingTier]: {
+      title: pkgTitle,
+      desc: pkgDesc,
+      price: pkgPrice,
+      delivery: pkgDelivery,
+      revisions: pkgRevisions,
+      features: pkgFeatures,
+    },
+  }));
+};
+
 const nextStep = () => {
+  // Save current active package tier state before step validation or transition
+  if (currentStep === 2) {
+    syncCurrentPackageTier();
+  }
+
   // Validate Step 1 before proceeding
   if (currentStep === 1) {
     if (!serviceTitle.trim()) {
@@ -159,6 +220,11 @@ const nextStep = () => {
 };
 
 const prevStep = () => {
+  // Ensure package changes aren't lost when stepping backward from step 2
+  if (currentStep === 2) {
+    syncCurrentPackageTier();
+  }
+
   setCurrentStep((prev) => Math.max(prev - 1, 1));
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
@@ -211,40 +277,62 @@ const showToast = (message: string, type: "success" | "warning" | "info" = "succ
 const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
   const files = Array.from(e.target.files || []);
   const max = planLimits[selectedPlan].images;
-  if (selectedImages.length + files.length > max) {
+  const currentTotal = existingImages.length + selectedImages.length;
+  if (currentTotal + files.length > max) {
     showToast(`Total images cannot exceed ${max} on this plan.`, "warning");
     e.target.value = "";
     return;
   }
   setSelectedImages((prev) => [...prev, ...files]);
-  showToast(`${files.length} images added.`, "success");
+  showToast(`${files.length} image(s) added.`, "success");
   e.target.value = "";
 };
 
 const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
   const files = Array.from(e.target.files || []);
   const max = planLimits[selectedPlan].videos;
-  if (selectedVideos.length + files.length > max) {
+  const currentTotal = existingVideos.length + selectedVideos.length;
+  if (currentTotal + files.length > max) {
     showToast(`Total videos cannot exceed ${max} on this plan.`, "warning");
     e.target.value = "";
     return;
   }
   setSelectedVideos((prev) => [...prev, ...files]);
-  showToast(`Processing ${files.length} file(s)...`, "info");
+  showToast(`${files.length} video(s) added.`, "info");
   e.target.value = "";
 };
 
 const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
   const files = Array.from(e.target.files || []);
   const max = planLimits[selectedPlan].audio;
-  if (selectedAudios.length + files.length > max) {
+  const currentTotal = existingAudios.length + selectedAudios.length;
+  if (currentTotal + files.length > max) {
     showToast(`Total audio files cannot exceed ${max} on this plan.`, "warning");
     e.target.value = "";
     return;
   }
   setSelectedAudios((prev) => [...prev, ...files]);
-  showToast(`Processing ${files.length} file(s)...`, "info");
+  showToast(`${files.length} audio file(s) added.`, "info");
   e.target.value = "";
+};
+
+// Handlers for deleting existing server-hosted media vs newly staged files
+const removeExistingImage = (urlOrKey: string) => {
+  setExistingImages((prev) => prev.filter((item) => item !== urlOrKey));
+  setDeletedMediaKeys((prev) => [...prev, urlOrKey]);
+  showToast("Existing image removed", "warning");
+};
+
+const removeExistingVideo = (urlOrKey: string) => {
+  setExistingVideos((prev) => prev.filter((item) => item !== urlOrKey));
+  setDeletedMediaKeys((prev) => [...prev, urlOrKey]);
+  showToast("Existing video removed", "warning");
+};
+
+const removeExistingAudio = (urlOrKey: string) => {
+  setExistingAudios((prev) => prev.filter((item) => item !== urlOrKey));
+  setDeletedMediaKeys((prev) => [...prev, urlOrKey]);
+  showToast("Existing audio removed", "warning");
 };
   
   
@@ -340,7 +428,7 @@ const addMoreFaq = () => {
 };
     
     
-    const [serviceStatus, setServiceStatus] = useState("available");
+    const [serviceStatus, setServiceStatus] = useState("active");
 
     
     
@@ -362,6 +450,10 @@ const buildServiceFormData = () => {
     },
   };
 
+  
+  // Map frontend status values to backend schema values
+  const mappedStatus = serviceStatus === "available" ? "active" : "paused";
+
   const formData = new FormData();
   formData.append("title", serviceTitle);
   formData.append("category", category);
@@ -369,6 +461,7 @@ const buildServiceFormData = () => {
   formData.append("description", description);
   formData.append("keywords", keywords);
   formData.append("selectedPlan", selectedPlan);
+  formData.append("status", serviceStatus);
   formData.append("briefIntro", briefIntro);
   formData.append("requirements", JSON.stringify([req1, req2, req3, req4].filter(Boolean)));
   formData.append("packages", JSON.stringify(updatedPackagesData));
@@ -376,7 +469,19 @@ const buildServiceFormData = () => {
   formData.append("addons", JSON.stringify(addons.filter((a) => a.enabled)));
   formData.append("faqs", JSON.stringify(faqs.filter((f) => f.question.trim())));
 
-  // Append binary media files
+  // 🔴 OLD: Only appended binary files, causing backend replacements to lose existing media
+  // selectedImages.forEach((file) => formData.append("images", file));
+  // selectedVideos.forEach((file) => formData.append("videos", file));
+  // selectedAudios.forEach((file) => formData.append("audio", file));
+
+  // 🟢 NEW: Explicit media collection strategy (Retain + Add + Delete)
+  formData.append("mediaStrategy", "merge"); // Options: "merge" | "replaceAll"
+  formData.append("existingImages", JSON.stringify(existingImages));
+  formData.append("existingVideos", JSON.stringify(existingVideos));
+  formData.append("existingAudio", JSON.stringify(existingAudios));
+  formData.append("deletedMediaKeys", JSON.stringify(deletedMediaKeys));
+
+  // Append newly added binary files
   selectedImages.forEach((file) => formData.append("images", file));
   selectedVideos.forEach((file) => formData.append("videos", file));
   selectedAudios.forEach((file) => formData.append("audio", file));
@@ -420,6 +525,63 @@ const handleSaveDraft = async () => {
 };
   
   
+  
+// Helper to validate a package tier object with strict numeric boundaries
+const validatePackageTier = (
+  pkg: { title: string; desc: string; price: string; delivery: string; revisions: string; features: string },
+  tierName: string
+): string | null => {
+  // 1. Text validations
+  if (!pkg.title.trim()) return `Please enter a title for the ${tierName} package.`;
+  if (!pkg.desc.trim()) return `Please enter a description for the ${tierName} package.`;
+
+  // 2. Strict Price Validation (Min: $5, Max: $10,000, Max 2 decimal places)
+  const numericPrice = Number(pkg.price);
+  if (
+    !pkg.price.trim() ||
+    isNaN(numericPrice) ||
+    !isFinite(numericPrice) ||
+    numericPrice < 5 ||
+    numericPrice > 10000 ||
+    !/^\d+(\.\d{1,2})?$/.test(pkg.price.trim())
+  ) {
+    return `Please enter a valid price for the ${tierName} package ($5 to $10,000, up to 2 decimal places).`;
+  }
+
+  // 3. Strict Delivery Time Validation (Min: 1 day, Max: 90 days, integer only)
+  const numericDelivery = Number(pkg.delivery);
+  if (
+    !pkg.delivery.trim() ||
+    isNaN(numericDelivery) ||
+    !Number.isInteger(numericDelivery) ||
+    numericDelivery < 1 ||
+    numericDelivery > 90
+  ) {
+    return `Please select a valid delivery time for the ${tierName} package (1 to 90 days).`;
+  }
+
+  // 4. Strict Revisions Validation (0 to 10 integer revisions or "unlimited")
+  const revTrimmed = pkg.revisions.trim().toLowerCase();
+  if (revTrimmed !== "unlimited") {
+    const numericRevisions = Number(pkg.revisions);
+    if (
+      !pkg.revisions.trim() ||
+      isNaN(numericRevisions) ||
+      !Number.isInteger(numericRevisions) ||
+      numericRevisions < 0 ||
+      numericRevisions > 10
+    ) {
+      return `Please enter valid revisions for the ${tierName} package (0 to 10 or 'unlimited').`;
+    }
+  }
+
+  // 5. Feature check
+  if (!pkg.features.trim()) return `Please enter key features for the ${tierName} package.`;
+
+  return null;
+};
+  
+  
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
@@ -444,9 +606,36 @@ const handleSubmit = async (e: React.FormEvent) => {
     return;
   }
 
-  if (!updatedPackagesData.basic.title || !updatedPackagesData.basic.price) {
-    showToast("Please fill in at least the Basic package title and price.", "warning");
+  // 1. Basic package is ALWAYS required
+  const basicError = validatePackageTier(updatedPackagesData.basic, "Basic");
+  if (basicError) {
+    showToast(basicError, "warning");
+    setCurrentStep(2);
     return;
+  }
+
+  // 2. Standard package is optional, but if ANY field is entered, validate ALL fields
+  const std = updatedPackagesData.standard;
+  const isStandardStarted = Boolean(std.title || std.desc || std.price || std.features);
+  if (isStandardStarted) {
+    const stdError = validatePackageTier(std, "Standard");
+    if (stdError) {
+      showToast(stdError, "warning");
+      setCurrentStep(2);
+      return;
+    }
+  }
+
+  // 3. Premium package is optional, but if ANY field is entered, validate ALL fields
+  const prem = updatedPackagesData.premium;
+  const isPremiumStarted = Boolean(prem.title || prem.desc || prem.price || prem.features);
+  if (isPremiumStarted) {
+    const premError = validatePackageTier(prem, "Premium");
+    if (premError) {
+      showToast(premError, "warning");
+      setCurrentStep(2);
+      return;
+    }
   }
 
   setIsSubmitting(true);
@@ -459,22 +648,62 @@ const handleSubmit = async (e: React.FormEvent) => {
     return; // Stop if draft saving failed
   }
 
-  // 4. Branch based on selected plan
+ // 4. Branch based on selected plan
   if (selectedPlan === "silver" || selectedPlan === "gold") {
-    showToast("Draft saved! Redirecting to secure plan checkout...", "info");
-    setTimeout(() => {
-      
-      // NEW: Redirecting to new seller plan upgrade route
-router.push(`/checkout/plan?plan=${selectedPlan}&draftId=${draftId}`);
-    }, 1500);
-  } else {
-    // Free Plan - direct publish
-    showToast("Publishing your service for free...", "info");
-    setTimeout(() => {
-      showToast("Success! Your service is now live.", "success");
+    try {
+      showToast("Initializing secure checkout...", "info");
+
+      const response = await fetch("/api/checkout/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftId, selectedPlan }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Checkout session failed.");
+
+      // Redirect to authentic server-generated payment URL
+      window.location.href = data.checkoutUrl;
+    } catch (err: any) {
+      console.error("Checkout redirect failed:", err);
+      showToast(err.message || "Failed to initiate payment.", "warning");
       setIsSubmitting(false);
-      // router.push("/freelancer-dashboard");
-    }, 1500);
+    }
+  
+  } else {
+    // Free Plan - Send actual HTTP publish request to API
+    try {
+      showToast("Publishing your service for free...", "info");
+
+      const response = await fetch("/api/services/publish", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          draftId,
+          serviceStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to publish service.");
+      }
+
+      const data = await response.json();
+
+      showToast("Success! Your service is now live.", "success");
+      
+      setTimeout(() => {
+        router.push(data.redirectUrl || "/freelancer-dashboard");
+      }, 1200);
+    } catch (err: any) {
+      console.error("Error publishing service:", err);
+      showToast(err.message || "Publication failed. Please try again.", "warning");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 };  
   
@@ -619,11 +848,14 @@ const categoryText =
           {/* Gallery Section */}
           <section className="gallery-section">
             <div className="preview-gallery-grid">
-              <PreviewMediaGallery
-                images={selectedImages}
-                videos={selectedVideos}
-                audios={selectedAudios}
-              />
+             <PreviewMediaGallery
+  existingImages={existingImages}
+  existingVideos={existingVideos}
+  existingAudios={existingAudios}
+  newImages={selectedImages}
+  newVideos={selectedVideos}
+  newAudios={selectedAudios}
+/>
             </div>
           </section>
 
@@ -1726,20 +1958,20 @@ const categoryText =
           </p>
 
           <div className="feature-section-container job-availability-section">
-            <div className="form-group status-select-group">
-              <label htmlFor="service-status">Availability Status</label>
-              <select
-                id="service-status"
-                value={serviceStatus}
-                onChange={(e) => setServiceStatus(e.target.value)}
-                required
-              >
-                <option value="available">Available (Go Live)</option>
-                <option value="unavailable">Unavailable (Paused)</option>
-              </select>
-              <small>Set to &apos;Available&apos; to publish your service on the marketplace.</small>
-            </div>
-          </div>
+  <div className="form-group status-select-group">
+    <label htmlFor="service-status">Availability Status</label>
+    <select
+      id="service-status"
+      value={serviceStatus}
+      onChange={(e) => setServiceStatus(e.target.value)}
+      required
+    >
+      <option value="active">Active (Go Live)</option>
+      <option value="paused">Paused (Unavailable)</option>
+    </select>
+    <small>Set to &apos;Active&apos; to publish your service on the marketplace.</small>
+  </div>
+</div>
 
           {/* ===== SERVICE SUMMARY (Read Only) ===== */}
           <h3 className="section-heading" style={{ marginTop: "30px" }}>Service Summary & Metrics</h3>
@@ -1774,11 +2006,11 @@ const categoryText =
                 </span>
               </div>
               <div className="summary-item">
-                <span className="summary-label">Current Status:</span>
-                <span className={`summary-value ${serviceStatus === "available" ? "status-active" : ""}`}>
-                  {serviceStatus === "available" ? "Available" : "Unavailable"}
-                </span>
-              </div>
+  <span className="summary-label">Current Status:</span>
+  <span className={`summary-value ${serviceStatus === "active" ? "status-active" : ""}`}>
+    {serviceStatus === "active" ? "Active" : "Paused"}
+  </span>
+</div>
             </div>
           </div>
 

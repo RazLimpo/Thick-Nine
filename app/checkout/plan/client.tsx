@@ -18,6 +18,8 @@ export default function PlanCheckoutClient() {
 
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const [errorMessage, setErrorMessage] = useState("");
+
   // Card details state
   const [cardHolder, setCardHolder] = useState("");
   const [cardNumber, setCardNumber] = useState("");
@@ -39,14 +41,40 @@ export default function PlanCheckoutClient() {
 
   const selectedPlanInfo = planDetails[plan] || planDetails["silver"];
 
+
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+    setErrorMessage("");
 
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/checkout/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId,
+          plan,
+          cardHolder,
+          cardNumber,
+          expiry,
+          cvv,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Payment failed. Please check your card details.");
+      }
+
+      // Backend confirmed payment and published the draft -> Redirect user safely
+      router.push(data.redirectUrl || "/freelancer-dashboard?status=success");
+    } catch (err: any) {
+      console.error("Payment submission error:", err);
+      setErrorMessage(err.message || "An unexpected error occurred during processing.");
+    } finally {
       setIsProcessing(false);
-      router.push(`/freelancer-dashboard?status=success&draftId=${draftId}&plan=${plan}`);
-    }, 2000);
+    }
   };
 
   return (
@@ -135,9 +163,15 @@ export default function PlanCheckoutClient() {
           </div>
         </div>
 
-        <button type="submit" disabled={isProcessing} className="pay-button">
-          {isProcessing ? "Processing Card..." : `Pay $${selectedPlanInfo.price.toFixed(2)}`}
-        </button>
+   {errorMessage && (
+    <div className="error-alert" style={{ color: "red", marginBottom: "1rem" }}>
+      {errorMessage}
+    </div>
+  )}
+
+  <button type="submit" disabled={isProcessing} className="pay-button">
+    {isProcessing ? "Processing Card..." : `Pay $${selectedPlanInfo.price.toFixed(2)}`}
+  </button>
       </form>
 
       <div className="back-link">
