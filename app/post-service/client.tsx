@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -15,6 +15,61 @@ import { CATEGORIES, CategoryKey } from "@/lib/categories";
 import '../../styles/pages/post-service.css';
 import '../../styles/pages/service-details.css';
 
+
+// Shared Types for Draft Hydration & API Validation
+interface PackageItem {
+  title?: string;
+  desc?: string;
+  price?: string | number;
+  delivery?: string;
+  revisions?: string;
+  features?: string;
+}
+
+interface PackagesPayload {
+  basic?: PackageItem;
+  standard?: PackageItem;
+  premium?: PackageItem;
+}
+
+interface AddonItem {
+  label: string;
+  desc?: string;
+  price: number;
+  enabled?: boolean;
+  selected?: boolean;
+}
+
+interface FaqItem {
+  question: string;
+  answer: string;
+}
+
+interface ServiceDraftResponse {
+  draftId?: string;
+  _id?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  subCategory?: string;
+  keywords?: string[] | string;
+  selectedPlan?: PlanKey;
+  packages?: PackagesPayload;
+  addons?: AddonItem[];
+  faqs?: FaqItem[];
+  requirements?: string[];
+  briefIntro?: string;
+  // Remote media URLs returned by the draft API
+  images?: string[];
+  videos?: string[];
+  audio?: string[];
+  existingImages?: string[];
+  existingVideos?: string[];
+  existingAudio?: string[];
+}
+
+
+
 // Component Definition 
 export default function PostServiceClient() {
   // --- All state will go here ---
@@ -23,7 +78,18 @@ export default function PostServiceClient() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0); // Default first item open
   
   const searchParams = useSearchParams();
-  const draftId = searchParams.get('draftId');
+  const [draftId, setDraftId] = useState<string | null>(searchParams.get('draftId'));
+// --- Toast ---
+const [toasts, setToasts] = useState<{ id: number; message: string; type: string }[]>([]);
+
+const showToast = useCallback((message: string, type: "success" | "warning" | "info" = "success") => {
+  const id = Date.now();
+  setToasts((prev) => [...prev, { id, message, type }]);
+  setTimeout(() => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, 2800);
+}, []);
+
     
     
     // For Edit mode (Seller toggles if this add-on is available for this gig)
@@ -42,104 +108,186 @@ const toggleAddonSelected = (index: number) => {
 
   
  // Hydrate form fields if editing an existing draft
-  useEffect(() => {
-    if (!draftId) return;
+useEffect(() => {
+  if (!draftId) return;
 
-    async function loadDraft() {
-      try {
-        showToast("Loading saved draft...", "info");
-        
-        const response = await fetch(`/api/services/draft/${draftId}`);
-        if (!response.ok) throw new Error("Failed to fetch draft");
+  const controller = new AbortController();
 
-        const data = await response.json();
+  async function loadDraft() {
+    try {
+      showToast("Loading saved draft...", "info");
 
-        // 1. Existing hydrated fields
-        if (data.title) setServiceTitle(data.title);
-        if (data.description) setDescription(data.description);
-        if (data.category) setCategory(data.category);
-        if (data.subCategory) setSubCategory(data.subCategory);
-        if (data.keywords) setKeywords(Array.isArray(data.keywords) ? data.keywords.join(", ") : data.keywords);
-        if (data.selectedPlan) setSelectedPlan(data.selectedPlan);
-        
-        // 2. FAQs
-        if (data.faqs && Array.isArray(data.faqs) && data.faqs.length > 0) {
-          setFaqs(data.faqs);
-        }
+      const response = await fetch(`/api/services/draft/${draftId}`, {
+        signal: controller.signal,
+      });
 
-        // 3. Add-ons
-        if (data.addons && Array.isArray(data.addons) && data.addons.length > 0) {
-          setAddons(
-            data.addons.map((addon: any) => ({
-              ...addon,
-              enabled: addon.enabled !== undefined ? Boolean(addon.enabled) : true,
-              selected: Boolean(addon.selected),
-            }))
-          );
-        }
-        
-        // 4. Packages & Active Tier Controls
-        if (data.packages) {
-          setPackagesData(data.packages);
-          const initialTier = data.packages.basic || {};
-          setPkgTitle(initialTier.title || "");
-          setPkgDesc(initialTier.desc || "");
-          setPkgPrice(initialTier.price || "");
-          setPkgDelivery(initialTier.delivery || "3");
-          setPkgRevisions(initialTier.revisions || "1");
-          setPkgFeatures(initialTier.features || "");
-        }
+      if (!response.ok) throw new Error("Failed to fetch draft");
 
-        // 5. Brief Intro & Requirements (req1..req4)
-        if (data.briefIntro) setBriefIntro(data.briefIntro);
-        if (Array.isArray(data.requirements)) {
-          if (data.requirements[0]) setReq1(data.requirements[0]);
-          if (data.requirements[1]) setReq2(data.requirements[1]);
-          if (data.requirements[2]) setReq3(data.requirements[2]);
-          if (data.requirements[3]) setReq4(data.requirements[3]);
-        }
+      const data: ServiceDraftResponse = await response.json();
 
-        // 6. Status & Dynamic Category Attributes
-        if (data.status) {
-          setServiceStatus(data.status === "paused" ? "paused" : "active");
-        }
-        if (Array.isArray(data.attributes)) {
-          setSelectedAttributes(data.attributes);
-        }
-
-        // 7. Existing Media URLs
-        if (Array.isArray(data.images)) setExistingImages(data.images);
-        if (Array.isArray(data.videos)) setExistingVideos(data.videos);
-        if (Array.isArray(data.audio)) setExistingAudios(data.audio);
-
-        // 8. Wizard Step & Active Editing Tier
-        if (data.currentStep && typeof data.currentStep === "number") {
-          setCurrentStep(data.currentStep);
-        }
-        if (data.currentEditingTier) {
-          setCurrentEditingTier(data.currentEditingTier);
-        }
-
-        showToast("Draft loaded successfully!", "success");
-      } catch (err) {
-        console.error("Error loading draft:", err);
-        showToast("Failed to load draft details.", "warning");
+      if (!data || typeof data !== "object") {
+        throw new Error("Invalid draft payload structure received");
       }
-    }
 
-    loadDraft();
-  }, [draftId]);
+      // Track whether essential sections loaded completely
+      let missingFields: string[] = [];
+
+      // Safe hydration for scalar fields
+      if (typeof data.title === "string") setServiceTitle(data.title);
+      else missingFields.push("title");
+
+      if (typeof data.description === "string") setDescription(data.description);
+      else missingFields.push("description");
+
+      if (typeof data.category === "string") setCategory(data.category);
+      if (typeof data.subCategory === "string") setSubCategory(data.subCategory);
+
+      if (data.keywords) {
+        setKeywords(Array.isArray(data.keywords) ? data.keywords.join(", ") : String(data.keywords));
+      }
+
+      if (data.selectedPlan && ["free", "silver", "gold"].includes(data.selectedPlan)) {
+        setSelectedPlan(data.selectedPlan);
+      }
+
+      if (typeof data.briefIntro === "string") setBriefIntro(data.briefIntro);
+
+      // Safe hydration for Requirements (always reset all four slots)
+      if (Array.isArray(data.requirements) && data.requirements.length > 0) {
+        setReq1(data.requirements[0] || "");
+        setReq2(data.requirements[1] || "");
+        setReq3(data.requirements[2] || "");
+        setReq4(data.requirements[3] || "");
+      } else {
+        setReq1("");
+        setReq2("");
+        setReq3("");
+        setReq4("");
+        missingFields.push("requirements");
+      }
+
+      // Safe hydration for FAQs array
+      if (Array.isArray(data.faqs) && data.faqs.length > 0) {
+        const validatedFaqs = data.faqs
+          .filter((f): f is FaqItem => typeof f === "object" && f !== null && typeof f.question === "string")
+          .map((f) => ({
+            question: f.question || "",
+            answer: f.answer || "",
+          }));
+        if (validatedFaqs.length > 0) setFaqs(validatedFaqs);
+      }
+
+     // Inside loadDraft() within useEffect:
+if (Array.isArray(data.addons) && data.addons.length > 0) {
+  const validatedAddons = data.addons
+    .filter((a): a is AddonItem => typeof a === "object" && a !== null && typeof a.label === "string")
+    .map((addon) => ({
+      label: addon.label || "",
+      desc: addon.desc || "",
+      price: typeof addon.price === "number" ? addon.price : parseFloat(addon.price || "0") || 0,
+      enabled: addon.enabled !== undefined ? Boolean(addon.enabled) : true,
+      selected: Boolean(addon.selected),
+    }));
+  if (validatedAddons.length > 0) setAddons(validatedAddons);
+}
+
+    // Safe hydration for Packages payload
+      if (data.packages && typeof data.packages === "object" && data.packages.basic) {
+        setPackagesData({
+          basic: {
+            title: data.packages.basic?.title || "",
+            desc: data.packages.basic?.desc || "",
+            price: data.packages.basic?.price ? String(data.packages.basic.price) : "",
+            delivery: data.packages.basic?.delivery || "3",
+            revisions: data.packages.basic?.revisions || "1",
+            features: data.packages.basic?.features || "",
+          },
+          standard: {
+            title: data.packages.standard?.title || "",
+            desc: data.packages.standard?.desc || "",
+            price: data.packages.standard?.price ? String(data.packages.standard.price) : "",
+            delivery: data.packages.standard?.delivery || "5",
+            revisions: data.packages.standard?.revisions || "3",
+            features: data.packages.standard?.features || "",
+          },
+          premium: {
+            title: data.packages.premium?.title || "",
+            desc: data.packages.premium?.desc || "",
+            price: data.packages.premium?.price ? String(data.packages.premium.price) : "",
+            delivery: data.packages.premium?.delivery || "7",
+            revisions: data.packages.premium?.revisions || "Unlimited",
+            features: data.packages.premium?.features || "",
+          },
+        });
+      } else {
+        missingFields.push("packages");
+      }
+
+      // Safe hydration for remote media (edit mode)
+      const remoteImages = data.existingImages || data.images;
+      const remoteVideos = data.existingVideos || data.videos;
+      const remoteAudios = data.existingAudio || data.audio;
+
+      if (Array.isArray(remoteImages) && remoteImages.length > 0) {
+        setExistingImages(remoteImages.filter((u): u is string => typeof u === "string"));
+      }
+      if (Array.isArray(remoteVideos) && remoteVideos.length > 0) {
+        setExistingVideos(remoteVideos.filter((u): u is string => typeof u === "string"));
+      }
+      if (Array.isArray(remoteAudios) && remoteAudios.length > 0) {
+        setExistingAudios(remoteAudios.filter((u): u is string => typeof u === "string"));
+      }
+
+      // Display status toast based on completeness
+      if (missingFields.length === 0) {
+        showToast("Draft fully loaded successfully!", "success");
+      } else {
+        showToast(
+          `Draft partially loaded. Missing or incomplete: ${missingFields.join(", ")}.`,
+          "info"
+        );
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") return;
+
+      console.error("Error loading draft:", err);
+      showToast(err?.message || "Failed to load draft details.", "warning");
+    }
+  }
+
+  loadDraft();
+
+  return () => {
+    controller.abort();
+  };
+}, [draftId, showToast]);
   
   // Ref for scrolling to images container without DOM lookup 
   const imagesSectionRef = useRef<HTMLDivElement>(null);
   
-// --- Package Data ---
+// --- Package Data (Single Source of Truth) ---
 const [packagesData, setPackagesData] = useState({
   basic: { title: "", desc: "", price: "", delivery: "3", revisions: "1", features: "" },
   standard: { title: "", desc: "", price: "", delivery: "5", revisions: "3", features: "" },
   premium: { title: "", desc: "", price: "", delivery: "7", revisions: "Unlimited", features: "" },
 });
-const [currentEditingTier, setCurrentEditingTier] = useState<"basic" | "standard" | "premium">("basic");
+
+    const [currentEditingTier, setCurrentEditingTier] = useState<"basic" | "standard" | "premium">("basic");
+    const [selectedPreviewPackage, setSelectedPreviewPackage] = useState<"basic" | "standard" | "premium">("basic");
+
+// Derived current package for concise JSX bindings
+const currentPackage = packagesData[currentEditingTier];
+
+// Generic helper to update any field on the currently active package tier
+const updateCurrentPackageField = (field: string, value: string) => {
+  setPackagesData((prev) => ({
+    ...prev,
+    [currentEditingTier]: {
+      ...prev[currentEditingTier],
+      [field]: value,
+    },
+  }));
+};
 
 // --- Media State (Separated Remote vs. Local Files) ---
 // Newly staged local File objects
@@ -163,26 +311,8 @@ const [currentStep, setCurrentStep] = useState<number>(1);
 const [isSubmitting, setIsSubmitting] = useState(false);
 
 // Helper to commit current package form inputs into package state object
-const syncCurrentPackageTier = () => {
-  setPackagesData((prev) => ({
-    ...prev,
-    [currentEditingTier]: {
-      title: pkgTitle,
-      desc: pkgDesc,
-      price: pkgPrice,
-      delivery: pkgDelivery,
-      revisions: pkgRevisions,
-      features: pkgFeatures,
-    },
-  }));
-};
 
 const nextStep = () => {
-  // Save current active package tier state before step validation or transition
-  if (currentStep === 2) {
-    syncCurrentPackageTier();
-  }
-
   // Validate Step 1 before proceeding
   if (currentStep === 1) {
     if (!serviceTitle.trim()) {
@@ -201,16 +331,16 @@ const nextStep = () => {
 
   // Validate Step 2 before proceeding
   if (currentStep === 2) {
-    if (!pkgTitle.trim() || !pkgPrice) {
-      showToast("Please fill in the package title and price.", "warning");
+    if (!packagesData.basic.title.trim() || !packagesData.basic.price) {
+      showToast("Please fill in at least the Basic package title and price.", "warning");
       return;
     }
   }
 
   // Validate Step 3 before proceeding
   if (currentStep === 3) {
-    if (selectedImages.length === 0) {
-      showToast("Please upload at least one image.", "warning");
+    if (selectedImages.length === 0 && existingImages.length === 0) {
+      showToast("Please upload or retain at least one image.", "warning");
       return;
     }
   }
@@ -220,11 +350,6 @@ const nextStep = () => {
 };
 
 const prevStep = () => {
-  // Ensure package changes aren't lost when stepping backward from step 2
-  if (currentStep === 2) {
-    syncCurrentPackageTier();
-  }
-
   setCurrentStep((prev) => Math.max(prev - 1, 1));
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
@@ -235,21 +360,11 @@ const [category, setCategory] = useState("");
 const [subCategory, setSubCategory] = useState("");
 const [description, setDescription] = useState("");
 const [keywords, setKeywords] = useState("");
-
-// --- Package form fields (current tier) ---
-const [pkgTitle, setPkgTitle] = useState("");
-const [pkgDesc, setPkgDesc] = useState("");
-const [pkgPrice, setPkgPrice] = useState("");
-const [pkgDelivery, setPkgDelivery] = useState("3");
-const [pkgRevisions, setPkgRevisions] = useState("1");
-const [pkgFeatures, setPkgFeatures] = useState("");
   
 
 // --- Plan ---
 const [selectedPlan, setSelectedPlan] = useState<PlanKey>("free");
 
-// --- Toast ---
-const [toasts, setToasts] = useState<{ id: number; message: string; type: string }[]>([]);
   
   const [briefIntro, setBriefIntro] = useState(
   "To deliver the best possible result tailored to your vision, please provide the following when you place your order:"
@@ -266,13 +381,6 @@ const [req4, setReq4] = useState("");
     gold: { images: 8, videos: 4, audio: 4, label: "Gold Plan" }, 
   };
     
-const showToast = (message: string, type: "success" | "warning" | "info" = "success") => {
-  const id = Date.now();
-  setToasts((prev) => [...prev, { id, message, type }]);
-  setTimeout(() => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, 2800);
-};
 
 const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
   const files = Array.from(e.target.files || []);
@@ -341,46 +449,24 @@ const removeExistingAudio = (urlOrKey: string) => {
   showToast(`Plan upgraded to ${planLimits[plan].label}. You can now upload more files!`, "info");
 };
 
+const switchPackageTier = (targetTier: "basic" | "standard" | "premium") => {
+  setCurrentEditingTier(targetTier);
+  showToast(`Switched to ${targetTier.charAt(0).toUpperCase() + targetTier.slice(1)} Package`, "info");
+};
 
-const priceNum = parseFloat(pkgPrice) || 0;
+// Derived financial indicators
+const priceNum = parseFloat(currentPackage.price) || 0;
 const gross = priceNum;
 const fee = Number((priceNum * MARKETPLACE_FEE_PERCENTAGE).toFixed(2));
 const net = Number((gross - fee).toFixed(2));
-  
-const switchPackageTier = (tier: "basic" | "standard" | "premium") => {
-  // Save current inputs into packagesData
-  setPackagesData((prev) => ({
-    ...prev,
-    [currentEditingTier]: {
-      title: pkgTitle,
-      desc: pkgDesc,
-      price: pkgPrice,
-      delivery: pkgDelivery,
-      revisions: pkgRevisions,
-      features: pkgFeatures,
-    },
-  }));
-
-  // Load the new tier
-  const data = packagesData[tier];
-  setPkgTitle(data.title);
-  setPkgDesc(data.desc);
-  setPkgPrice(data.price);
-  setPkgDelivery(data.delivery);
-  setPkgRevisions(data.revisions);
-  setPkgFeatures(data.features);
-
-  setCurrentEditingTier(tier);
-  showToast(`Switched to ${tier.charAt(0).toUpperCase() + tier.slice(1)} Package`, "info");
-};
 
   
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
 
-const [addons, setAddons] = useState([
-  { label: "Extra Fast Delivery (1 Day)", desc: "Get your order in 24 hour express.", price: "25", enabled: true, selected: false },
-  { label: "Include Source Files", desc: "The original, editable files for the design/code.", price: "15", enabled: true, selected: false },
-  { label: "Extra Revision Round", desc: "One additional opportunity to request changes.", price: "10", enabled: true, selected: false },
+const [addons, setAddons] = useState<AddonItem[]>([
+  { label: "Extra Fast Delivery (1 Day)", desc: "Get your order in 24 hour express.", price: 25, enabled: true, selected: false },
+  { label: "Include Source Files", desc: "The original, editable files for the design/code.", price: 15, enabled: true, selected: false },
+  { label: "Extra Revision Round", desc: "One additional opportunity to request changes.", price: 10, enabled: true, selected: false },
 ]);
 
 const [faqs, setFaqs] = useState([
@@ -397,7 +483,14 @@ const toggleAttribute = (value: string) => {
 
 const updateAddonField = (index: number, field: "label" | "desc" | "price", value: string) => {
   setAddons((prev) =>
-    prev.map((a, i) => (i === index ? { ...a, [field]: value } : a))
+    prev.map((a, i) => {
+      if (i !== index) return a;
+      if (field === "price") {
+        const parsed = parseFloat(value);
+        return { ...a, price: isNaN(parsed) ? 0 : parsed };
+      }
+      return { ...a, [field]: value };
+    })
   );
 };
     
@@ -411,7 +504,7 @@ const updateAddonField = (index: number, field: "label" | "desc" | "price", valu
 const addMoreAddon = () => {
   setAddons((prev) => [
     ...prev,
-    { label: "Extra Service", desc: "", price: "10", enabled: true, selected: false },
+    { label: "Extra Service", desc: "", price: 10, enabled: true, selected: false },
   ]);
   showToast("New Add-on block created");
 };
@@ -436,23 +529,10 @@ const addMoreFaq = () => {
 const [pendingRemove, setPendingRemove] = useState<{ type: string; index: number } | null>(null);
 
   
-  // Helper to aggregate all form state into a single FormData payload
+ // Helper to aggregate all form state into a single FormData payload
 const buildServiceFormData = () => {
-  const updatedPackagesData = {
-    ...packagesData,
-    [currentEditingTier]: {
-      title: pkgTitle,
-      desc: pkgDesc,
-      price: pkgPrice,
-      delivery: pkgDelivery,
-      revisions: pkgRevisions,
-      features: pkgFeatures,
-    },
-  };
-
-  
-  // Map frontend status values to backend schema values
-  const mappedStatus = serviceStatus === "available" ? "active" : "paused";
+  // serviceStatus is already "active" | "paused" from the select
+  const mappedStatus = serviceStatus === "active" ? "active" : "paused";
 
   const formData = new FormData();
   formData.append("title", serviceTitle);
@@ -461,21 +541,19 @@ const buildServiceFormData = () => {
   formData.append("description", description);
   formData.append("keywords", keywords);
   formData.append("selectedPlan", selectedPlan);
-  formData.append("status", serviceStatus);
+  formData.append("status", mappedStatus);
   formData.append("briefIntro", briefIntro);
   formData.append("requirements", JSON.stringify([req1, req2, req3, req4].filter(Boolean)));
-  formData.append("packages", JSON.stringify(updatedPackagesData));
+  
+  // Directly append packagesData since standalone pkg states were removed
+  formData.append("packages", JSON.stringify(packagesData));
+  
   formData.append("attributes", JSON.stringify(selectedAttributes));
   formData.append("addons", JSON.stringify(addons.filter((a) => a.enabled)));
   formData.append("faqs", JSON.stringify(faqs.filter((f) => f.question.trim())));
 
-  // 🔴 OLD: Only appended binary files, causing backend replacements to lose existing media
-  // selectedImages.forEach((file) => formData.append("images", file));
-  // selectedVideos.forEach((file) => formData.append("videos", file));
-  // selectedAudios.forEach((file) => formData.append("audio", file));
-
-  // 🟢 NEW: Explicit media collection strategy (Retain + Add + Delete)
-  formData.append("mediaStrategy", "merge"); // Options: "merge" | "replaceAll"
+  // Explicit media collection strategy (Retain + Add + Delete)
+  formData.append("mediaStrategy", "merge");
   formData.append("existingImages", JSON.stringify(existingImages));
   formData.append("existingVideos", JSON.stringify(existingVideos));
   formData.append("existingAudio", JSON.stringify(existingAudios));
@@ -495,8 +573,9 @@ const handleSaveDraft = async () => {
     showToast("Saving progress to drafts...", "info");
 
     const payload = buildServiceFormData();
-    payload.append("status", "draft");
-    
+    // Use set() so we overwrite the status from buildServiceFormData (not append a second value)
+    payload.set("status", "draft");
+
     if (draftId) {
       payload.append("draftId", draftId);
     }
@@ -514,9 +593,17 @@ const handleSaveDraft = async () => {
     }
 
     const data = await response.json();
+    const savedId = data.draftId || data._id || draftId;
+
+    // Update state so subsequent saves become PUT updates rather than creating new drafts
+    if (savedId && savedId !== draftId) {
+      setDraftId(savedId);
+    }
+
     showToast(draftId ? "Draft updated successfully!" : "Service draft saved successfully!", "success");
-    return data.draftId || draftId;
+    return savedId;
   } catch (err) {
+    console.error("Save draft error:", err);
     showToast("Failed to save draft. Please try again.", "warning");
     return null;
   } finally {
@@ -582,40 +669,26 @@ const validatePackageTier = (
 };
   
   
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  // 1. Ensure current package tab inputs are synced
-  const updatedPackagesData = {
-    ...packagesData,
-    [currentEditingTier]: {
-      title: pkgTitle,
-      desc: pkgDesc,
-      price: pkgPrice,
-      delivery: pkgDelivery,
-      revisions: pkgRevisions,
-      features: pkgFeatures,
-    },
-  };
-  setPackagesData(updatedPackagesData);
-
-  // 2. Validate essential fields
-  if (selectedImages.length === 0) {
-    showToast("Please upload at least one image for your service.", "warning");
+  // 1. Validate essential fields (Images) — allow existing remote images
+  if (selectedImages.length === 0 && existingImages.length === 0) {
+    showToast("Please upload or retain at least one image for your service.", "warning");
     imagesSectionRef.current?.scrollIntoView({ behavior: "smooth" });
     return;
   }
 
-  // 1. Basic package is ALWAYS required
-  const basicError = validatePackageTier(updatedPackagesData.basic, "Basic");
+  // 2. Validate Basic package (ALWAYS required)
+  const basicError = validatePackageTier(packagesData.basic, "Basic");
   if (basicError) {
     showToast(basicError, "warning");
     setCurrentStep(2);
     return;
   }
 
-  // 2. Standard package is optional, but if ANY field is entered, validate ALL fields
-  const std = updatedPackagesData.standard;
+  // 3. Validate Standard package if any field has content
+  const std = packagesData.standard;
   const isStandardStarted = Boolean(std.title || std.desc || std.price || std.features);
   if (isStandardStarted) {
     const stdError = validatePackageTier(std, "Standard");
@@ -626,8 +699,8 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
   }
 
-  // 3. Premium package is optional, but if ANY field is entered, validate ALL fields
-  const prem = updatedPackagesData.premium;
+  // 4. Validate Premium package if any field has content
+  const prem = packagesData.premium;
   const isPremiumStarted = Boolean(prem.title || prem.desc || prem.price || prem.features);
   if (isPremiumStarted) {
     const premError = validatePackageTier(prem, "Premium");
@@ -640,15 +713,15 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   setIsSubmitting(true);
 
-  // 3. Save draft to backend first to get draftId
-  const draftId = await handleSaveDraft();
+  // 5. Save draft to backend first to get active draftId
+  const activeDraftId = await handleSaveDraft();
 
-  if (!draftId) {
+  if (!activeDraftId) {
     setIsSubmitting(false);
     return; // Stop if draft saving failed
   }
 
- // 4. Branch based on selected plan
+  // 6. Branch based on selected plan
   if (selectedPlan === "silver" || selectedPlan === "gold") {
     try {
       showToast("Initializing secure checkout...", "info");
@@ -656,7 +729,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       const response = await fetch("/api/checkout/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draftId, selectedPlan }),
+        body: JSON.stringify({ draftId: activeDraftId, selectedPlan }),
       });
 
       const data = await response.json();
@@ -669,7 +742,6 @@ const handleSubmit = async (e: React.FormEvent) => {
       showToast(err.message || "Failed to initiate payment.", "warning");
       setIsSubmitting(false);
     }
-  
   } else {
     // Free Plan - Send actual HTTP publish request to API
     try {
@@ -681,7 +753,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          draftId,
+          draftId: activeDraftId,
           serviceStatus,
         }),
       });
@@ -694,7 +766,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       const data = await response.json();
 
       showToast("Success! Your service is now live.", "success");
-      
+
       setTimeout(() => {
         router.push(data.redirectUrl || "/freelancer-dashboard");
       }, 1200);
@@ -705,78 +777,95 @@ const handleSubmit = async (e: React.FormEvent) => {
       setIsSubmitting(false);
     }
   }
-};  
+};
   
   
-const requestRemoveItem = (type: "images" | "videos" | "audio" | "faq", index: number) => {
-    setPendingRemove({ type, index });
-    setShowConfirmModal(true);
-  };
+// Local staged files + FAQs: remove immediately (no modal) to avoid overlay freezes
+// Remote/existing media: still confirm via modal
+const requestRemoveItem = (
+  type: "images" | "videos" | "audio" | "faq" | "existing-images" | "existing-videos" | "existing-audio",
+  index: number
+) => {
+  // Immediate path for local / FAQ
+  if (type === "images") {
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    showToast("Image removed", "warning");
+    return;
+  }
+  if (type === "videos") {
+    setSelectedVideos((prev) => prev.filter((_, i) => i !== index));
+    showToast("Video removed", "warning");
+    return;
+  }
+  if (type === "audio") {
+    setSelectedAudios((prev) => prev.filter((_, i) => i !== index));
+    showToast("Audio sample removed", "warning");
+    return;
+  }
+  if (type === "faq") {
+    setFaqs((prev) => prev.filter((_, i) => i !== index));
+    showToast("FAQ removed", "warning");
+    return;
+  }
 
-  const confirmRemove = () => {
+  // Existing remote media → confirm first
+  setPendingRemove({ type, index });
+  setShowConfirmModal(true);
+};
+
+const confirmRemove = () => {
   if (!pendingRemove) return;
 
   const { type, index } = pendingRemove;
 
-  if (type === "images") {
-    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
-    showToast("Image removed", "warning");
-  } else if (type === "videos") {
-    setSelectedVideos((prev) => prev.filter((_, i) => i !== index));
-    showToast("Video removed", "warning");
-  } else if (type === "audio") {
-    setSelectedAudios((prev) => prev.filter((_, i) => i !== index));
-    showToast("Audio sample removed", "warning");
-  } else if (type === "faq") {
-    setFaqs((prev) => prev.filter((_, i) => i !== index));
-    showToast("FAQ removed", "warning");
+  if (type === "existing-images") {
+    const key = existingImages[index];
+    if (key) {
+      setExistingImages((prev) => prev.filter((_, i) => i !== index));
+      setDeletedMediaKeys((prev) => [...prev, key]);
+      showToast("Existing image removed", "warning");
+    }
+  } else if (type === "existing-videos") {
+    const key = existingVideos[index];
+    if (key) {
+      setExistingVideos((prev) => prev.filter((_, i) => i !== index));
+      setDeletedMediaKeys((prev) => [...prev, key]);
+      showToast("Existing video removed", "warning");
+    }
+  } else if (type === "existing-audio") {
+    const key = existingAudios[index];
+    if (key) {
+      setExistingAudios((prev) => prev.filter((_, i) => i !== index));
+      setDeletedMediaKeys((prev) => [...prev, key]);
+      showToast("Existing audio removed", "warning");
+    }
   }
 
+  setShowConfirmModal(false);
+  setPendingRemove(null);
+};
 
-  // Always reset modal state
+const cancelRemove = () => {
   setShowConfirmModal(false);
   setPendingRemove(null);
 };
   
   const handlePreviewClick = () => {
-  // Force-save current package inputs before switching
-  setPackagesData((prev) => ({
-    ...prev,
-    [currentEditingTier]: {
-      title: pkgTitle,
-      desc: pkgDesc,
-      price: pkgPrice,
-      delivery: pkgDelivery,
-      revisions: pkgRevisions,
-      features: pkgFeatures,
-    },
-  }));
-
   setViewMode("preview");
   window.scrollTo(0, 0);
 };
-  
-  
-  
-  
-  // Derive active package data matching buildPreviewHTML logic
-  const activePackage = {
-    ...packagesData[currentEditingTier],
-    title: pkgTitle || packagesData[currentEditingTier].title,
-    desc: pkgDesc || packagesData[currentEditingTier].desc,
-    price: pkgPrice || packagesData[currentEditingTier].price,
-    delivery: pkgDelivery || packagesData[currentEditingTier].delivery,
-    revisions: pkgRevisions || packagesData[currentEditingTier].revisions,
-    features: pkgFeatures || packagesData[currentEditingTier].features,
-  };
-  
-  // 👈 ADD THESE CALCULATIONS HERE
-  const selectedAddonsTotal = addons
-  .filter((a) => a.enabled && a.selected)
-  .reduce((sum, a) => sum + (parseFloat(a.price) || 0), 0);
 
-  const basePackagePrice = parseFloat(activePackage.price) || 0;
-  const grandTotalPrice = basePackagePrice + selectedAddonsTotal;
+
+// Derive active package data directly from single source of truth (Buyer preview selection)
+const activePackage = packagesData[selectedPreviewPackage];
+
+// Addon total calculation in live preview
+const selectedAddonsTotal = addons
+  .filter((a) => a.enabled && a.selected)
+  .reduce((sum, a) => sum + a.price, 0);
+
+const basePackagePrice = parseFloat(activePackage.price) || 0;
+const grandTotalPrice = basePackagePrice + selectedAddonsTotal;
 
   
 
@@ -924,80 +1013,85 @@ const categoryText =
 
           {/* Packages Section */}
           <section
-            className="packages-section"
-            id="packages-grid"
-            style={{ marginTop: "40px", borderTop: "1px solid #eee", paddingTop: "30px" }}
-          >
-            <h3 style={{ marginBottom: "20px" }}>Service Packages</h3>
-            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-              {(["basic", "standard", "premium"] as const).map((tier) => {
-                const data = packagesData[tier];
-                if (data.title || data.price || tier === currentEditingTier) {
-                  const d = tier === currentEditingTier ? activePackage : data;
-                  const featureList = (d.features || "")
-                    .split("\n")
-                    .filter((f) => f.trim());
+  className="packages-section"
+  id="packages-grid"
+  style={{ marginTop: "40px", borderTop: "1px solid #eee", paddingTop: "30px" }}
+>
+  <h3 style={{ marginBottom: "20px" }}>Service Packages</h3>
+  <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+    {(["basic", "standard", "premium"] as const).map((tier) => {
+      const data = packagesData[tier];
+      if (data.title || data.price || tier === selectedPreviewPackage) {
+        const d = packagesData[tier];
+        const featureList = (d.features || "")
+          .split("\n")
+          .filter((f) => f.trim());
 
-                  return (
-                    <div
-                      key={tier}
-                      className={`package-card ${tier === currentEditingTier ? "active" : ""}`}
-                      style={{
-                        border: "1px solid #e2e8f0",
-                        padding: "20px",
-                        borderRadius: "8px",
-                        flex: "1",
-                        minWidth: "250px",
-                        display: "flex",
-                        flexDirection: "column",
-                        background: "#fff",
-                      }}
-                    >
-                      <div
-                        className="package-header"
-                        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                      >
-                        <span
-                          className="package-badge"
-                          style={{
-                            background: tier === currentEditingTier ? "var(--primary)" : "#64748b",
-                            color: "white",
-                            padding: "4px 10px",
-                            borderRadius: "4px",
-                            textTransform: "uppercase",
-                            fontSize: "0.7rem",
-                          }}
-                        >
-                          {tier}
-                        </span>
-                        <div className="package-price" style={{ fontWeight: "bold", fontSize: "1.2rem" }}>
-                          ${d.price || "0"}
-                        </div>
-                      </div>
-                      <strong style={{ display: "block", margin: "15px 0 5px", fontSize: "1rem" }}>
-                        {d.title || "Untitled"}
-                      </strong>
-                      <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "15px", flexGrow: 1 }}>
-                        {d.desc || ""}
-                      </p>
-                      <ul style={{ listStyle: "none", padding: 0, fontSize: "0.85rem", marginBottom: "15px" }}>
-                        {featureList.map((f, i) => (
-                          <li key={i} style={{ marginBottom: "5px" }}>
-                            <i className="fas fa-check" style={{ color: "var(--primary)", marginRight: "8px" }}></i>
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                      <button className="btn-primary" style={{ width: "100%", marginTop: "auto" }}>
-                        Select {tier.charAt(0).toUpperCase() + tier.slice(1)}
-                      </button>
-                    </div>
-                  );
-                }
-                return null;
-              })}
+        return (
+          <div
+            key={tier}
+            className={`package-card ${tier === selectedPreviewPackage ? "active" : ""}`}
+            style={{
+              border: "1px solid #e2e8f0",
+              padding: "20px",
+              borderRadius: "8px",
+              flex: "1",
+              minWidth: "250px",
+              display: "flex",
+              flexDirection: "column",
+              background: "#fff",
+            }}
+          >
+            <div
+              className="package-header"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            >
+             <span
+  className="package-badge"
+  style={{
+    background: tier === selectedPreviewPackage ? "var(--primary-color)" : "#64748b",
+    color: "white",
+    padding: "4px 10px",
+    borderRadius: "4px",
+    textTransform: "uppercase",
+    fontSize: "0.7rem",
+  }}
+>
+  {tier}
+</span>
+              <div className="package-price" style={{ fontWeight: "bold", fontSize: "1.2rem" }}>
+                ${d.price || "0"}
+              </div>
             </div>
-          </section>
+            <strong style={{ display: "block", margin: "15px 0 5px", fontSize: "1rem" }}>
+              {d.title || "Untitled"}
+            </strong>
+            <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "15px", flexGrow: 1 }}>
+              {d.desc || ""}
+            </p>
+            <ul style={{ listStyle: "none", padding: 0, fontSize: "0.85rem", marginBottom: "15px" }}>
+              {featureList.map((f, i) => (
+                <li key={i} style={{ marginBottom: "5px" }}>
+                  <i className="fas fa-check" style={{ color: "var(--primary)", marginRight: "8px" }}></i>
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ width: "100%", marginTop: "auto" }}
+              onClick={() => setSelectedPreviewPackage(tier)}
+            >
+              Select {tier.charAt(0).toUpperCase() + tier.slice(1)}
+            </button>
+          </div>
+        );
+      }
+      return null;
+    })}
+  </div>
+</section>
 
           {/* Addons Section (PREVIEW MODE) */}
 <section className="addons-section">
@@ -1118,19 +1212,19 @@ const categoryText =
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}
             >
               <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
-                <span
-                  className="package-badge"
-                  style={{
-                    background: "var(--primary-color)",
-                    color: "white",
-                    padding: "2px 8px",
-                    borderRadius: "4px",
-                    fontSize: "0.7rem",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {currentEditingTier}
-                </span>
+               <span
+  className="package-badge"
+  style={{
+    background: "var(--primary-color)",
+    color: "white",
+    padding: "2px 8px",
+    borderRadius: "4px",
+    fontSize: "0.7rem",
+    textTransform: "uppercase",
+  }}
+>
+  {selectedPreviewPackage}
+</span>
                 <a href="#packages-grid" style={{ textDecoration: "none" }}>
                   <span style={{ fontSize: "0.75rem", color: "#94a3b8", cursor: "pointer" }}>
                     select package
@@ -1391,117 +1485,117 @@ const categoryText =
               data-tier="premium"
               onClick={() => switchPackageTier("premium")}
             >
-              <i className="far fa-star"></i>
+              <i className="fas fa-star"></i>
               <h4>Premium</h4>
             </div>
           </div>
 
           {/* Package Details Block */}
           <div className="package-details-block">
-            <div className="form-group">
-              <label htmlFor="package-title">Package Title</label>
-              <input
-                type="text"
-                id="package-title"
-                maxLength={50}
-                placeholder="e.g., Basic Logo Design"
-                value={pkgTitle}
-                onChange={(e) => setPkgTitle(e.target.value)}
-              />
-              <small className="char-counter">
-                <span id="pkg-title-count">{pkgTitle.length}</span>/50
-              </small>
-            </div>
+  <div className="form-group">
+    <label htmlFor="package-title">Package Title</label>
+    <input
+      type="text"
+      id="package-title"
+      maxLength={50}
+      placeholder="e.g., Basic Logo Design"
+      value={currentPackage.title}
+      onChange={(e) => updateCurrentPackageField("title", e.target.value)}
+    />
+    <small className="char-counter">
+      <span id="pkg-title-count">{currentPackage.title.length}</span>/50
+    </small>
+  </div>
 
-            <div className="form-group">
-              <label htmlFor="package-description">Description</label>
-              <textarea
-                id="package-description"
-                rows={3}
-                maxLength={100}
-                placeholder="Briefly describe what this package includes..."
-                value={pkgDesc}
-                onChange={(e) => setPkgDesc(e.target.value)}
-              />
-              <small className="char-counter">
-                <span id="pkg-desc-count">{pkgDesc.length}</span>/100
-              </small>
-            </div>
+  <div className="form-group">
+    <label htmlFor="package-description">Description</label>
+    <textarea
+      id="package-description"
+      rows={3}
+      maxLength={100}
+      placeholder="Briefly describe what this package includes..."
+      value={currentPackage.desc}
+      onChange={(e) => updateCurrentPackageField("desc", e.target.value)}
+    />
+    <small className="char-counter">
+      <span id="pkg-desc-count">{currentPackage.desc.length}</span>/100
+    </small>
+  </div>
 
-            <div className="form-group inline-group price-delivery-row">
-              <div className="form-group-item price-input">
-                <label htmlFor="package-price">Price</label>
-                <div className="input-with-icon">
-                  <span>$</span>
-                  <input
-                    type="number"
-                    id="package-price"
-                    placeholder="20"
-                    min={5}
-                    value={pkgPrice}
-                    onChange={(e) => setPkgPrice(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
+  <div className="form-group inline-group price-delivery-row">
+    <div className="form-group-item price-input">
+      <label htmlFor="package-price">Price</label>
+      <div className="input-with-icon">
+        <span>$</span>
+        <input
+          type="number"
+          id="package-price"
+          placeholder="20"
+          min={5}
+          value={currentPackage.price}
+          onChange={(e) => updateCurrentPackageField("price", e.target.value)}
+          required
+        />
+      </div>
+    </div>
 
-              {/* Earnings Breakdown */}
-              <div className="earnings-breakdown" id="earnings-calc">
-                <div className="earnings-row">
-                  <span>Selling Price</span>
-                  <span id="calc-gross">${gross.toFixed(2)}</span>
-                </div>
-                <div className="earnings-row fee-row">
-                  <span>Marketplace Fee (12%)</span>
-                  <span id="calc-fee">-${fee.toFixed(2)}</span>
-                </div>
-                <div className="earnings-row total-row">
-                  <span>You&apos;ll Receive</span>
-                  <span id="calc-net">${net.toFixed(2)}</span>
-                </div>
-              </div>
+    {/* Earnings Breakdown */}
+    <div className="earnings-breakdown" id="earnings-calc">
+      <div className="earnings-row">
+        <span>Selling Price</span>
+        <span id="calc-gross">${gross.toFixed(2)}</span>
+      </div>
+      <div className="earnings-row fee-row">
+        <span>Marketplace Fee (12%)</span>
+        <span id="calc-fee">-${fee.toFixed(2)}</span>
+      </div>
+      <div className="earnings-row total-row">
+        <span>You&apos;ll Receive</span>
+        <span id="calc-net">${net.toFixed(2)}</span>
+      </div>
+    </div>
 
-              <div className="form-group-item select-input">
-                <label htmlFor="package-delivery">Complete in</label>
-                <select
-                  id="package-delivery"
-                  value={pkgDelivery}
-                  onChange={(e) => setPkgDelivery(e.target.value)}
-                  required
-                >
-                  <option value="1">1 day</option>
-                  <option value="2">2 days</option>
-                  <option value="3">3 days</option>
-                  <option value="5">5 days</option>
-                  <option value="7">7 days</option>
-                  <option value="10">10 days</option>
-                </select>
-              </div>
-            </div>
+    <div className="form-group-item select-input">
+      <label htmlFor="package-delivery">Complete in</label>
+      <select
+        id="package-delivery"
+        value={currentPackage.delivery}
+        onChange={(e) => updateCurrentPackageField("delivery", e.target.value)}
+        required
+      >
+        <option value="1">1 day</option>
+        <option value="2">2 days</option>
+        <option value="3">3 days</option>
+        <option value="5">5 days</option>
+        <option value="7">7 days</option>
+        <option value="10">10 days</option>
+      </select>
+    </div>
+  </div>
 
-            <div className="form-group">
-              <label htmlFor="package-revisions">Revisions Included</label>
-              <input
-                type="number"
-                id="package-revisions"
-                min={0}
-                value={pkgRevisions}
-                onChange={(e) => setPkgRevisions(e.target.value)}
-                placeholder="Number of revisions"
-              />
-            </div>
+  <div className="form-group">
+    <label htmlFor="package-revisions">Revisions Included</label>
+    <input
+      type="number"
+      id="package-revisions"
+      min={0}
+      value={currentPackage.revisions}
+      onChange={(e) => updateCurrentPackageField("revisions", e.target.value)}
+      placeholder="Number of revisions"
+    />
+  </div>
 
-            <div className="form-group">
-              <label htmlFor="package-features-list">What&apos;s Included? Key Features (One per line)</label>
-              <textarea
-                id="package-features-list"
-                rows={4}
-                placeholder={"List key deliverables\ne.g., - High-resolution JPG\n- Unlimited color options"}
-                value={pkgFeatures}
-                onChange={(e) => setPkgFeatures(e.target.value)}
-              />
-            </div>
-          </div>
+  <div className="form-group">
+    <label htmlFor="package-features-list">What&apos;s Included? Key Features (One per line)</label>
+    <textarea
+      id="package-features-list"
+      rows={4}
+      placeholder={"List key deliverables\ne.g., - High-resolution JPG\n- Unlimited color options"}
+      value={currentPackage.features}
+      onChange={(e) => updateCurrentPackageField("features", e.target.value)}
+    />
+  </div>
+</div>
 
           {/* ===== ADD-ONS (EDIT MODE) ===== */}
           <h3 className="section-heading" style={{ marginTop: "40px" }}>Service Customization & Add-Ons</h3>
@@ -1638,6 +1732,20 @@ const categoryText =
               <strong>Plan Limit: Up to {planLimits[selectedPlan].images} images.</strong>
             </small>
             <div id="image-preview-grid" className="media-preview-grid">
+              {/* Existing remote images (edit mode) */}
+              {existingImages.map((url, index) => (
+                <div key={`existing-img-${index}`} className="preview-item">
+                  <img src={url} alt={`Existing image ${index + 1}`} />
+                  <button
+                    type="button"
+                    className="remove-btn"
+                    onClick={() => requestRemoveItem("existing-images", index)}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+              {/* Newly staged local images */}
               {selectedImages.map((file, index) => (
                 <ImagePreviewItem 
                   key={index} 
@@ -1663,8 +1771,23 @@ const categoryText =
               <strong>Plan Limit: Up to {planLimits[selectedPlan].videos} video(s).</strong>
             </small>
             <div id="video-preview-list" className="media-preview-grid">
+              {existingVideos.map((url, index) => (
+                <div key={`existing-vid-${index}`} className="preview-item">
+                  <div className="file-info">
+                    <i className="fas fa-video"></i>
+                    <span>Existing video {index + 1}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="remove-btn"
+                    onClick={() => requestRemoveItem("existing-videos", index)}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
               {selectedVideos.map((file, index) => (
-                <div key={index} className="preview-item">
+                <div key={`new-vid-${index}`} className="preview-item">
                   <div className="file-info">
                     <i className="fas fa-video"></i>
                     <span>{file.name}</span>
@@ -1696,8 +1819,23 @@ const categoryText =
               <strong>Plan Limit: Up to {planLimits[selectedPlan].audio} audio(s).</strong>
             </small>
             <div id="audio-preview-list" className="media-preview-grid">
+              {existingAudios.map((url, index) => (
+                <div key={`existing-aud-${index}`} className="preview-item">
+                  <div className="file-info">
+                    <i className="fas fa-music"></i>
+                    <span>Existing audio {index + 1}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="remove-btn"
+                    onClick={() => requestRemoveItem("existing-audio", index)}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
               {selectedAudios.map((file, index) => (
-                <div key={index} className="preview-item">
+                <div key={`new-aud-${index}`} className="preview-item">
                   <div className="file-info">
                     <i className="fas fa-music"></i>
                     <span>{file.name}</span>
@@ -1983,7 +2121,7 @@ const categoryText =
             <div className="summary-grid">
               <div className="summary-item">
                 <span className="summary-label">Date Created:</span>
-                <span className="summary-value">October 25, 2025</span>
+                <span className="summary-value">—</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Current Plan:</span>
@@ -1993,16 +2131,16 @@ const categoryText =
               </div>
               <div className="summary-item">
                 <span className="summary-label">Plan Expiry:</span>
-                <span className="summary-value">November 24, 2025</span>
+                <span className="summary-value">—</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Total Views:</span>
-                <span className="summary-value metric-views">1,452</span>
+                <span className="summary-value metric-views">—</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Category:</span>
                 <span className="summary-value">
-                  {category === "design" ? "Graphics & Design" : category === "webdev" ? "Web Development" : "—"}
+                  {categoryText || "—"}
                 </span>
               </div>
               <div className="summary-item">
@@ -2067,9 +2205,18 @@ const categoryText =
           <div
             id="custom-confirm-modal"
             className="modal-overlay"
-            style={{ display: "flex" }}
+            style={{
+              display: "flex",
+              position: "fixed",
+              inset: 0,
+              zIndex: 9999,
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(0,0,0,0.45)",
+            }}
+            onClick={cancelRemove}
           >
-            <div className="modal-content">
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <i className="fas fa-exclamation-circle"></i>
                 <h3>Are you sure?</h3>
@@ -2082,7 +2229,7 @@ const categoryText =
                 <button
                   id="modal-cancel"
                   className="btn-secondary"
-                  onClick={() => setShowConfirmModal(false)}
+                  onClick={cancelRemove}
                 >
                   Cancel
                 </button>
@@ -2102,6 +2249,7 @@ const categoryText =
   );
 }
 
+
 // ==========================================
 // HELPER COMPONENTS (Placed OUTSIDE main component)
 // ==========================================
@@ -2118,7 +2266,6 @@ function ImagePreviewItem({
   useEffect(() => {
     const url = URL.createObjectURL(file);
     setObjectUrl(url);
-
     return () => {
       URL.revokeObjectURL(url);
     };
@@ -2136,37 +2283,78 @@ function ImagePreviewItem({
   );
 }
 
-
-      
-      function PreviewMediaGallery({
-  images,
-  videos,
-  audios,
+function PreviewMediaGallery({
+  existingImages = [],
+  existingVideos = [],
+  existingAudios = [],
+  newImages = [],
+  newVideos = [],
+  newAudios = [],
 }: {
-  images: File[];
-  videos: File[];
-  audios: File[];
+  existingImages?: string[];
+  existingVideos?: string[];
+  existingAudios?: string[];
+  newImages?: File[];
+  newVideos?: File[];
+  newAudios?: File[];
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Safely memoize object URLs so they are only recreated when files change
-  const imageUrls = useMemo(() => images.map((file) => URL.createObjectURL(file)), [images]);
-  const videoUrls = useMemo(() => videos.map((file) => URL.createObjectURL(file)), [videos]);
-  const audioUrls = useMemo(() => audios.map((file) => URL.createObjectURL(file)), [audios]);
+  // Derive a stable signature so we only rebuild object URLs when files actually change
+  const imageSig = useMemo(
+    () => newImages.map((f) => `${f.name}-${f.size}-${f.lastModified}`).join("|"),
+    [newImages]
+  );
+  const videoSig = useMemo(
+    () => newVideos.map((f) => `${f.name}-${f.size}-${f.lastModified}`).join("|"),
+    [newVideos]
+  );
+  const audioSig = useMemo(
+    () => newAudios.map((f) => `${f.name}-${f.size}-${f.lastModified}`).join("|"),
+    [newAudios]
+  );
 
-  // Cleanup object URLs when media lists change or component unmounts
+  const [newImageUrls, setNewImageUrls] = useState<string[]>([]);
+  const [newVideoUrls, setNewVideoUrls] = useState<string[]>([]);
+  const [newAudioUrls, setNewAudioUrls] = useState<string[]>([]);
+
   useEffect(() => {
+    const urls = newImages.map((file) => URL.createObjectURL(file));
+    setNewImageUrls(urls);
     return () => {
-      [...imageUrls, ...videoUrls, ...audioUrls].forEach((url) => URL.revokeObjectURL(url));
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [imageUrls, videoUrls, audioUrls]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageSig]);
 
-  // Reset active thumbnail index if selected image list shrinks
   useEffect(() => {
-    if (activeIndex >= imageUrls.length) {
+    const urls = newVideos.map((file) => URL.createObjectURL(file));
+    setNewVideoUrls(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoSig]);
+
+  useEffect(() => {
+    const urls = newAudios.map((file) => URL.createObjectURL(file));
+    setNewAudioUrls(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioSig]);
+
+  const allImageUrls = useMemo(
+    () => [...existingImages, ...newImageUrls],
+    [existingImages, newImageUrls]
+  );
+
+  useEffect(() => {
+    if (allImageUrls.length > 0 && activeIndex >= allImageUrls.length) {
       setActiveIndex(0);
     }
-  }, [imageUrls.length, activeIndex]);
+  }, [allImageUrls.length, activeIndex]);
 
   return (
     <div className="preview-media-container">
@@ -2174,8 +2362,8 @@ function ImagePreviewItem({
       <div className="main-image-wrapper">
         <img
           src={
-            imageUrls.length > 0
-              ? imageUrls[activeIndex]
+            allImageUrls.length > 0
+              ? allImageUrls[activeIndex]
               : "https://picsum.photos/id/201/900/550"
           }
           className="main-image featured-preview"
@@ -2184,9 +2372,9 @@ function ImagePreviewItem({
       </div>
 
       {/* Thumbnails */}
-      {imageUrls.length > 1 && (
+      {allImageUrls.length > 1 && (
         <div className="thumbnail-grid">
-          {imageUrls.map((url, idx) => (
+          {allImageUrls.map((url, idx) => (
             <div
               key={idx}
               className={`thumb-item ${idx === activeIndex ? "active" : ""}`}
@@ -2198,18 +2386,32 @@ function ImagePreviewItem({
         </div>
       )}
 
-      {/* Videos */}
-      {videoUrls.map((url, idx) => (
-        <div key={idx} className="preview-media-item video-block">
+      {/* Existing + new Videos */}
+      {existingVideos.map((url, idx) => (
+        <div key={`ev-${idx}`} className="preview-media-item video-block">
+          <video controls>
+            <source src={url} />
+          </video>
+        </div>
+      ))}
+      {newVideoUrls.map((url, idx) => (
+        <div key={`nv-${idx}`} className="preview-media-item video-block">
           <video controls>
             <source src={url} />
           </video>
         </div>
       ))}
 
-      {/* Audio Samples */}
-      {audioUrls.map((url, idx) => (
-        <div key={idx} className="preview-media-item audio-block">
+      {/* Existing + new Audio Samples */}
+      {existingAudios.map((url, idx) => (
+        <div key={`ea-${idx}`} className="preview-media-item audio-block">
+          <audio controls>
+            <source src={url} />
+          </audio>
+        </div>
+      ))}
+      {newAudioUrls.map((url, idx) => (
+        <div key={`na-${idx}`} className="preview-media-item audio-block">
           <audio controls>
             <source src={url} />
           </audio>
