@@ -41,16 +41,21 @@ export default function PlanCheckoutClient() {
 
   const selectedPlanInfo = planDetails[plan] || planDetails["silver"];
 
-
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
     setErrorMessage("");
 
+    // Retrieve authentication token stored under 'token'
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
     try {
       const response = await fetch("/api/checkout/plan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token ? `Bearer ${token}` : "",
+        },
         body: JSON.stringify({
           draftId,
           plan,
