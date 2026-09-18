@@ -12,6 +12,8 @@ import { PlanKey, PLAN_LIMITS, validateMediaFile, validateMediaQuantity } from "
 import CategorySelect from "@/components/PostService/CategorySelect";
 import { CATEGORIES, CategoryKey } from "@/lib/categories";
 
+import { ADDON_LIMITS, validateAddonList } from "@/lib/addon-limits";
+
 import '../../styles/pages/post-service.css';
 import '../../styles/pages/service-details.css';
 
@@ -67,7 +69,6 @@ interface ServiceDraftResponse {
   existingVideos?: string[];
   existingAudio?: string[];
 }
-
 
 
 // Component Definition 
@@ -331,11 +332,19 @@ const nextStep = () => {
 
   // Validate Step 2 before proceeding
   if (currentStep === 2) {
-    if (!packagesData.basic.title.trim() || !packagesData.basic.price) {
-      showToast("Please fill in at least the Basic package title and price.", "warning");
+  if (!packagesData.basic.title.trim() || !packagesData.basic.price) {
+    showToast("Please fill in at least the Basic package title and price.", "warning");
+    return;
+  }
+
+  for (let i = 0; i < addons.length; i++) {
+    const addonError = validateAddon(addons[i], i);
+    if (addonError) {
+      showToast(addonError, "warning");
       return;
     }
   }
+}
 
   // Validate Step 3 before proceeding
   if (currentStep === 3) {
@@ -481,14 +490,39 @@ const toggleAttribute = (value: string) => {
   );
 };
 
+// Add new Add-on with Max Count Enforcement
+const handleAddAddon = () => {
+  if (addons.length >= ADDON_LIMITS.MAX_COUNT) {
+    showToast(`You can only add up to ${ADDON_LIMITS.MAX_COUNT} add-ons.`, "warning");
+    return;
+  }
+
+  setAddons((prev) => [
+    ...prev,
+    { label: "", desc: "", price: 5, enabled: true, selected: false }
+  ]);
+};
+
+// Field Handler with Character Truncation
 const updateAddonField = (index: number, field: "label" | "desc" | "price", value: string) => {
   setAddons((prev) =>
     prev.map((a, i) => {
       if (i !== index) return a;
+
+      if (field === "label") {
+        return { ...a, label: value.slice(0, ADDON_LIMITS.TITLE_MAX_LENGTH) };
+      }
+
+      if (field === "desc") {
+        return { ...a, desc: value.slice(0, ADDON_LIMITS.DESC_MAX_LENGTH) };
+      }
+
       if (field === "price") {
-        const parsed = parseFloat(value);
+        const cleaned = value.replace(/[^0-9.]/g, "");
+        const parsed = parseFloat(cleaned);
         return { ...a, price: isNaN(parsed) ? 0 : parsed };
       }
+
       return { ...a, [field]: value };
     })
   );
@@ -669,6 +703,44 @@ const validatePackageTier = (
 };
   
   
+  
+  // validate Addons
+ const validateAddon = (addon: AddonItem, index: number): string | null => {
+  if (!addon.enabled) return null;
+
+  const title = addon.label.trim();
+  const desc = (addon.desc || "").trim();
+
+  // Title checks
+  if (!title) {
+    return `Add-on #${index + 1} must have a title.`;
+  }
+  if (title.length > ADDON_LIMITS.TITLE_MAX_LENGTH) {
+    return `Add-on #${index + 1} title cannot exceed ${ADDON_LIMITS.TITLE_MAX_LENGTH} characters.`;
+  }
+
+  // Description check
+  if (desc.length > ADDON_LIMITS.DESC_MAX_LENGTH) {
+    return `Add-on "${title}" description cannot exceed ${ADDON_LIMITS.DESC_MAX_LENGTH} characters.`;
+  }
+
+  // Price checks (numeric bounds + max 2 decimal places)
+  if (
+    addon.price === undefined ||
+    addon.price === null ||
+    isNaN(addon.price) ||
+    !isFinite(addon.price) ||
+    addon.price < ADDON_LIMITS.MIN_PRICE ||
+    addon.price > ADDON_LIMITS.MAX_PRICE ||
+    (addon.price * 100) % 1 !== 0
+  ) {
+    return `Add-on "${title}" price must be between $${ADDON_LIMITS.MIN_PRICE} and $${ADDON_LIMITS.MAX_PRICE} (up to 2 decimal places).`;
+  }
+
+  return null;
+};
+  
+  
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
@@ -713,7 +785,18 @@ const validatePackageTier = (
 
   setIsSubmitting(true);
 
-  // 5. Save draft to backend first to get active draftId
+   
+// 5. Validate Add-ons
+for (let i = 0; i < addons.length; i++) {
+  const addonError = validateAddon(addons[i], i);
+  if (addonError) {
+    showToast(addonError, "warning");
+    setCurrentStep(2);
+    return;
+  }
+}
+    
+  // 6. Save draft to backend first to get active draftId
   const activeDraftId = await handleSaveDraft();
 
   if (!activeDraftId) {
@@ -721,7 +804,7 @@ const validatePackageTier = (
     return; // Stop if draft saving failed
   }
 
-  // 6. Branch based on selected plan
+  // 7. Branch based on selected plan
   if (selectedPlan === "silver" || selectedPlan === "gold") {
     try {
       showToast("Initializing secure checkout...", "info");
@@ -1641,12 +1724,13 @@ const categoryText =
                   <div style={{ flex: "2", minWidth: "200px" }}>
                     <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Add-on Title</label>
                     <input
-                      type="text"
-                      placeholder="e.g., Extra Fast Delivery"
-                      value={addon.label}
-                      onChange={(e) => updateAddonField(index, "label", e.target.value)}
-                      style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
-                    />
+  type="text"
+  maxLength={ADDON_LIMITS.TITLE_MAX_LENGTH}
+  placeholder="e.g., Extra Fast Delivery"
+  value={addon.label || ""}
+  onChange={(e) => updateAddonField(index, "label", e.target.value)}
+  style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+/>
                   </div>
 
                   <div style={{ flex: "1", minWidth: "120px" }}>
@@ -1654,11 +1738,12 @@ const categoryText =
                     <div className="add-on-price" style={{ marginTop: "0" }}>
                       <span className="price-prefix">$</span>
                       <input
-                        type="number"
-                        min={5}
-                        value={addon.price}
-                        onChange={(e) => updateAddonField(index, "price", e.target.value)}
-                      />
+  type="number"
+  min="0"
+  step="0.01"
+  value={addon.price === 0 ? "" : addon.price}
+  onChange={(e) => updateAddonField(index, "price", e.target.value)}
+/>
                     </div>
                   </div>
                 </div>
@@ -1666,12 +1751,13 @@ const categoryText =
                 <div style={{ width: "100%" }}>
                   <label style={{ fontSize: "0.8rem", color: "#64748b" }}>Description (Optional)</label>
                   <input
-                    type="text"
-                    placeholder="Brief details about this add-on..."
-                    value={addon.desc}
-                    onChange={(e) => updateAddonField(index, "desc", e.target.value)}
-                    style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
-                  />
+  type="text"
+  maxLength={ADDON_LIMITS.DESC_MAX_LENGTH}
+  placeholder="Brief details about this add-on..."
+  value={addon.desc || ""}
+  onChange={(e) => updateAddonField(index, "desc", e.target.value)}
+  style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
+/>
                 </div>
               </div>
             ))}
