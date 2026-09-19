@@ -35,6 +35,7 @@ interface PackagesPayload {
 }
 
 interface AddonItem {
+  id: string; // stable client key (not persisted to API)
   label: string;
   desc?: string;
   price: number;
@@ -42,10 +43,32 @@ interface AddonItem {
   selected?: boolean;
 }
 
+/** Generate a stable unique id for an add-on (client-side only). */
+const createAddonId = (): string =>
+  `addon-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
 interface FaqItem {
+  id: string;
   question: string;
   answer: string;
 }
+
+/** Structured buyer requirement (submitted to API). */
+interface RequirementItem {
+  id: string;
+  label: string;
+  prompt: string;
+  required: boolean;
+}
+
+const FAQ_LIMITS = {
+  MAX_COUNT: 15,
+  QUESTION_MAX_LENGTH: 150,
+  ANSWER_MAX_LENGTH: 1000,
+} as const;
+
+const createFaqId = (): string =>
+  `faq-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 interface ServiceDraftResponse {
   draftId?: string;
@@ -59,7 +82,8 @@ interface ServiceDraftResponse {
   packages?: PackagesPayload;
   addons?: AddonItem[];
   faqs?: FaqItem[];
-  requirements?: string[];
+  /** Legacy string[] or structured RequirementItem[] */
+  requirements?: Array<string | RequirementItem>;
   briefIntro?: string;
   // Remote media URLs returned by the draft API
   images?: string[];
@@ -94,16 +118,16 @@ const showToast = useCallback((message: string, type: "success" | "warning" | "i
     
     
     // For Edit mode (Seller toggles if this add-on is available for this gig)
-const toggleAddonEnabled = (index: number) => {
+const toggleAddonEnabled = (id: string) => {
   setAddons((prev) =>
-    prev.map((a, i) => (i === index ? { ...a, enabled: !a.enabled } : a))
+    prev.map((a) => (a.id === id ? { ...a, enabled: !a.enabled } : a))
   );
 };
 
 // For Preview mode (Buyer checks/unchecks to add to their order total)
-const toggleAddonSelected = (index: number) => {
+const toggleAddonSelected = (id: string) => {
   setAddons((prev) =>
-    prev.map((a, i) => (i === index ? { ...a, selected: !a.selected } : a))
+    prev.map((a) => (a.id === id ? { ...a, selected: !a.selected } : a))
   );
 };
 
@@ -153,12 +177,19 @@ useEffect(() => {
 
       if (typeof data.briefIntro === "string") setBriefIntro(data.briefIntro);
 
-      // Safe hydration for Requirements (always reset all four slots)
+      // Safe hydration for Requirements (supports legacy string[] and structured objects)
       if (Array.isArray(data.requirements) && data.requirements.length > 0) {
-        setReq1(data.requirements[0] || "");
-        setReq2(data.requirements[1] || "");
-        setReq3(data.requirements[2] || "");
-        setReq4(data.requirements[3] || "");
+        const prompts = data.requirements.map((item) => {
+          if (typeof item === "string") return item;
+          if (item && typeof item === "object" && "prompt" in item) {
+            return String((item as RequirementItem).prompt || "");
+          }
+          return "";
+        });
+        setReq1(prompts[0] || "");
+        setReq2(prompts[1] || "");
+        setReq3(prompts[2] || "");
+        setReq4(prompts[3] || "");
       } else {
         setReq1("");
         setReq2("");
@@ -167,11 +198,12 @@ useEffect(() => {
         missingFields.push("requirements");
       }
 
-      // Safe hydration for FAQs array
+      // Safe hydration for FAQs array (stable ids)
       if (Array.isArray(data.faqs) && data.faqs.length > 0) {
         const validatedFaqs = data.faqs
           .filter((f): f is FaqItem => typeof f === "object" && f !== null && typeof f.question === "string")
           .map((f) => ({
+            id: (f as FaqItem).id || createFaqId(),
             question: f.question || "",
             answer: f.answer || "",
           }));
@@ -183,11 +215,12 @@ if (Array.isArray(data.addons) && data.addons.length > 0) {
   const validatedAddons = data.addons
     .filter((a): a is AddonItem => typeof a === "object" && a !== null && typeof a.label === "string")
     .map((addon) => ({
+      id: (addon as AddonItem).id || createAddonId(),
       label: addon.label || "",
       desc: addon.desc || "",
-      price: typeof addon.price === "number" ? addon.price : parseFloat(addon.price || "0") || 0,
+      price: typeof addon.price === "number" ? addon.price : parseFloat(String(addon.price || "0")) || 0,
       enabled: addon.enabled !== undefined ? Boolean(addon.enabled) : true,
-      selected: Boolean(addon.selected),
+      selected: false, // buyer-preview only; never hydrate from server
     }));
   if (validatedAddons.length > 0) setAddons(validatedAddons);
 }
@@ -310,6 +343,41 @@ const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
 const [currentStep, setCurrentStep] = useState<number>(1);
   
 const [isSubmitting, setIsSubmitting] = useState(false);
+// Minimal upload UX: overall progress while FormData (incl. media) is sent to the API / Cloudinary
+const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+const [uploadLabel, setUploadLabel] = useState<string>("");
+
+/**
+ * POST/PUT FormData with upload progress (fetch cannot report upload %).
+ * Used when saving drafts that include binary media destined for Cloudinary via multer.
+ */
+const submitFormDataWithProgress = (
+  url: string,
+  method: string,
+  formData: FormData,
+  onProgress?: (pct: number) => void
+): Promise<{ ok: boolean; status: number; data: any }> =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      let data: any = {};
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+      } catch {
+        data = { message: xhr.responseText };
+      }
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data });
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload."));
+    xhr.onabort = () => reject(new Error("Upload was cancelled."));
+    xhr.send(formData);
+  });
 
 // Helper to commit current package form inputs into package state object
 
@@ -384,53 +452,150 @@ const [req3, setReq3] = useState("");
 const [req4, setReq4] = useState("");
   
   
-  const planLimits: Record<PlanKey, { images: number; videos: number; audio: number; label: string }> = { 
-    free: { images: 3, videos: 1, audio: 1, label: "Free Plan" }, 
-    silver: { images: 5, videos: 2, audio: 2, label: "Silver Plan" }, 
-    gold: { images: 8, videos: 4, audio: 4, label: "Gold Plan" }, 
+  // Per-type size caps shown in the UI (shared validateMediaFile also enforces a 50MB ceiling + MIME)
+  const MEDIA_SIZE_LIMITS_BYTES = {
+    images: 5 * 1024 * 1024,   // 5MB
+    videos: 50 * 1024 * 1024,  // 50MB
+    audio: 10 * 1024 * 1024,   // 10MB
+  } as const;
+
+  // Duration caps matching UI copy
+  const MAX_VIDEO_DURATION_SEC = 60;
+  const MAX_AUDIO_DURATION_SEC = 30;
+
+  const getFileExtension = (name: string) => {
+    const i = name.lastIndexOf(".");
+    return i >= 0 ? name.slice(i + 1).toLowerCase() : "";
   };
-    
 
-const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const ALLOWED_EXTENSIONS = {
+    images: ["jpg", "jpeg", "png", "webp"],
+    videos: ["mp4", "webm", "mov"],
+    audio: ["mp3", "wav", "ogg"],
+  } as const;
+
+  /** Read media duration via browser metadata (client-side only). */
+  const readMediaDurationSeconds = (file: File): Promise<number> =>
+    new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const isVideo = file.type.startsWith("video/");
+      const el = document.createElement(isVideo ? "video" : "audio");
+      el.preload = "metadata";
+      const cleanup = () => URL.revokeObjectURL(url);
+      el.onloadedmetadata = () => {
+        const duration = el.duration;
+        cleanup();
+        if (!isFinite(duration) || duration <= 0) {
+          reject(new Error("Could not read media duration."));
+          return;
+        }
+        resolve(duration);
+      };
+      el.onerror = () => {
+        cleanup();
+        reject(new Error("Failed to load media metadata."));
+      };
+      el.src = url;
+    });
+
+  /**
+   * Validate count (plan), MIME/type (shared), extension, size, and duration
+   * before staging files into local state.
+   */
+  const filterValidMediaFiles = async (
+    files: File[],
+    fileType: "images" | "videos" | "audio",
+    currentCount: number
+  ): Promise<File[]> => {
+    if (files.length === 0) return [];
+
+    const quantity = validateMediaQuantity(currentCount, files.length, fileType, selectedPlan);
+    if (!quantity.isValid) {
+      showToast(quantity.error || "Too many files for this plan.", "warning");
+      return [];
+    }
+
+    const accepted: File[] = [];
+    for (const file of files) {
+      const shared = validateMediaFile(file, fileType);
+      if (!shared.isValid) {
+        showToast(shared.error || `${file.name} is not allowed.`, "warning");
+        continue;
+      }
+
+      const ext = getFileExtension(file.name);
+      if (!(ALLOWED_EXTENSIONS[fileType] as readonly string[]).includes(ext)) {
+        showToast(
+          `Invalid file extension for ${file.name}. Allowed: ${ALLOWED_EXTENSIONS[fileType].join(", ").toUpperCase()}.`,
+          "warning"
+        );
+        continue;
+      }
+
+      const maxBytes = MEDIA_SIZE_LIMITS_BYTES[fileType];
+      if (file.size > maxBytes) {
+        const maxMb = maxBytes / (1024 * 1024);
+        showToast(`${file.name} exceeds the ${maxMb}MB ${fileType} limit.`, "warning");
+        continue;
+      }
+
+      // Duration checks (video ≤ 60s, audio ≤ 30s)
+      if (fileType === "videos" || fileType === "audio") {
+        try {
+          const duration = await readMediaDurationSeconds(file);
+          const maxDur = fileType === "videos" ? MAX_VIDEO_DURATION_SEC : MAX_AUDIO_DURATION_SEC;
+          if (duration > maxDur) {
+            showToast(
+              `${file.name} is ${Math.ceil(duration)}s — maximum allowed is ${maxDur}s.`,
+              "warning"
+            );
+            continue;
+          }
+        } catch {
+          showToast(`Could not read duration for ${file.name}. Please try another file.`, "warning");
+          continue;
+        }
+      }
+
+      accepted.push(file);
+    }
+    return accepted;
+  };
+
+const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const files = Array.from(e.target.files || []);
-  const max = planLimits[selectedPlan].images;
+  e.target.value = "";
+  if (files.length === 0) return; // HIGH-032: user cancelled picker
+
   const currentTotal = existingImages.length + selectedImages.length;
-  if (currentTotal + files.length > max) {
-    showToast(`Total images cannot exceed ${max} on this plan.`, "warning");
-    e.target.value = "";
-    return;
-  }
-  setSelectedImages((prev) => [...prev, ...files]);
-  showToast(`${files.length} image(s) added.`, "success");
-  e.target.value = "";
+  const accepted = await filterValidMediaFiles(files, "images", currentTotal);
+  if (accepted.length === 0) return;
+  setSelectedImages((prev) => [...prev, ...accepted]);
+  showToast(`${accepted.length} image(s) added.`, "success");
 };
 
-const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const files = Array.from(e.target.files || []);
-  const max = planLimits[selectedPlan].videos;
+  e.target.value = "";
+  if (files.length === 0) return;
+
   const currentTotal = existingVideos.length + selectedVideos.length;
-  if (currentTotal + files.length > max) {
-    showToast(`Total videos cannot exceed ${max} on this plan.`, "warning");
-    e.target.value = "";
-    return;
-  }
-  setSelectedVideos((prev) => [...prev, ...files]);
-  showToast(`${files.length} video(s) added.`, "info");
-  e.target.value = "";
+  const accepted = await filterValidMediaFiles(files, "videos", currentTotal);
+  if (accepted.length === 0) return;
+  setSelectedVideos((prev) => [...prev, ...accepted]);
+  showToast(`${accepted.length} video(s) added.`, "info");
 };
 
-const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const files = Array.from(e.target.files || []);
-  const max = planLimits[selectedPlan].audio;
-  const currentTotal = existingAudios.length + selectedAudios.length;
-  if (currentTotal + files.length > max) {
-    showToast(`Total audio files cannot exceed ${max} on this plan.`, "warning");
-    e.target.value = "";
-    return;
-  }
-  setSelectedAudios((prev) => [...prev, ...files]);
-  showToast(`${files.length} audio file(s) added.`, "info");
   e.target.value = "";
+  if (files.length === 0) return;
+
+  const currentTotal = existingAudios.length + selectedAudios.length;
+  const accepted = await filterValidMediaFiles(files, "audio", currentTotal);
+  if (accepted.length === 0) return;
+  setSelectedAudios((prev) => [...prev, ...accepted]);
+  showToast(`${accepted.length} audio file(s) added.`, "info");
 };
 
 // Handlers for deleting existing server-hosted media vs newly staged files
@@ -455,7 +620,7 @@ const removeExistingAudio = (urlOrKey: string) => {
   
   const handlePlanChange = (plan: PlanKey) => {
   setSelectedPlan(plan);
-  showToast(`Plan upgraded to ${planLimits[plan].label}. You can now upload more files!`, "info");
+  showToast(`Plan upgraded to ${PLAN_LIMITS[plan].label}. You can now upload more files!`, "info");
 };
 
 const switchPackageTier = (targetTier: "basic" | "standard" | "premium") => {
@@ -463,23 +628,41 @@ const switchPackageTier = (targetTier: "basic" | "standard" | "premium") => {
   showToast(`Switched to ${targetTier.charAt(0).toUpperCase() + targetTier.slice(1)} Package`, "info");
 };
 
-// Derived financial indicators
-const priceNum = parseFloat(currentPackage.price) || 0;
-const gross = priceNum;
-const fee = Number((priceNum * MARKETPLACE_FEE_PERCENTAGE).toFixed(2));
-const net = Number((gross - fee).toFixed(2));
+// Platform currency policy (backend is source of truth for settlement; client display only)
+const SERVICE_CURRENCY = "USD" as const;
+const CURRENCY_SYMBOL = "$";
+
+/** Shared pricing helper — used for every package tier (estimate only; backend must recompute). */
+const calculatePackageEarnings = (priceInput: string | number | undefined) => {
+  const gross = typeof priceInput === "number" ? priceInput : parseFloat(String(priceInput || "")) || 0;
+  const fee = Number((gross * MARKETPLACE_FEE_PERCENTAGE).toFixed(2));
+  const net = Number((gross - fee).toFixed(2));
+  return { gross, fee, net };
+};
+
+const feePercentLabel = Number((MARKETPLACE_FEE_PERCENTAGE * 100).toFixed(2));
+
+// Earnings for the package currently being edited (preview estimate)
+const { gross, fee, net } = calculatePackageEarnings(currentPackage.price);
+
+// Earnings for all tiers (same function — ready for summary / validation)
+const packageEarnings = {
+  basic: calculatePackageEarnings(packagesData.basic.price),
+  standard: calculatePackageEarnings(packagesData.standard.price),
+  premium: calculatePackageEarnings(packagesData.premium.price),
+};
 
   
   const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
 
 const [addons, setAddons] = useState<AddonItem[]>([
-  { label: "Extra Fast Delivery (1 Day)", desc: "Get your order in 24 hour express.", price: 25, enabled: true, selected: false },
-  { label: "Include Source Files", desc: "The original, editable files for the design/code.", price: 15, enabled: true, selected: false },
-  { label: "Extra Revision Round", desc: "One additional opportunity to request changes.", price: 10, enabled: true, selected: false },
+  { id: createAddonId(), label: "Extra Fast Delivery (1 Day)", desc: "Get your order in 24 hour express.", price: 25, enabled: true, selected: false },
+  { id: createAddonId(), label: "Include Source Files", desc: "The original, editable files for the design/code.", price: 15, enabled: true, selected: false },
+  { id: createAddonId(), label: "Extra Revision Round", desc: "One additional opportunity to request changes.", price: 10, enabled: true, selected: false },
 ]);
 
-const [faqs, setFaqs] = useState([
-  { question: "", answer: "" },
+const [faqs, setFaqs] = useState<FaqItem[]>([
+  { id: createFaqId(), question: "", answer: "" },
 ]);
     
     
@@ -499,15 +682,15 @@ const handleAddAddon = () => {
 
   setAddons((prev) => [
     ...prev,
-    { label: "", desc: "", price: 5, enabled: true, selected: false }
+    { id: createAddonId(), label: "", desc: "", price: 5, enabled: true, selected: false }
   ]);
 };
 
-// Field Handler with Character Truncation
-const updateAddonField = (index: number, field: "label" | "desc" | "price", value: string) => {
+// Field Handler with Character Truncation (keyed by stable id)
+const updateAddonField = (id: string, field: "label" | "desc" | "price", value: string) => {
   setAddons((prev) =>
-    prev.map((a, i) => {
-      if (i !== index) return a;
+    prev.map((a) => {
+      if (a.id !== id) return a;
 
       if (field === "label") {
         return { ...a, label: value.slice(0, ADDON_LIMITS.TITLE_MAX_LENGTH) };
@@ -523,35 +706,61 @@ const updateAddonField = (index: number, field: "label" | "desc" | "price", valu
         return { ...a, price: isNaN(parsed) ? 0 : parsed };
       }
 
-      return { ...a, [field]: value };
+      return a;
     })
   );
 };
-    
-    
-    const removeAddon = (index: number) => {
-  setAddons((prev) => prev.filter((_, i) => i !== index));
+
+const removeAddon = (id: string) => {
+  setAddons((prev) => prev.filter((a) => a.id !== id));
   showToast("Add-on removed", "warning");
 };
-    
 
 const addMoreAddon = () => {
+  if (addons.length >= ADDON_LIMITS.MAX_COUNT) {
+    showToast(`You can only add up to ${ADDON_LIMITS.MAX_COUNT} add-ons.`, "warning");
+    return;
+  }
   setAddons((prev) => [
     ...prev,
-    { label: "Extra Service", desc: "", price: 10, enabled: true, selected: false },
+    { id: createAddonId(), label: "Extra Service", desc: "", price: 10, enabled: true, selected: false },
   ]);
   showToast("New Add-on block created");
 };
 
-const updateFaq = (index: number, field: "question" | "answer", value: string) => {
+const updateFaq = (id: string, field: "question" | "answer", value: string) => {
   setFaqs((prev) =>
-    prev.map((f, i) => (i === index ? { ...f, [field]: value } : f))
+    prev.map((f) => {
+      if (f.id !== id) return f;
+      if (field === "question") {
+        return { ...f, question: value.slice(0, FAQ_LIMITS.QUESTION_MAX_LENGTH) };
+      }
+      return { ...f, answer: value.slice(0, FAQ_LIMITS.ANSWER_MAX_LENGTH) };
+    })
   );
 };
 
 const addMoreFaq = () => {
-  setFaqs((prev) => [...prev, { question: "", answer: "" }]);
-  showToast(`FAQ #${faqs.length + 1} added`);
+  if (faqs.length >= FAQ_LIMITS.MAX_COUNT) {
+    showToast(`You can add up to ${FAQ_LIMITS.MAX_COUNT} FAQs.`, "warning");
+    return;
+  }
+  setFaqs((prev) => {
+    const next = [...prev, { id: createFaqId(), question: "", answer: "" }];
+    showToast(`FAQ #${next.length} added`);
+    return next;
+  });
+};
+
+/** Empty FAQ list is allowed; keep one blank row for editing convenience when the last is removed. */
+const removeFaqById = (id: string) => {
+  setFaqs((prev) => {
+    const next = prev.filter((f) => f.id !== id);
+    return next.length === 0
+      ? [{ id: createFaqId(), question: "", answer: "" }]
+      : next;
+  });
+  showToast("FAQ removed", "warning");
 };
     
     
@@ -575,16 +784,50 @@ const buildServiceFormData = () => {
   formData.append("description", description);
   formData.append("keywords", keywords);
   formData.append("selectedPlan", selectedPlan);
+  formData.append("currency", SERVICE_CURRENCY);
   formData.append("status", mappedStatus);
-  formData.append("briefIntro", briefIntro);
-  formData.append("requirements", JSON.stringify([req1, req2, req3, req4].filter(Boolean)));
+  formData.append("briefIntro", briefIntro.trim());
+
+  // Schema expects string[] — trim and drop whitespace-only entries
+  formData.append(
+    "requirements",
+    JSON.stringify(
+      [req1, req2, req3, req4]
+        .map((r) => r.trim())
+        .filter((r) => r.length > 0)
+    )
+  );
   
   // Directly append packagesData since standalone pkg states were removed
   formData.append("packages", JSON.stringify(packagesData));
   
   formData.append("attributes", JSON.stringify(selectedAttributes));
-  formData.append("addons", JSON.stringify(addons.filter((a) => a.enabled)));
-  formData.append("faqs", JSON.stringify(faqs.filter((f) => f.question.trim())));
+  // Persist seller fields only — do not save buyer-preview `selected`
+  formData.append(
+    "addons",
+    JSON.stringify(
+      addons
+        .filter((a) => a.enabled)
+        .map(({ label, desc, price, enabled }) => ({
+          label,
+          desc: desc || "",
+          price,
+          enabled: enabled !== false,
+        }))
+    )
+  );
+  // FAQs require both question and answer (trimmed); empty list is valid
+  formData.append(
+    "faqs",
+    JSON.stringify(
+      faqs
+        .map((f) => ({
+          question: f.question.trim(),
+          answer: f.answer.trim(),
+        }))
+        .filter((f) => f.question.length > 0 && f.answer.length > 0)
+    )
+  );
 
   // Explicit media collection strategy (Retain + Add + Delete)
   formData.append("mediaStrategy", "merge");
@@ -604,7 +847,20 @@ const buildServiceFormData = () => {
 const handleSaveDraft = async () => {
   try {
     setIsSubmitting(true);
-    showToast("Saving progress to drafts...", "info");
+    const mediaCount =
+      selectedImages.length + selectedVideos.length + selectedAudios.length;
+    setUploadLabel(
+      mediaCount > 0
+        ? `Uploading ${mediaCount} media file(s) to storage...`
+        : "Saving draft..."
+    );
+    setUploadProgress(mediaCount > 0 ? 0 : null);
+    showToast(
+      mediaCount > 0
+        ? "Uploading media and saving draft..."
+        : "Saving progress to drafts...",
+      "info"
+    );
 
     const payload = buildServiceFormData();
     // Use set() so we overwrite the status from buildServiceFormData (not append a second value)
@@ -617,16 +873,17 @@ const handleSaveDraft = async () => {
     const endpoint = draftId ? `/api/services/draft/update` : `/api/services/draft`;
     const method = draftId ? "PUT" : "POST";
 
-    const response = await fetch(endpoint, {
+    const { ok, data } = await submitFormDataWithProgress(
+      endpoint,
       method,
-      body: payload,
-    });
+      payload,
+      (pct) => setUploadProgress(pct)
+    );
 
-    if (!response.ok) {
-      throw new Error("Failed to save draft");
+    if (!ok) {
+      throw new Error(data?.message || "Failed to save draft");
     }
 
-    const data = await response.json();
     const savedId = data.draftId || data._id || draftId;
 
     // Update state so subsequent saves become PUT updates rather than creating new drafts
@@ -634,14 +891,24 @@ const handleSaveDraft = async () => {
       setDraftId(savedId);
     }
 
+    setUploadProgress(100);
+    setUploadLabel("Upload complete");
     showToast(draftId ? "Draft updated successfully!" : "Service draft saved successfully!", "success");
     return savedId;
   } catch (err) {
     console.error("Save draft error:", err);
-    showToast("Failed to save draft. Please try again.", "warning");
+    showToast(
+      err instanceof Error ? err.message : "Failed to save draft. Please try again.",
+      "warning"
+    );
     return null;
   } finally {
     setIsSubmitting(false);
+    // Clear progress UI shortly after finish/fail
+    setTimeout(() => {
+      setUploadProgress(null);
+      setUploadLabel("");
+    }, 1200);
   }
 };
   
@@ -783,10 +1050,7 @@ const validatePackageTier = (
     }
   }
 
-  setIsSubmitting(true);
-
-   
-// 5. Validate Add-ons
+// 5. Validate Add-ons (before locking the UI)
 for (let i = 0; i < addons.length; i++) {
   const addonError = validateAddon(addons[i], i);
   if (addonError) {
@@ -795,8 +1059,10 @@ for (let i = 0; i < addons.length; i++) {
     return;
   }
 }
-    
-  // 6. Save draft to backend first to get active draftId
+
+  setIsSubmitting(true);
+
+  // 6. Save draft (includes media upload to Cloudinary via multer) to get active draftId
   const activeDraftId = await handleSaveDraft();
 
   if (!activeDraftId) {
@@ -886,8 +1152,7 @@ const requestRemoveItem = (
     return;
   }
   if (type === "faq") {
-    setFaqs((prev) => prev.filter((_, i) => i !== index));
-    showToast("FAQ removed", "warning");
+    // index param is unused for FAQ — callers should use removeFaqById(id)
     return;
   }
 
@@ -1183,13 +1448,9 @@ const categoryText =
     {addons.filter((a) => a.enabled).length > 0 ? (
       addons
         .filter((a) => a.enabled)
-        .map((a, index) => {
-          // Find original index in addons array to update state correctly
-          const originalIdx = addons.findIndex((item) => item === a);
-
-          return (
+        .map((a) => (
             <label 
-              key={index} 
+              key={a.id} 
               className="addon-item"
               style={{
                 display: "flex",
@@ -1208,7 +1469,7 @@ const categoryText =
                   type="checkbox"
                   className="preview-addon-chk"
                   checked={a.selected || false}
-                  onChange={() => toggleAddonSelected(originalIdx)}
+                  onChange={() => toggleAddonSelected(a.id)}
                 />
                 <div>
                   <span style={{ fontWeight: "600", display: "block" }}>{a.label}</span>
@@ -1219,8 +1480,7 @@ const categoryText =
                 +${a.price}
               </span>
             </label>
-          );
-        })
+        ))
     ) : (
       <p>No add-ons available.</p>
     )}
@@ -1232,9 +1492,9 @@ const categoryText =
           <section className="faq-section">
             <h2>FAQ</h2>
             <div className="faq-accordion">
-              {faqs.filter((f) => f.question).length > 0 ? (
+              {faqs.filter((f) => f.question.trim() && f.answer.trim()).length > 0 ? (
                 faqs
-                  .filter((f) => f.question)
+                  .filter((f) => f.question.trim() && f.answer.trim())
                   .map((f, i) => {
                     const isOpen = openFaqIndex === i;
                     return (
@@ -1623,18 +1883,24 @@ const categoryText =
     </div>
 
     {/* Earnings Breakdown */}
-    <div className="earnings-breakdown" id="earnings-calc">
+    <div
+      className="earnings-breakdown"
+      id="earnings-calc"
+      data-basic-net={packageEarnings.basic.net}
+      data-standard-net={packageEarnings.standard.net}
+      data-premium-net={packageEarnings.premium.net}
+    >
       <div className="earnings-row">
         <span>Selling Price</span>
-        <span id="calc-gross">${gross.toFixed(2)}</span>
+        <span id="calc-gross">{CURRENCY_SYMBOL}{gross.toFixed(2)}</span>
       </div>
       <div className="earnings-row fee-row">
-        <span>Marketplace Fee (12%)</span>
-        <span id="calc-fee">-${fee.toFixed(2)}</span>
+        <span>Marketplace Fee ({feePercentLabel}%)</span>
+        <span id="calc-fee">-{CURRENCY_SYMBOL}{fee.toFixed(2)}</span>
       </div>
       <div className="earnings-row total-row">
         <span>You&apos;ll Receive</span>
-        <span id="calc-net">${net.toFixed(2)}</span>
+        <span id="calc-net">{CURRENCY_SYMBOL}{net.toFixed(2)}</span>
       </div>
     </div>
 
@@ -1687,9 +1953,9 @@ const categoryText =
           </p>
 
           <div className="feature-section-container add-ons-section">
-            {addons.map((addon, index) => (
+            {addons.map((addon) => (
               <div 
-                key={index} 
+                key={addon.id} 
                 className="add-on-item-new" 
                 style={{ 
                   flexDirection: "column", 
@@ -1706,14 +1972,14 @@ const categoryText =
                     <input
                       type="checkbox"
                       checked={addon.enabled}
-                      onChange={() => toggleAddonEnabled(index)}
+                      onChange={() => toggleAddonEnabled(addon.id)}
                     />
                     Enable Option
                   </label>
                   
                   <button
                     type="button"
-                    onClick={() => removeAddon(index)}
+                    onClick={() => removeAddon(addon.id)}
                     style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontSize: "0.9rem" }}
                   >
                     <i className="fas fa-trash"></i> Delete
@@ -1728,7 +1994,7 @@ const categoryText =
   maxLength={ADDON_LIMITS.TITLE_MAX_LENGTH}
   placeholder="e.g., Extra Fast Delivery"
   value={addon.label || ""}
-  onChange={(e) => updateAddonField(index, "label", e.target.value)}
+  onChange={(e) => updateAddonField(addon.id, "label", e.target.value)}
   style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
 />
                   </div>
@@ -1742,7 +2008,7 @@ const categoryText =
   min="0"
   step="0.01"
   value={addon.price === 0 ? "" : addon.price}
-  onChange={(e) => updateAddonField(index, "price", e.target.value)}
+  onChange={(e) => updateAddonField(addon.id, "price", e.target.value)}
 />
                     </div>
                   </div>
@@ -1755,7 +2021,7 @@ const categoryText =
   maxLength={ADDON_LIMITS.DESC_MAX_LENGTH}
   placeholder="Brief details about this add-on..."
   value={addon.desc || ""}
-  onChange={(e) => updateAddonField(index, "desc", e.target.value)}
+  onChange={(e) => updateAddonField(addon.id, "desc", e.target.value)}
   style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #cbd5e1" }}
 />
                 </div>
@@ -1815,13 +2081,13 @@ const categoryText =
             />
             <small>
               Formats: JPG, PNG. Max size: 5MB per file.{" "}
-              <strong>Plan Limit: Up to {planLimits[selectedPlan].images} images.</strong>
+              <strong>Plan Limit: Up to {PLAN_LIMITS[selectedPlan].images} images.</strong>
             </small>
             <div id="image-preview-grid" className="media-preview-grid">
               {/* Existing remote images (edit mode) */}
               {existingImages.map((url, index) => (
                 <div key={`existing-img-${index}`} className="preview-item">
-                  <img src={url} alt={`Existing image ${index + 1}`} />
+                  <img src={url} alt={`Existing service image ${index + 1}`} />
                   <button
                     type="button"
                     className="remove-btn"
@@ -1854,7 +2120,7 @@ const categoryText =
             />
             <small>
               Format: MP4 recommended. Max size: 50MB.{" "}
-              <strong>Plan Limit: Up to {planLimits[selectedPlan].videos} video(s).</strong>
+              <strong>Plan Limit: Up to {PLAN_LIMITS[selectedPlan].videos} video(s).</strong>
             </small>
             <div id="video-preview-list" className="media-preview-grid">
               {existingVideos.map((url, index) => (
@@ -1902,7 +2168,7 @@ const categoryText =
             />
             <small>
               Formats: MP3, WAV recommended. Max size: 10MB.{" "}
-              <strong>Plan Limit: Up to {planLimits[selectedPlan].audio} audio(s).</strong>
+              <strong>Plan Limit: Up to {PLAN_LIMITS[selectedPlan].audio} audio(s).</strong>
             </small>
             <div id="audio-preview-list" className="media-preview-grid">
               {existingAudios.map((url, index) => (
@@ -2071,7 +2337,7 @@ const categoryText =
 
           <div className="feature-section-container faq-section">
             {faqs.map((faq, index) => (
-              <div key={index} className="faq-item-new">
+              <div key={faq.id} className="faq-item-new">
                 <div className="form-group">
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <label>Question {index + 1}</label>
@@ -2079,26 +2345,35 @@ const categoryText =
                       type="button"
                       className="remove-item"
                       style={{ color: "#d9534f", border: "none", background: "none", cursor: "pointer" }}
-                      onClick={() => requestRemoveItem("faq", index)}
+                      onClick={() => removeFaqById(faq.id)}
+                      aria-label={`Remove FAQ ${index + 1}`}
                     >
                       <i className="fas fa-trash"></i>
                     </button>
                   </div>
                   <input
                     type="text"
+                    maxLength={FAQ_LIMITS.QUESTION_MAX_LENGTH}
                     placeholder="e.g., Do you provide unlimited revisions?"
                     value={faq.question}
-                    onChange={(e) => updateFaq(index, "question", e.target.value)}
+                    onChange={(e) => updateFaq(faq.id, "question", e.target.value)}
                   />
+                  <small className="char-counter">
+                    {faq.question.length}/{FAQ_LIMITS.QUESTION_MAX_LENGTH}
+                  </small>
                 </div>
                 <div className="form-group">
                   <label>Answer {index + 1}</label>
                   <textarea
                     rows={2}
+                    maxLength={FAQ_LIMITS.ANSWER_MAX_LENGTH}
                     placeholder="My standard package includes 1 revision..."
                     value={faq.answer}
-                    onChange={(e) => updateFaq(index, "answer", e.target.value)}
+                    onChange={(e) => updateFaq(faq.id, "answer", e.target.value)}
                   />
+                  <small className="char-counter">
+                    {faq.answer.length}/{FAQ_LIMITS.ANSWER_MAX_LENGTH}
+                  </small>
                 </div>
               </div>
             ))}
@@ -2248,7 +2523,7 @@ const categoryText =
                 Save as Draft
               </button>
               <button type="submit" className="btn-primary publish-button" disabled={isSubmitting}>
-                {isSubmitting ? "Publishing..." : "Publish Service"}
+                {isSubmitting ? (uploadProgress !== null ? `Uploading ${uploadProgress}%...` : "Publishing...") : "Publish Service"}
               </button>
             </div>
           </div>
@@ -2260,6 +2535,48 @@ const categoryText =
 )}      
   
   
+  {/* Upload progress (minimal path — overall % while FormData hits API/Cloudinary) */}
+        {uploadProgress !== null && (
+          <div
+            className="upload-progress-banner"
+            style={{
+              position: "fixed",
+              bottom: 24,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 10000,
+              width: "min(420px, 92vw)",
+              background: "#0f172a",
+              color: "#f8fafc",
+              borderRadius: 10,
+              padding: "14px 16px",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: "0.85rem" }}>
+              <span>{uploadLabel || "Uploading..."}</span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div
+              style={{
+                height: 6,
+                background: "#334155",
+                borderRadius: 999,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${uploadProgress}%`,
+                  background: "var(--primary-color, #6366f1)",
+                  transition: "width 0.15s ease-out",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
   {/* Toast Container */}
         <div id="toast-container">
           {toasts.map((toast) => (
@@ -2349,20 +2666,31 @@ function ImagePreviewItem({
 }) {
   const [objectUrl, setObjectUrl] = useState<string>("");
 
+  // Stable identity so we only recreate the object URL when the file bytes change
+  const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+
   useEffect(() => {
     const url = URL.createObjectURL(file);
     setObjectUrl(url);
     return () => {
       URL.revokeObjectURL(url);
     };
-  }, [file]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by fileKey
+  }, [fileKey]);
 
   if (!objectUrl) return null;
 
+  const accessibleName = file.name?.trim() || "Uploaded image";
+
   return (
     <div className="preview-item">
-      <img src={objectUrl} alt="preview" />
-      <button type="button" className="remove-btn" onClick={onRemove}>
+      <img src={objectUrl} alt={accessibleName} />
+      <button
+        type="button"
+        className="remove-btn"
+        onClick={onRemove}
+        aria-label={`Remove ${accessibleName}`}
+      >
         &times;
       </button>
     </div>
@@ -2386,7 +2714,7 @@ function PreviewMediaGallery({
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Derive a stable signature so we only rebuild object URLs when files actually change
+  // Stable signatures (pure) — object URL creation stays in useEffect (side effects must not live in useMemo)
   const imageSig = useMemo(
     () => newImages.map((f) => `${f.name}-${f.size}-${f.lastModified}`).join("|"),
     [newImages]
@@ -2445,16 +2773,46 @@ function PreviewMediaGallery({
   return (
     <div className="preview-media-container">
       {/* Main Image View */}
-      <div className="main-image-wrapper">
+      <div className="main-image-wrapper" style={{ position: "relative" }}>
         <img
           src={
             allImageUrls.length > 0
               ? allImageUrls[activeIndex]
-              : "https://picsum.photos/id/201/900/550"
+              : undefined
           }
           className="main-image featured-preview"
-          alt="Main Preview"
+          alt={
+            allImageUrls.length > 0
+              ? `Service media ${activeIndex + 1} of ${allImageUrls.length}`
+              : "No service media uploaded"
+          }
+          style={
+            allImageUrls.length === 0
+              ? {
+                  background: "linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)",
+                  minHeight: 280,
+                  objectFit: "cover",
+                }
+              : undefined
+          }
         />
+        {allImageUrls.length === 0 && (
+          <div
+            className="media-placeholder"
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#64748b",
+              fontSize: "0.95rem",
+              pointerEvents: "none",
+            }}
+          >
+            No media uploaded yet
+          </div>
+        )}
       </div>
 
       {/* Thumbnails */}
@@ -2466,7 +2824,7 @@ function PreviewMediaGallery({
               className={`thumb-item ${idx === activeIndex ? "active" : ""}`}
               onClick={() => setActiveIndex(idx)}
             >
-              <img src={url} alt={`Thumbnail ${idx + 1}`} />
+              <img src={url} alt={`Service media thumbnail ${idx + 1}`} />
             </div>
           ))}
         </div>
