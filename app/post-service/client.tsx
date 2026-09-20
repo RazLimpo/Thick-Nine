@@ -3,11 +3,20 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { MARKETPLACE_FEE_PERCENTAGE } from "@/lib/constants";
-import { PlanKey, PLAN_LIMITS, validateMediaFile, validateMediaQuantity } from "@/lib/validation";
+import {
+  PlanKey,
+  PLAN_LIMITS,
+  MEDIA_SIZE_LIMITS_BYTES,
+  MEDIA_DURATION_LIMITS_SEC,
+  validateMediaFile,
+  validateMediaQuantity,
+  validateMediaExtension,
+  validateMediaDuration,
+  validateServiceForm,
+} from "@/lib/validation";
 
 import CategorySelect from "@/components/PostService/CategorySelect";
 import { CATEGORIES, CategoryKey } from "@/lib/categories";
@@ -80,7 +89,7 @@ interface ServiceDraftResponse {
   keywords?: string[] | string;
   selectedPlan?: PlanKey;
   packages?: PackagesPayload;
-  addons?: AddonItem[];
+  addons?: unknown[]; // validated at hydration time
   faqs?: FaqItem[];
   /** Legacy string[] or structured RequirementItem[] */
   requirements?: Array<string | RequirementItem>;
@@ -105,9 +114,11 @@ export default function PostServiceClient() {
   const searchParams = useSearchParams();
   const [draftId, setDraftId] = useState<string | null>(searchParams.get('draftId'));
 // --- Toast ---
-const [toasts, setToasts] = useState<{ id: number; message: string; type: string }[]>([]);
+type ToastType = "success" | "warning" | "info";
 
-const showToast = useCallback((message: string, type: "success" | "warning" | "info" = "success") => {
+const [toasts, setToasts] = useState<{ id: number; message: string; type: ToastType }[]>([]);
+
+const showToast = useCallback((message: string, type: ToastType = "success") => {
   const id = Date.now();
   setToasts((prev) => [...prev, { id, message, type }]);
   setTimeout(() => {
@@ -142,16 +153,38 @@ useEffect(() => {
     try {
       showToast("Loading saved draft...", "info");
 
-      const response = await fetch(`/api/services/draft/${draftId}`, {
-        signal: controller.signal,
-      });
+      // Combine unmount abort + request timeout
+      const timeoutController = new AbortController();
+      const timeoutId = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+      const onParentAbort = () => timeoutController.abort();
+      controller.signal.addEventListener("abort", onParentAbort);
 
-      if (!response.ok) throw new Error("Failed to fetch draft");
-
-      const data: ServiceDraftResponse = await response.json();
-
-      if (!data || typeof data !== "object") {
-        throw new Error("Invalid draft payload structure received");
+      let data: ServiceDraftResponse;
+      try {
+        const headers = applyCsrfHeaders();
+        const response = await fetch(`/api/services/draft/${draftId}`, {
+          signal: timeoutController.signal,
+          credentials: "include",
+          headers,
+        });
+        const text = await response.text();
+        const parsed = safeParseResponseText(
+          text,
+          response.status,
+          response.headers.get("content-type")
+        );
+        if (!response.ok) {
+          throw new Error(
+            extractApiErrorMessage(parsed, "Failed to load draft. Please try again.")
+          );
+        }
+        if (!parsed || typeof parsed !== "object") {
+          throw new Error("Invalid draft payload structure received");
+        }
+        data = parsed as ServiceDraftResponse;
+      } finally {
+        clearTimeout(timeoutId);
+        controller.signal.removeEventListener("abort", onParentAbort);
       }
 
       // Track whether essential sections loaded completely
@@ -210,20 +243,33 @@ useEffect(() => {
         if (validatedFaqs.length > 0) setFaqs(validatedFaqs);
       }
 
-     // Inside loadDraft() within useEffect:
-if (Array.isArray(data.addons) && data.addons.length > 0) {
-  const validatedAddons = data.addons
-    .filter((a): a is AddonItem => typeof a === "object" && a !== null && typeof a.label === "string")
-    .map((addon) => ({
-      id: (addon as AddonItem).id || createAddonId(),
-      label: addon.label || "",
-      desc: addon.desc || "",
-      price: typeof addon.price === "number" ? addon.price : parseFloat(String(addon.price || "0")) || 0,
-      enabled: addon.enabled !== undefined ? Boolean(addon.enabled) : true,
-      selected: false, // buyer-preview only; never hydrate from server
-    }));
-  if (validatedAddons.length > 0) setAddons(validatedAddons);
-}
+      // Safe hydration for add-ons (validate unknown API data — no `any`)
+      if (Array.isArray(data.addons) && data.addons.length > 0) {
+        const validatedAddons: AddonItem[] = [];
+        for (const raw of data.addons as unknown[]) {
+          if (typeof raw !== "object" || raw === null) continue;
+          const row = raw as Record<string, unknown>;
+          if (typeof row.label !== "string" || !row.label.trim()) continue;
+
+          let price = 0;
+          if (typeof row.price === "number" && isFinite(row.price)) {
+            price = row.price;
+          } else if (typeof row.price === "string") {
+            const parsed = parseFloat(row.price);
+            price = isFinite(parsed) ? parsed : 0;
+          }
+
+          validatedAddons.push({
+            id: typeof row.id === "string" && row.id ? row.id : createAddonId(),
+            label: row.label.trim(),
+            desc: typeof row.desc === "string" ? row.desc : "",
+            price,
+            enabled: row.enabled === undefined ? true : Boolean(row.enabled),
+            selected: false, // buyer-preview only; never hydrate from server
+          });
+        }
+        if (validatedAddons.length > 0) setAddons(validatedAddons);
+      }
 
     // Safe hydration for Packages payload
       if (data.packages && typeof data.packages === "object" && data.packages.basic) {
@@ -281,11 +327,15 @@ if (Array.isArray(data.addons) && data.addons.length > 0) {
           "info"
         );
       }
-    } catch (err: any) {
-      if (err.name === "AbortError") return;
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") return;
 
       console.error("Error loading draft:", err);
-      showToast(err?.message || "Failed to load draft details.", "warning");
+      showToast(
+        err instanceof Error ? err.message : "Failed to load draft details.",
+        "warning"
+      );
     }
   }
 
@@ -347,9 +397,131 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 const [uploadLabel, setUploadLabel] = useState<string>("");
 
+// ---- Shared API safety helpers (timeout, CSRF, error parsing) ----
+const REQUEST_TIMEOUT_MS = 60_000;
+
+/** Auth token used by checkout/plan (localStorage key: "token"). */
+const getAuthToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem("token");
+  } catch {
+    return null;
+  }
+};
+
+/** Read CSRF token from meta tag or common cookie names (cookie-session apps). */
+const getCsrfToken = (): string | null => {
+  if (typeof document === "undefined") return null;
+  const meta = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute("content");
+  if (meta) return meta;
+  const match = document.cookie.match(
+    /(?:^|;\s*)(?:XSRF-TOKEN|csrfToken|csrf_token)=([^;]+)/
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+/** Attach Bearer token + CSRF headers for draft/publish (matches checkout/plan). */
+const applyCsrfHeaders = (headers: Record<string, string> = {}): Record<string, string> => {
+  const token = getAuthToken();
+  if (token && !headers.Authorization && !headers.authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const csrf = getCsrfToken();
+  if (csrf) {
+    headers["X-CSRF-Token"] = csrf;
+    headers["X-XSRF-TOKEN"] = csrf;
+  }
+  return headers;
+};
+
+/** Prefer backend message/error; never surface raw HTML to the user. */
+const extractApiErrorMessage = (data: unknown, fallback: string): string => {
+  if (data == null) return fallback;
+  if (typeof data === "string") {
+    const t = data.trim();
+    if (!t || t.startsWith("<")) return fallback;
+    return t.slice(0, 300);
+  }
+  if (typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    const msg = obj.message ?? obj.error ?? obj.msg;
+    if (typeof msg === "string" && msg.trim() && !msg.trim().startsWith("<")) {
+      return msg.trim().slice(0, 300);
+    }
+    if (Array.isArray(obj.errors) && obj.errors.length > 0) {
+      const first = obj.errors[0];
+      if (typeof first === "string") return first.slice(0, 300);
+      if (first && typeof first === "object" && typeof (first as any).message === "string") {
+        return String((first as any).message).slice(0, 300);
+      }
+    }
+  }
+  return fallback;
+};
+
+const safeParseResponseText = (text: string, status: number, contentType: string | null): unknown => {
+  if (!text) return {};
+  const ct = contentType || "";
+  const looksHtml = text.trim().startsWith("<") || ct.includes("text/html");
+  if (looksHtml) {
+    return { message: `Server returned an unexpected response (${status}).` };
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      message:
+        text.trim().length > 0 && text.trim().length < 200
+          ? text.trim()
+          : `Invalid server response (${status}).`,
+    };
+  }
+};
+
+/** fetch JSON with timeout, credentials, and CSRF header when available. */
+const fetchJsonWithTimeout = async (
+  url: string,
+  init: RequestInit & { timeoutMs?: number } = {}
+): Promise<{ ok: boolean; status: number; data: any }> => {
+  const { timeoutMs = REQUEST_TIMEOUT_MS, ...rest } = init;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const headers = applyCsrfHeaders(
+      rest.headers ? Object.fromEntries(new Headers(rest.headers).entries()) : {}
+    );
+    const response = await fetch(url, {
+      ...rest,
+      headers,
+      credentials: rest.credentials ?? "include",
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    const data = safeParseResponseText(
+      text,
+      response.status,
+      response.headers.get("content-type")
+    );
+    return { ok: response.ok, status: response.status, data };
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Request timed out. Please try again.");
+    }
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("Request timed out. Please try again.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 /**
  * POST/PUT FormData with upload progress (fetch cannot report upload %).
- * Used when saving drafts that include binary media destined for Cloudinary via multer.
+ * Includes timeout + CSRF header when a token is available.
  */
 const submitFormDataWithProgress = (
   url: string,
@@ -360,22 +532,40 @@ const submitFormDataWithProgress = (
   new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, url);
+    xhr.withCredentials = true;
+    xhr.timeout = REQUEST_TIMEOUT_MS;
+
+    const token = getAuthToken();
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+    const csrf = getCsrfToken();
+    if (csrf) {
+      xhr.setRequestHeader("X-CSRF-Token", csrf);
+      xhr.setRequestHeader("X-XSRF-TOKEN", csrf);
+    }
+
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
         onProgress(Math.round((event.loaded / event.total) * 100));
       }
     };
     xhr.onload = () => {
-      let data: any = {};
-      try {
-        data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-      } catch {
-        data = { message: xhr.responseText };
-      }
-      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data });
+      const data = safeParseResponseText(
+        xhr.responseText || "",
+        xhr.status,
+        xhr.getResponseHeader("content-type")
+      );
+      resolve({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        data,
+      });
     };
     xhr.onerror = () => reject(new Error("Network error during upload."));
     xhr.onabort = () => reject(new Error("Upload was cancelled."));
+    xhr.ontimeout = () =>
+      reject(new Error("Upload timed out. Please try again with fewer or smaller files."));
     xhr.send(formData);
   });
 
@@ -452,27 +642,7 @@ const [req3, setReq3] = useState("");
 const [req4, setReq4] = useState("");
   
   
-  // Per-type size caps shown in the UI (shared validateMediaFile also enforces a 50MB ceiling + MIME)
-  const MEDIA_SIZE_LIMITS_BYTES = {
-    images: 5 * 1024 * 1024,   // 5MB
-    videos: 50 * 1024 * 1024,  // 50MB
-    audio: 10 * 1024 * 1024,   // 10MB
-  } as const;
-
-  // Duration caps matching UI copy
-  const MAX_VIDEO_DURATION_SEC = 60;
-  const MAX_AUDIO_DURATION_SEC = 30;
-
-  const getFileExtension = (name: string) => {
-    const i = name.lastIndexOf(".");
-    return i >= 0 ? name.slice(i + 1).toLowerCase() : "";
-  };
-
-  const ALLOWED_EXTENSIONS = {
-    images: ["jpg", "jpeg", "png", "webp"],
-    videos: ["mp4", "webm", "mov"],
-    audio: ["mp3", "wav", "ogg"],
-  } as const;
+  // Size/duration limits imported from @/lib/validation (MEDIA_SIZE_LIMITS_BYTES, MEDIA_DURATION_LIMITS_SEC)
 
   /** Read media duration via browser metadata (client-side only). */
   const readMediaDurationSeconds = (file: File): Promise<number> =>
@@ -523,32 +693,21 @@ const [req4, setReq4] = useState("");
         continue;
       }
 
-      const ext = getFileExtension(file.name);
-      if (!(ALLOWED_EXTENSIONS[fileType] as readonly string[]).includes(ext)) {
-        showToast(
-          `Invalid file extension for ${file.name}. Allowed: ${ALLOWED_EXTENSIONS[fileType].join(", ").toUpperCase()}.`,
-          "warning"
-        );
+      const extCheck = validateMediaExtension(file.name, fileType);
+      if (!extCheck.isValid) {
+        showToast(extCheck.error || `Invalid extension for ${file.name}.`, "warning");
         continue;
       }
 
-      const maxBytes = MEDIA_SIZE_LIMITS_BYTES[fileType];
-      if (file.size > maxBytes) {
-        const maxMb = maxBytes / (1024 * 1024);
-        showToast(`${file.name} exceeds the ${maxMb}MB ${fileType} limit.`, "warning");
-        continue;
-      }
+      // Per-type size already enforced inside validateMediaFile (MEDIA_SIZE_LIMITS_BYTES)
 
-      // Duration checks (video ≤ 60s, audio ≤ 30s)
+      // Duration checks via shared MEDIA_DURATION_LIMITS_SEC
       if (fileType === "videos" || fileType === "audio") {
         try {
           const duration = await readMediaDurationSeconds(file);
-          const maxDur = fileType === "videos" ? MAX_VIDEO_DURATION_SEC : MAX_AUDIO_DURATION_SEC;
-          if (duration > maxDur) {
-            showToast(
-              `${file.name} is ${Math.ceil(duration)}s — maximum allowed is ${maxDur}s.`,
-              "warning"
-            );
+          const durCheck = validateMediaDuration(duration, fileType);
+          if (!durCheck.isValid) {
+            showToast(`${file.name}: ${durCheck.error}`, "warning");
             continue;
           }
         } catch {
@@ -631,6 +790,12 @@ const switchPackageTier = (targetTier: "basic" | "standard" | "premium") => {
 // Platform currency policy (backend is source of truth for settlement; client display only)
 const SERVICE_CURRENCY = "USD" as const;
 const CURRENCY_SYMBOL = "$";
+
+/** Client-side package price bounds — backend must enforce the same limits. */
+const PACKAGE_PRICE_LIMITS = {
+  MIN: 5,
+  MAX: 10000,
+} as const;
 
 /** Shared pricing helper — used for every package tier (estimate only; backend must recompute). */
 const calculatePackageEarnings = (priceInput: string | number | undefined) => {
@@ -881,7 +1046,9 @@ const handleSaveDraft = async () => {
     );
 
     if (!ok) {
-      throw new Error(data?.message || "Failed to save draft");
+      throw new Error(
+        extractApiErrorMessage(data, "Failed to save draft. Please try again.")
+      );
     }
 
     const savedId = data.draftId || data._id || draftId;
@@ -923,17 +1090,17 @@ const validatePackageTier = (
   if (!pkg.title.trim()) return `Please enter a title for the ${tierName} package.`;
   if (!pkg.desc.trim()) return `Please enter a description for the ${tierName} package.`;
 
-  // 2. Strict Price Validation (Min: $5, Max: $10,000, Max 2 decimal places)
+  // 2. Strict Price Validation (shared PACKAGE_PRICE_LIMITS — backend must match)
   const numericPrice = Number(pkg.price);
   if (
     !pkg.price.trim() ||
     isNaN(numericPrice) ||
     !isFinite(numericPrice) ||
-    numericPrice < 5 ||
-    numericPrice > 10000 ||
+    numericPrice < PACKAGE_PRICE_LIMITS.MIN ||
+    numericPrice > PACKAGE_PRICE_LIMITS.MAX ||
     !/^\d+(\.\d{1,2})?$/.test(pkg.price.trim())
   ) {
-    return `Please enter a valid price for the ${tierName} package ($5 to $10,000, up to 2 decimal places).`;
+    return `Please enter a valid price for the ${tierName} package ($${PACKAGE_PRICE_LIMITS.MIN} to $${PACKAGE_PRICE_LIMITS.MAX.toLocaleString()}, up to 2 decimal places).`;
   }
 
   // 3. Strict Delivery Time Validation (Min: 1 day, Max: 90 days, integer only)
@@ -1011,6 +1178,20 @@ const validatePackageTier = (
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
+  // 0. Shared core form validation (title, category, description, base price)
+  const formCheck = validateServiceForm({
+    title: serviceTitle,
+    category,
+    description,
+    price: packagesData.basic.price,
+    plan: selectedPlan,
+  });
+  if (!formCheck.isValid) {
+    showToast(formCheck.error || "Please complete the required service fields.", "warning");
+    setCurrentStep(1);
+    return;
+  }
+
   // 1. Validate essential fields (Images) — allow existing remote images
   if (selectedImages.length === 0 && existingImages.length === 0) {
     showToast("Please upload or retain at least one image for your service.", "warning");
@@ -1071,24 +1252,21 @@ for (let i = 0; i < addons.length; i++) {
   }
 
   // 7. Branch based on selected plan
+  // Paid plans: send user to the dedicated checkout page (card form lives there)
   if (selectedPlan === "silver" || selectedPlan === "gold") {
     try {
-      showToast("Initializing secure checkout...", "info");
-
-      const response = await fetch("/api/checkout/plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draftId: activeDraftId, selectedPlan }),
+      showToast("Draft saved. Redirecting to checkout...", "info");
+      const params = new URLSearchParams({
+        plan: selectedPlan,
+        draftId: String(activeDraftId),
       });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Checkout session failed.");
-
-      // Redirect to authentic server-generated payment URL
-      window.location.href = data.checkoutUrl;
-    } catch (err: any) {
+      router.push(`/checkout/plan?${params.toString()}`);
+    } catch (err: unknown) {
       console.error("Checkout redirect failed:", err);
-      showToast(err.message || "Failed to initiate payment.", "warning");
+      showToast(
+        err instanceof Error ? err.message : "Failed to open checkout.",
+        "warning"
+      );
       setIsSubmitting(false);
     }
   } else {
@@ -1096,7 +1274,7 @@ for (let i = 0; i < addons.length; i++) {
     try {
       showToast("Publishing your service for free...", "info");
 
-      const response = await fetch("/api/services/publish", {
+      const { ok, data } = await fetchJsonWithTimeout("/api/services/publish", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1107,21 +1285,23 @@ for (let i = 0; i < addons.length; i++) {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to publish service.");
+      if (!ok) {
+        throw new Error(
+          extractApiErrorMessage(data, "Failed to publish service. Please try again.")
+        );
       }
-
-      const data = await response.json();
 
       showToast("Success! Your service is now live.", "success");
 
       setTimeout(() => {
         router.push(data.redirectUrl || "/freelancer-dashboard");
       }, 1200);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error publishing service:", err);
-      showToast(err.message || "Publication failed. Please try again.", "warning");
+      showToast(
+        err instanceof Error ? err.message : "Publication failed. Please try again.",
+        "warning"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -1874,7 +2054,8 @@ const categoryText =
           type="number"
           id="package-price"
           placeholder="20"
-          min={5}
+          min={PACKAGE_PRICE_LIMITS.MIN}
+          max={PACKAGE_PRICE_LIMITS.MAX}
           value={currentPackage.price}
           onChange={(e) => updateCurrentPackageField("price", e.target.value)}
           required

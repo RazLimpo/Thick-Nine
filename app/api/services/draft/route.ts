@@ -1,5 +1,5 @@
-// app/api/services/draft/update/route.ts
-// Next.js App Router — update draft (proxies FormData + auth to Express)
+// app/api/services/draft/route.ts
+// Next.js App Router — create draft (proxies FormData + auth to Express)
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateAddonList } from "@/lib/addon-limits";
@@ -9,10 +9,11 @@ const BACKEND_URL =
   process.env.BACKEND_API_URL ||
   "http://localhost:5000";
 
-export async function PUT(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
 
+    // Optional early validation of addons JSON
     const addonsRaw = formData.get("addons");
     if (addonsRaw && typeof addonsRaw === "string") {
       try {
@@ -35,9 +36,10 @@ export async function PUT(request: NextRequest) {
     const headers: Record<string, string> = {};
     if (authHeader) headers.Authorization = authHeader;
     if (cookie) headers.Cookie = cookie;
+    // Do NOT set Content-Type — fetch will set multipart boundary for FormData
 
-    const response = await fetch(`${BACKEND_URL}/api/services/draft/update`, {
-      method: "PUT",
+    const response = await fetch(`${BACKEND_URL}/api/services/draft`, {
+      method: "POST",
       headers,
       body: formData,
     });
@@ -46,17 +48,14 @@ export async function PUT(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        {
-          success: false,
-          error: data.message || data.error || "Failed to update draft on backend server",
-        },
+        { success: false, error: data.message || data.error || "Failed to save draft." },
         { status: response.status }
       );
     }
 
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json(data, { status: 201 });
   } catch (error: unknown) {
-    console.error("Error proxying draft update payload:", error);
+    console.error("POST draft proxy error:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
