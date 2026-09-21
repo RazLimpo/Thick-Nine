@@ -96,6 +96,29 @@ function buildServicePayloadFromForm(req, { isUpdate = false } = {}) {
   return payload;
 }
 
+
+/** Only users in freelancer mode with sufficient profile strength may post services. */
+function assertCanPostServices(user) {
+  if (!user) {
+    return { status: 401, message: "User not found." };
+  }
+  const role = user.role || "client";
+  if (role !== "freelancer") {
+    return {
+      status: 403,
+      message: "Switch to freelancer mode to post services.",
+    };
+  }
+  const strength = Number(user.accountStrength) || 0;
+  if (strength < 60) {
+    return {
+      status: 403,
+      message: "Complete your profile (strength 60%+) before posting services.",
+    };
+  }
+  return null;
+}
+
 function validateDraftCore(payload) {
   if (!payload.title || payload.title.length < 3) {
     return "Service title is required (min 3 characters).";
@@ -210,6 +233,11 @@ router.post("/draft", authMiddleware, uploadMedia, async (req, res) => {
       return res.status(401).json({ message: "User not found." });
     }
 
+    const postGate = assertCanPostServices(user);
+    if (postGate) {
+      return res.status(postGate.status).json({ message: postGate.message });
+    }
+
     const imageCount = payload.images?.length || 0;
     const videoCount = payload.videos?.length || 0;
     const audioCount = payload.audio?.length || 0;
@@ -281,7 +309,16 @@ router.put("/draft/update", authMiddleware, uploadMedia, async (req, res) => {
     }
 
     const user = await User.findById(userId);
-    if (user && typeof user.canUploadMedia === "function") {
+    if (!user) {
+      return res.status(401).json({ message: "User not found." });
+    }
+
+    const postGate = assertCanPostServices(user);
+    if (postGate) {
+      return res.status(postGate.status).json({ message: postGate.message });
+    }
+
+    if (typeof user.canUploadMedia === "function") {
       const imageCount = payload.images?.length || 0;
       const videoCount = payload.videos?.length || 0;
       const audioCount = payload.audio?.length || 0;
@@ -328,6 +365,15 @@ router.post("/publish", authMiddleware, async (req, res) => {
     }
 
     const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found." });
+    }
+
+    const postGate = assertCanPostServices(user);
+    if (postGate) {
+      return res.status(postGate.status).json({ message: postGate.message });
+    }
+
     const draft = await Service.findOne({ _id: draftId, sellerId: userId });
 
     if (!draft) {

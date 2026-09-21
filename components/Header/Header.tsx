@@ -96,8 +96,9 @@ const Header = () => {
   }, []);
 
 
+
 // ====================== ACCOUNT ROLE ROTATION ENGINE ======================
-const handleAccountSwitching = () => {
+const handleAccountSwitching = async () => {
   // Guard: administrative roles do not rotate
   if (isAdminRole(userRole)) {
     closeAllUI();
@@ -106,25 +107,25 @@ const handleAccountSwitching = () => {
   }
 
   // 1. Grab values safely from browser environment storage with default fallbacks
-  const currentRole = localStorage.getItem('userRole') || 'client';
-  const storageStrength = localStorage.getItem('accountStrength');
+  const currentRole = localStorage.getItem("userRole") || "client";
+  const storageStrength = localStorage.getItem("accountStrength");
 
   // Parse baseline tier strength safely (default to 50 matching starter DB tier schemas)
   const strength = storageStrength ? parseInt(storageStrength, 10) : 50;
 
-  let newRole: 'client' | 'freelancer' | 'affiliate' = 'client';
+  let newRole: "client" | "freelancer" | "affiliate" = "client";
 
   // 2. Set up the explicit circular account rotation
-  if (currentRole === 'client') {
-    newRole = 'freelancer';
-  } else if (currentRole === 'freelancer') {
-    newRole = 'affiliate';
+  if (currentRole === "client") {
+    newRole = "freelancer";
+  } else if (currentRole === "freelancer") {
+    newRole = "affiliate";
   } else {
-    newRole = 'client';
+    newRole = "client";
   }
 
   // 3. THE PRODUCTION SECURITY GATE: Stop execution if profile strength criteria is unmet
-  if (newRole === 'freelancer' && strength < 60) {
+  if (newRole === "freelancer" && strength < 60) {
     closeAllUI();
     showToast(
       `Profile strength too low (${strength}%). Please complete your profile to unlock Freelancing!`,
@@ -133,22 +134,58 @@ const handleAccountSwitching = () => {
     return;
   }
 
-  // 4. Commit verified authorization changes to local records and update states
-  localStorage.setItem('userRole', newRole);
+  const token = localStorage.getItem("token");
+
+  // 4. Persist role on the server so draft/publish guards match the UI
+  try {
+    if (token) {
+      const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to update role on server");
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data?.user?.accountStrength != null) {
+        localStorage.setItem(
+          "accountStrength",
+          String(data.user.accountStrength)
+        );
+      }
+    }
+  } catch (err) {
+    console.error("Role switch persist failed:", err);
+    closeAllUI();
+    showToast(
+      err instanceof Error ? err.message : "Could not switch role. Try again.",
+      "fa-exclamation-triangle"
+    );
+    return; // do not flip local mode if server rejected
+  }
+
+  // 5. Commit verified authorization changes to local records and update states
+  localStorage.setItem("userRole", newRole);
   setUserRole(newRole);
 
-  window.dispatchEvent(new Event('userRoleChanged'));
+  window.dispatchEvent(new Event("userRoleChanged"));
   closeAllUI();
   showToast(`Switched to ${newRole.toUpperCase()} mode`, "fa-exchange-alt");
 
-  if (newRole === 'freelancer') {
-    router.push('/freelancer-dashboard');
-  } else if (newRole === 'affiliate') {
-    router.push('/affiliate-dashboard');
+  if (newRole === "freelancer") {
+    router.push("/freelancer-dashboard");
+  } else if (newRole === "affiliate") {
+    router.push("/affiliate-dashboard");
   } else {
-    router.push('/client-dashboard');
+    router.push("/client-dashboard");
   }
 };
+
 
   // Generates clean action button strings dynamically depending on the active state
   const getSwitcherText = () => {

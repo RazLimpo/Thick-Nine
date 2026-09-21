@@ -143,6 +143,36 @@ const toggleAddonSelected = (id: string) => {
 };
 
   
+ // Require freelancer mode (matches Header role switch + backend assertCanPostServices)
+useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const loggedIn = localStorage.getItem("isLoggedIn") === "true";
+  const role = localStorage.getItem("userRole") || "guest";
+  const strength = parseInt(localStorage.getItem("accountStrength") || "0", 10);
+
+  if (!loggedIn) {
+    showToast("Please log in to post a service.", "warning");
+    router.replace("/?auth=login");
+    return;
+  }
+
+  if (role !== "freelancer") {
+    showToast("Switch to freelancer mode to post services.", "warning");
+    router.replace("/freelancer-dashboard");
+    return;
+  }
+
+  if (strength < 60) {
+    showToast(
+      `Profile strength too low (${strength}%). Complete your profile to post services.`,
+      "warning"
+    );
+    router.replace("/freelancer-profile");
+    return;
+  }
+}, [router, showToast]);
+
  // Hydrate form fields if editing an existing draft
 useEffect(() => {
   if (!draftId) return;
