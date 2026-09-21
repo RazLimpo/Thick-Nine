@@ -365,10 +365,15 @@ useEffect(() => {
       return items;
     }
 
-    // Assign profile paths depending on active authorization states
-    let profilePath = "/client-profile";
-    if (userRole === 'freelancer') profilePath = "/freelancer-profile";
-    else if (userRole === 'affiliate') profilePath = "/affiliate-profile";
+   // Assign profile paths depending on active authorization states
+let profilePath = "/client-profile";
+if (isAdminRole(userRole)) {
+  profilePath = "/admin/profile"; // or "/admin/dashboard" if you have no admin profile page
+} else if (userRole === "freelancer") {
+  profilePath = "/freelancer-profile";
+} else if (userRole === "affiliate") {
+  profilePath = "/affiliate-profile";
+}
 
     // Build common links shared across authorized profiles
     items.push(
