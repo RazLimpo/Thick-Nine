@@ -1,7 +1,8 @@
-// routes/adminRoute
+// routes/adminRoutes
 
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 
 const auth = require('../middleware/auth');
 const adminContext = require('../middleware/adminContext');
@@ -453,14 +454,15 @@ router.post(
       // The User password is passed as plain text because the User
       // model/authentication layer is responsible for its hashing.
       // ------------------------------------------------------------
+const hashedUserPassword = await bcrypt.hash(password, 10);
 
-      createdUser = await User.create({
-        fullName: normalizedName,
-        email: normalizedEmail,
-        password,
-        role: 'admin',
-        isEmailVerified: false,
-      });
+createdUser = await User.create({
+  fullName: normalizedName,
+  email: normalizedEmail,
+  password: hashedUserPassword,
+  role: 'admin',
+  isEmailVerified: false,
+});
 
       // ------------------------------------------------------------
       // Create the RBAC Admin record
