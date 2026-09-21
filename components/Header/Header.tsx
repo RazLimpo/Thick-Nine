@@ -97,7 +97,7 @@ const Header = () => {
 
 
 
-// ====================== ACCOUNT ROLE ROTATION ENGINE ======================
+    // ====================== ACCOUNT ROLE ROTATION ENGINE ======================
 const handleAccountSwitching = async () => {
   // Guard: administrative roles do not rotate
   if (isAdminRole(userRole)) {
@@ -185,7 +185,7 @@ const handleAccountSwitching = async () => {
     router.push("/client-dashboard");
   }
 };
-
+    
 
   // Generates clean action button strings dynamically depending on the active state
   const getSwitcherText = () => {
@@ -339,6 +339,7 @@ useEffect(() => {
   };
     
     
+   
     
     
     
@@ -365,10 +366,10 @@ useEffect(() => {
       return items;
     }
 
-   // Assign profile paths depending on active authorization states
+    // Assign profile paths depending on active authorization states
 let profilePath = "/client-profile";
 if (isAdminRole(userRole)) {
-  profilePath = "/admin/profile"; // or "/admin/dashboard" if you have no admin profile page
+  profilePath = "/admin/profile";
 } else if (userRole === "freelancer") {
   profilePath = "/freelancer-profile";
 } else if (userRole === "affiliate") {
