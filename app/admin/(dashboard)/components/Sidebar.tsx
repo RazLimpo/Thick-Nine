@@ -22,7 +22,6 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'Orders & Escrow', path: '/admin/orders', icon: 'fa-receipt', permission: 'orders:read' },
   { name: 'Withdrawals', path: '/admin/withdrawals', icon: 'fa-wallet', permission: 'payouts:read' },
   { name: 'Messages', path: '/admin/messages', icon: 'fa-envelope', permission: 'messages:read' },
-  { name: 'Team Roles', path: '/admin/sub-admins', icon: 'fa-user-shield', permission: 'roles:manage' },
   { name: 'Profile', path: '/admin/profile', icon: 'fa-user-cog' },
 ];
 
