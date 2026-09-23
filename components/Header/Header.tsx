@@ -202,6 +202,7 @@ const handleAccountSwitching = async () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('token');
     localStorage.removeItem('userRole');
+    localStorage.removeItem("adminRole");
     localStorage.removeItem('accountStrength'); 
     localStorage.removeItem('isEmailVerified');
     localStorage.removeItem('isProfileComplete');
@@ -386,43 +387,46 @@ if (isAdminRole(userRole)) {
     );
 
 
-// ========== PASTE THE NEW ADMIN BLOCK HERE ==========
+// ========== ADMIN BLOCK ==========
   if (isAdminRole(userRole)) {
-    items.push(
-      <li key="adm-dash">
-        <Link href="/admin/dashboard" onClick={closeAllUI}>
-          <i className="fas fa-shield-alt"></i> Admin Dashboard
-        </Link>
-      </li>,
-      <li key="adm-clients">
-        <Link href="/admin/clients" onClick={closeAllUI}>
-          <i className="fas fa-users"></i> Manage Clients
-        </Link>
-      </li>,
-      <li key="adm-orders">
-        <Link href="/admin/orders" onClick={closeAllUI}>
-          <i className="fas fa-file-invoice-dollar"></i> Orders & Escrow
-        </Link>
-      </li>
-    );
-
-   // Only Super Admins see Team & Roles + Audit Logs
-if (userRole === 'super_admin') {
   items.push(
-    <li key="adm-team">
-      <Link href="/admin/sub-admins" onClick={closeAllUI}>
-        <i className="fas fa-user-shield"></i> Team & Roles
+    <li key="adm-dash">
+      <Link href="/admin/dashboard" onClick={closeAllUI}>
+        <i className="fas fa-shield-alt"></i> Admin Dashboard
       </Link>
     </li>,
-    <li key="adm-audit">
-      <Link href="/admin/audit-logs" onClick={closeAllUI}>
-        <i className="fas fa-history"></i> Audit Logs
+    <li key="adm-clients">
+      <Link href="/admin/clients" onClick={closeAllUI}>
+        <i className="fas fa-users"></i> Manage Clients
+      </Link>
+    </li>,
+    <li key="adm-orders">
+      <Link href="/admin/orders" onClick={closeAllUI}>
+        <i className="fas fa-file-invoice-dollar"></i> Orders & Escrow
       </Link>
     </li>
   );
-}
-  }
 
+  // Real rank from Admin collection (set on login via /api/admin/me)
+  const isSuperAdmin =
+    typeof window !== "undefined" &&
+    localStorage.getItem("adminRole") === "super_admin";
+
+  if (isSuperAdmin) {
+    items.push(
+      <li key="adm-team">
+        <Link href="/admin/sub-admins" onClick={closeAllUI}>
+          <i className="fas fa-user-shield"></i> Team & Roles
+        </Link>
+      </li>,
+      <li key="adm-audit">
+        <Link href="/admin/audit-logs" onClick={closeAllUI}>
+          <i className="fas fa-history"></i> Audit Logs
+        </Link>
+      </li>
+    );
+  }
+}
 
     
 
@@ -560,30 +564,60 @@ try {
       const data = await response.json();
 
       if (response.ok) {
-        const userRole = data.user.role || 'client';
+  const userRole = data.user.role || "client";
+  const token = data.token as string;
 
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('userRole', userRole);
-        localStorage.setItem('accountStrength', (data.user.accountStrength || 0).toString()); 
-        localStorage.setItem('isEmailVerified', (data.user.isEmailVerified ?? false).toString());
-        localStorage.setItem('isProfileComplete', (data.user.isProfileComplete ?? false).toString());
+  localStorage.setItem("isLoggedIn", "true");
+  localStorage.setItem("token", token);
+  localStorage.setItem("userRole", userRole);
+  localStorage.setItem(
+    "accountStrength",
+    (data.user.accountStrength || 0).toString()
+  );
+  localStorage.setItem(
+    "isEmailVerified",
+    (data.user.isEmailVerified ?? false).toString()
+  );
+  localStorage.setItem(
+    "isProfileComplete",
+    (data.user.isProfileComplete ?? false).toString()
+  );
 
-        setIsLoggedIn(true);
-        setUserRole(userRole);
-        setIsEmailVerified(data.user.isEmailVerified ?? false);
-        setIsProfileComplete(data.user.isProfileComplete ?? false);
-        
-        closeAllUI();      
-        showToast(`Welcome back, ${data.user.fullName || 'User'}!`, "fa-sign-in-alt");
+  // Resolve Admin.role for Team / Audit menu (User stays "admin")
+  localStorage.removeItem("adminRole");
+  if (isAdminRole(userRole)) {
+    try {
+      const meRes = await fetch("/api/admin/me", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      const meData = await meRes.json().catch(() => ({}));
+      if (meRes.ok && meData?.admin?.role) {
+        localStorage.setItem("adminRole", String(meData.admin.role));
+      }
+    } catch (err) {
+      console.error("Failed to load admin profile:", err);
+    }
+  }
 
-        // Inside handleLogin after successful response:
-   setTimeout(() => {
-  if (isAdminRole(userRole)) router.push('/admin/dashboard');
-  else if (userRole === 'freelancer') router.push('/freelancer-dashboard');
-  else if (userRole === 'affiliate') router.push('/affiliate-dashboard');
-  else router.push('/client-dashboard');
-}, 1200);
+  setIsLoggedIn(true);
+  setUserRole(userRole);
+  setIsEmailVerified(data.user.isEmailVerified ?? false);
+  setIsProfileComplete(data.user.isProfileComplete ?? false);
+
+  closeAllUI();
+  showToast(`Welcome back, ${data.user.fullName || "User"}!`, "fa-sign-in-alt");
+
+  setTimeout(() => {
+    if (isAdminRole(userRole)) router.push("/admin/dashboard");
+    else if (userRole === "freelancer") router.push("/freelancer-dashboard");
+    else if (userRole === "affiliate") router.push("/affiliate-dashboard");
+    else router.push("/client-dashboard");
+  }, 1200);
+
 
       } else {
         showToast(data.msg || "Invalid credentials", "fa-lock");

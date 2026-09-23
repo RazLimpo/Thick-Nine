@@ -361,3 +361,130 @@ letter-spacing: 0.05em;
   background-color: #fef2f2;
   color: #991b1b;
 }
+
+
+
+
+
+
+
+/* --- MOBILE / TABLET ADMIN LAYOUT --- */
+@media (max-width: 900px) {
+  .admin-container {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .admin-sidebar {
+    width: 100%;
+    padding: 12px 12px 8px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+
+  .sidebar-brand {
+    margin-bottom: 12px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sidebar-brand h2 {
+    margin-bottom: 0;
+    padding-left: 4px;
+    font-size: 1.1rem;
+  }
+
+  .badge-super {
+    margin-left: 0;
+  }
+
+  /* Horizontal scrollable nav instead of tall vertical list */
+  .sidebar-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .nav-item {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .nav-item span {
+    display: inline;
+  }
+
+  .admin-main {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-header {
+    height: auto;
+    min-height: 56px;
+    padding: 10px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .header-search {
+    width: 100%;
+    max-width: none;
+    order: 2;
+  }
+
+  .admin-badge {
+    order: 1;
+    margin-left: auto;
+  }
+
+  .admin-body {
+    padding: 16px;
+  }
+
+  .page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-sidebar {
+    padding: 10px 8px;
+  }
+
+  .nav-item {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  /* Icons only on very small screens (optional) */
+  .nav-item span {
+    /* keep labels for clarity; remove this block if you prefer icons-only */
+  }
+}

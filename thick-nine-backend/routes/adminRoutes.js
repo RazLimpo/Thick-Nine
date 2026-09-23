@@ -105,6 +105,52 @@ router.get(
 );
 
 
+
+
+
+// =============================================================================
+// EXPRESS — add to routes/adminRoutes.js (near the top, after GENERAL ADMIN)
+// GET /api/admin/me
+// Returns the Admin RBAC identity for the logged-in staff user.
+// =============================================================================
+
+// GET /api/admin/me
+router.get(
+  "/me",
+  auth,
+  adminContext,
+  async (req, res) => {
+    try {
+      return res.status(200).json({
+        success: true,
+        admin: {
+          id: req.admin.id,
+          userId: req.admin.userId,
+          name: req.admin.name,
+          email: req.admin.email,
+          role: req.admin.role, // e.g. "super_admin" | "admin" | "support"
+          permissions: req.admin.permissions || [],
+          isActive: req.admin.isActive,
+        },
+        user: {
+          id: req.user.id,
+          email: req.user.email,
+          role: req.user.role, // marketplace User.role — should be "admin" for staff
+        },
+      });
+    } catch (err) {
+      console.error("Error in GET /api/admin/me:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to load administrator profile.",
+      });
+    }
+  }
+);
+
+
+
+
 // ==================================================================
 // ADMIN MESSAGES
 // ==================================================================
