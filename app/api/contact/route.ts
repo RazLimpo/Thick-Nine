@@ -13,11 +13,22 @@ export async function POST(req: Request) {
       body: JSON.stringify(body),
     });
 
-    const data = await backendRes.json();
+    const data = await backendRes.json().catch(() => ({}));
+
+    if (!backendRes.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: data.message || "Failed to send message.",
+        },
+        { status: backendRes.status }
+      );
+    }
+
     return NextResponse.json(data, { status: backendRes.status });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to send message.' },
+      { success: false, message: error.message || "Failed to send message." },
       { status: 500 }
     );
   }
