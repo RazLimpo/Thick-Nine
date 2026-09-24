@@ -1,41 +1,41 @@
-// app/admin/layout.tsx
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import '@/styles/pages/admin-portal.css';
-import AdminSidebar from './components/Sidebar'; // <-- IMPORT ADDED HERE
+import AdminSidebar from './components/Sidebar';
+import { AdminUser } from '@/lib/permissions';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  
-  // TEMPORARY MOCK USER
-  // Replace this later with your actual global auth state (e.g., from context, Redux, or a fetch hook)
-  const currentUser = {
-    id: '1',
-    name: 'Super Admin',
-    email: 'admin@thicknine.com',
-    role: 'super_admin' as const, 
-    permissions: [],
-  };
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    fetch('/api/admin/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success && data.admin) {
+          setCurrentUser({
+            id: String(data.admin.id),
+            name: data.admin.name,
+            email: data.admin.email,
+            role: data.admin.role,
+            permissions: data.admin.permissions || [],
+          });
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   return (
     <div className="admin-container">
-      
-      {/* SIDEBAR COMPONENT INJECTED HERE */}
       <AdminSidebar user={currentUser} />
-
-      {/* MAIN CONTENT WORKSPACE */}
       <main className="admin-main">
-        <header className="admin-header">
-          <div className="header-search">
-            <i className="fas fa-search"></i>
-            <input type="text" placeholder="Global admin search..." className="search-input" />
-          </div>
-          <div className="admin-badge">Admin System</div>
-        </header>
-
-        <section className="admin-body">
-          {children}
-        </section>
+        {/* header + body unchanged */}
+        <section className="admin-body">{children}</section>
       </main>
     </div>
   );
