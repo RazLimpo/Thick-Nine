@@ -46,6 +46,7 @@ const Header = () => {
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isMounted, setIsMounted] = useState<boolean>(false); // Production safeguard flag
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);  
 
   const [toast, setToast] = useState<ToastState>({ 
     visible: false, 
@@ -323,6 +324,42 @@ useEffect(() => {
     router.replace('/', { scroll: false });
   }
 }, [isMounted, searchParams, openAuthModal, router]);
+    
+    
+    // Unread Messages Count
+    useEffect(() => {
+  if (!isMounted || !isLoggedIn || !isAdminRole(userRole)) {
+    setMessageUnreadCount(0);
+    return;
+  }
+
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  let cancelled = false;
+
+  async function loadUnread() {
+    try {
+      const res = await fetch("/api/admin/messages/unread-count", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!cancelled && res.ok && data.success) {
+        setMessageUnreadCount(Number(data.count) || 0);
+      }
+    } catch (err) {
+      console.error("Unread messages count failed:", err);
+    }
+  }
+
+  loadUnread();
+  const id = window.setInterval(loadUnread, 60000); // optional poll every 60s
+  return () => {
+    cancelled = true;
+    window.clearInterval(id);
+  };
+}, [isMounted, isLoggedIn, userRole]);
+    
       
   // ====================== GLOBAL SEARCH FORM ROUTER ======================
   const handleSearch = (e: React.FormEvent) => {
@@ -726,19 +763,33 @@ try {
 
         {/* Action Triggers & Dropdown Access Points */}
         <div className="user-actions">
-          {isLoggedIn && (
-            <>
-              <button className="icon-btn notification-btn" title="Notifications">
-                <i className="fas fa-bell"></i>
-                <span className="badge hidden"></span>
-              </button>
-              
-              <button className="icon-btn notification-bell" title="Messages">
-                <i className="fas fa-envelope"></i>
-                <span className="badge hidden"></span> 
-              </button>
-            </>
-          )}
+         {isLoggedIn && (
+  <>
+    <button className="icon-btn notification-btn" title="Notifications">
+      <i className="fas fa-bell"></i>
+      <span className="badge hidden"></span>
+    </button>
+
+    {isAdminRole(userRole) ? (
+      <button
+        type="button"
+        className="icon-btn notification-bell"
+        title="Messages"
+        onClick={() => router.push("/admin/messages")}
+      >
+        <i className="fas fa-envelope"></i>
+        <span className={`badge ${messageUnreadCount > 0 ? "" : "hidden"}`}>
+          {messageUnreadCount > 99 ? "99+" : messageUnreadCount || ""}
+        </span>
+      </button>
+    ) : (
+      <button className="icon-btn notification-bell" title="Messages">
+        <i className="fas fa-envelope"></i>
+        <span className="badge hidden"></span>
+      </button>
+    )}
+  </>
+)}
 
           <div className="account-dropdown-container">
             <button

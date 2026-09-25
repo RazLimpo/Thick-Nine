@@ -188,6 +188,29 @@ router.get(
   }
 );
 
+// GET /api/admin/messages/unread-count
+router.get(
+  "/messages/unread-count",
+  auth,
+  adminContext,
+  requirePermission("messages:read"),
+  async (req, res) => {
+    try {
+      const count = await Message.countDocuments({ status: "unread" });
+      return res.status(200).json({
+        success: true,
+        count,
+      });
+    } catch (err) {
+      console.error("Error counting unread messages:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to count unread messages.",
+      });
+    }
+  }
+);
+
 
 // POST /api/admin/messages/reply
 router.post(

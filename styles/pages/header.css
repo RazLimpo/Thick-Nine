@@ -236,7 +236,29 @@
   border-radius: 50%;
   line-height: 1;
 }
-.hidden { display: none !important; }
+
+
+
+/* Unread count on header icon buttons */
+.icon-btn .badge:not(.hidden) {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+min-width: 16px;
+height: 16px;
+padding: 0 4px;
+font-size: 10px;
+font-weight: 700;
+line-height: 1;
+border-radius: 999px;
+/* keeps your existing red via .badge background */
+}
+
+/* Hidden Empty Notification Badge */
+.hidden { 
+  display: none !important; 
+}
+
 
 /* Desktop: Mobile toggle should be hidden */
 .menu-toggle { 
@@ -907,7 +929,3 @@ justify-content: center;
 
 
 
-/* Hidden Empty Notification Badge */
-.hidden { 
-  display: none !important; 
-}
