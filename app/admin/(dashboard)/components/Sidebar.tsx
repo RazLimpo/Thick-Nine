@@ -14,12 +14,18 @@ interface NavItem {
   path: string;
   icon: string;
   permission?: string;
-  badgeKey?: 'messages' | 'orders' | 'withdrawals';
+  badgeKey?: "messages" | "orders" | "withdrawals" | "clients";
 }
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: 'fa-chart-line' },
-  { name: 'Clients', path: '/admin/clients', icon: 'fa-users', permission: 'users:read' },
+  {
+  name: "Clients",
+  path: "/admin/clients",
+  icon: "fa-users",
+  permission: "users:read",
+  badgeKey: "clients",
+},
   {
     name: 'Orders & Escrow',
     path: '/admin/orders',
@@ -50,11 +56,12 @@ export default function AdminSidebar({ user }: SidebarProps) {
     messages: 0,
     orders: 0,
     withdrawals: 0,
+    clients: 0,
   });
 
   useEffect(() => {
     if (!user) {
-      setCounts({ messages: 0, orders: 0, withdrawals: 0 });
+      setCounts({ messages: 0, orders: 0, withdrawals: 0, clients: 0 });
       return;
     }
 
@@ -75,6 +82,7 @@ export default function AdminSidebar({ user }: SidebarProps) {
             messages: Number(data.counts.messages) || 0,
             orders: Number(data.counts.orders) || 0,
             withdrawals: Number(data.counts.withdrawals) || 0,
+            clients: Number(data.counts.clients) || 0,
           });
         }
       } catch (err) {
@@ -108,14 +116,16 @@ export default function AdminSidebar({ user }: SidebarProps) {
 
           const isActive = pathname.startsWith(item.path);
 
-          const badgeCount =
-            item.badgeKey === 'messages'
-              ? counts.messages
-              : item.badgeKey === 'orders'
-                ? counts.orders
-                : item.badgeKey === 'withdrawals'
-                  ? counts.withdrawals
-                  : 0;
+         const badgeCount =
+  item.badgeKey === "messages"
+    ? counts.messages
+    : item.badgeKey === "orders"
+      ? counts.orders
+      : item.badgeKey === "withdrawals"
+        ? counts.withdrawals
+        : item.badgeKey === "clients"
+          ? counts.clients
+          : 0;
 
           return (
             <Link

@@ -329,6 +329,7 @@ router.get(
         messages: 0,
         orders: 0,
         withdrawals: 0,
+        clients: 0,
       };
 
       if (adminCan(req, 'messages:read')) {
@@ -347,6 +348,19 @@ router.get(
           status: 'pending',
         });
       }
+      
+      if (adminCan(req, "users:read")) {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  counts.clients = await User.countDocuments({
+    role: "client",
+    $or: [
+      { createdAt: { $gte: sevenDaysAgo } },
+      { isEmailVerified: false },
+    ],
+  });
+}
 
       return res.status(200).json({
         success: true,
