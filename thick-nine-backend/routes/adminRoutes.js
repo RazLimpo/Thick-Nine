@@ -6,11 +6,16 @@ const bcrypt = require('bcryptjs');
 
 const auth = require('../middleware/auth');
 const adminContext = require('../middleware/adminContext');
-const { requirePermission } = require('../middleware/rbac');
+const {
+  requirePermission,
+  resolveRolePermissions,
+} = require('../middleware/rbac');
 
 const User = require('../models/User');
 const Service = require('../models/Service');
 const Message = require('../models/Message');
+const Order = require("../models/Order");
+const Transaction = require("../models/Transaction");
 const Admin = require('../models/Admin');
 const AuditLog = require('../models/AuditLog');
 
@@ -265,6 +270,172 @@ router.post(
       return res.status(500).json({
         success: false,
         message: 'Server error processing reply.',
+      });
+    }
+  }
+);
+
+
+// ==================================================================
+// NOTIFICATION COUNTS + FEED (Header bell / sidebar badges)
+// ==================================================================
+
+const SUPER_ADMIN_ONLY_PERMISSIONS = new Set([
+  'roles:manage',
+  'payouts:read',
+]);
+
+/**
+ * Same effective-permission rules as rbac.js (role presets + saved perms).
+ */
+function adminCan(req, requiredPermission) {
+  if (!req.admin) return false;
+
+  const adminRole = (req.admin.role || '').toLowerCase();
+  const savedPermissions = Array.isArray(req.admin.permissions)
+    ? req.admin.permissions
+    : [];
+
+  if (adminRole === 'super_admin' || savedPermissions.includes('*')) {
+    return true;
+  }
+
+  if (SUPER_ADMIN_ONLY_PERMISSIONS.has(requiredPermission)) {
+    return false;
+  }
+
+  const inheritedPermissions = resolveRolePermissions(adminRole);
+  const effectivePermissions = new Set([
+    ...savedPermissions,
+    ...inheritedPermissions,
+  ]);
+
+  effectivePermissions.delete('*');
+  SUPER_ADMIN_ONLY_PERMISSIONS.forEach((permission) => {
+    effectivePermissions.delete(permission);
+  });
+
+  return effectivePermissions.has(requiredPermission);
+}
+
+// GET /api/admin/notifications/counts
+router.get(
+  '/notifications/counts',
+  auth,
+  adminContext,
+  async (req, res) => {
+    try {
+      const counts = {
+        messages: 0,
+        orders: 0,
+        withdrawals: 0,
+      };
+
+      if (adminCan(req, 'messages:read')) {
+        counts.messages = await Message.countDocuments({ status: 'unread' });
+      }
+
+      if (adminCan(req, 'orders:read')) {
+        counts.orders = await Order.countDocuments({
+          status: { $in: ['pending', 'in_escrow'] },
+        });
+      }
+
+      if (adminCan(req, 'payouts:read')) {
+        counts.withdrawals = await Transaction.countDocuments({
+          type: 'withdrawal',
+          status: 'pending',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        counts,
+      });
+    } catch (err) {
+      console.error('Error loading notification counts:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to load notification counts.',
+      });
+    }
+  }
+);
+
+// GET /api/admin/notifications/feed
+// Bell dropdown: orders + withdrawals only (not messages)
+router.get(
+  '/notifications/feed',
+  auth,
+  adminContext,
+  async (req, res) => {
+    try {
+      const items = [];
+
+      if (adminCan(req, 'orders:read')) {
+        const orders = await Order.find({
+          status: { $in: ['pending', 'in_escrow'] },
+        })
+          .sort({ createdAt: -1 })
+          .limit(15)
+          .select('_id status grandTotal createdAt')
+          .lean();
+
+        for (const o of orders) {
+          items.push({
+            id: String(o._id),
+            type: 'order',
+            title:
+              o.status === 'in_escrow'
+                ? 'Order in escrow'
+                : 'New pending order',
+            subtitle: `Order #${String(o._id).slice(-6)} · $${Number(
+              o.grandTotal || 0
+            ).toFixed(2)}`,
+            href: '/admin/orders',
+            createdAt: o.createdAt,
+          });
+        }
+      }
+
+      if (adminCan(req, 'payouts:read')) {
+        const withdrawals = await Transaction.find({
+          type: 'withdrawal',
+          status: 'pending',
+        })
+          .sort({ createdAt: -1 })
+          .limit(15)
+          .select('_id amount status createdAt description')
+          .lean();
+
+        for (const w of withdrawals) {
+          items.push({
+            id: String(w._id),
+            type: 'withdrawal',
+            title: 'Withdrawal request',
+            subtitle: `$${Number(w.amount || 0).toFixed(2)}${
+              w.description ? ` · ${w.description}` : ''
+            }`,
+            href: '/admin/withdrawals',
+            createdAt: w.createdAt,
+          });
+        }
+      }
+
+      items.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      return res.status(200).json({
+        success: true,
+        items: items.slice(0, 20),
+      });
+    } catch (err) {
+      console.error('Error loading notification feed:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to load notification feed.',
       });
     }
   }

@@ -14,14 +14,26 @@ interface NavItem {
   path: string;
   icon: string;
   permission?: string;
-  badgeKey?: 'messages'; // extend later: 'orders' | 'withdrawals'
+  badgeKey?: 'messages' | 'orders' | 'withdrawals';
 }
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: 'fa-chart-line' },
   { name: 'Clients', path: '/admin/clients', icon: 'fa-users', permission: 'users:read' },
-  { name: 'Orders & Escrow', path: '/admin/orders', icon: 'fa-receipt', permission: 'orders:read' },
-  { name: 'Withdrawals', path: '/admin/withdrawals', icon: 'fa-wallet', permission: 'payouts:read' },
+  {
+    name: 'Orders & Escrow',
+    path: '/admin/orders',
+    icon: 'fa-receipt',
+    permission: 'orders:read',
+    badgeKey: 'orders',
+  },
+  {
+    name: 'Withdrawals',
+    path: '/admin/withdrawals',
+    icon: 'fa-wallet',
+    permission: 'payouts:read',
+    badgeKey: 'withdrawals',
+  },
   {
     name: 'Messages',
     path: '/admin/messages',
@@ -34,11 +46,15 @@ const NAV_ITEMS: NavItem[] = [
 
 export default function AdminSidebar({ user }: SidebarProps) {
   const pathname = usePathname();
-  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
+  const [counts, setCounts] = useState({
+    messages: 0,
+    orders: 0,
+    withdrawals: 0,
+  });
 
   useEffect(() => {
-    if (!user || !hasPermission(user, 'messages:read')) {
-      setMessageUnreadCount(0);
+    if (!user) {
+      setCounts({ messages: 0, orders: 0, withdrawals: 0 });
       return;
     }
 
@@ -47,22 +63,28 @@ export default function AdminSidebar({ user }: SidebarProps) {
 
     let cancelled = false;
 
-    async function loadUnread() {
+    async function loadCounts() {
       try {
-        const res = await fetch('/api/admin/messages/unread-count', {
+        const res = await fetch('/api/admin/notifications/counts', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json().catch(() => ({}));
-        if (!cancelled && res.ok && data.success) {
-          setMessageUnreadCount(Number(data.count) || 0);
+
+        if (!cancelled && res.ok && data.success && data.counts) {
+          setCounts({
+            messages: Number(data.counts.messages) || 0,
+            orders: Number(data.counts.orders) || 0,
+            withdrawals: Number(data.counts.withdrawals) || 0,
+          });
         }
       } catch (err) {
-        console.error('Sidebar unread messages failed:', err);
+        console.error('Sidebar notification counts failed:', err);
       }
     }
 
-    loadUnread();
-    const id = window.setInterval(loadUnread, 60000);
+    loadCounts();
+    const id = window.setInterval(loadCounts, 60000);
+
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -85,8 +107,15 @@ export default function AdminSidebar({ user }: SidebarProps) {
           }
 
           const isActive = pathname.startsWith(item.path);
+
           const badgeCount =
-            item.badgeKey === 'messages' ? messageUnreadCount : 0;
+            item.badgeKey === 'messages'
+              ? counts.messages
+              : item.badgeKey === 'orders'
+                ? counts.orders
+                : item.badgeKey === 'withdrawals'
+                  ? counts.withdrawals
+                  : 0;
 
           return (
             <Link

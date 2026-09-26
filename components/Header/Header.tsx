@@ -46,7 +46,19 @@ const Header = () => {
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isMounted, setIsMounted] = useState<boolean>(false); // Production safeguard flag
-  const [messageUnreadCount, setMessageUnreadCount] = useState(0);  
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
+  const [bellCount, setBellCount] = useState(0);
+  const [notifItems, setNotifItems] = useState<
+  Array<{
+    id: string;
+    type: string;
+    title: string;
+    subtitle: string;
+    href: string;
+    createdAt: string;
+  }>
+>([]);
+const [isNotifOpen, setIsNotifOpen] = useState(false);  
 
   const [toast, setToast] = useState<ToastState>({ 
     visible: false, 
@@ -301,17 +313,23 @@ const safePages = [
     };
   }, [checkSecurity]);
 
-  // Click Outside Listener: Smoothly collapses the account profile dropdown menu box when clicking away
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!event.target || !(event.target as Element).closest('.account-dropdown-container')) {
-        setIsAccountMenuOpen(false);
-      }
-    };
+  // Click outside to close: account menu + notification dropdown
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    if (!event.target) return;
+    const el = event.target as Element;
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (!el.closest('.account-dropdown-container')) {
+      setIsAccountMenuOpen(false);
+    }
+    if (!el.closest('.notif-dropdown-container')) {
+      setIsNotifOpen(false);
+    }
+  };
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+}, []);
 
   // Open auth modal when landing with ?auth=login or ?auth=register
 useEffect(() => {
@@ -330,6 +348,8 @@ useEffect(() => {
     useEffect(() => {
   if (!isMounted || !isLoggedIn || !isAdminRole(userRole)) {
     setMessageUnreadCount(0);
+    setBellCount(0);
+    setNotifItems([]);
     return;
   }
 
@@ -338,29 +358,44 @@ useEffect(() => {
 
   let cancelled = false;
 
-  async function loadUnread() {
+  async function loadNotifs() {
     try {
-      const res = await fetch("/api/admin/messages/unread-count", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!cancelled && res.ok && data.success) {
-        setMessageUnreadCount(Number(data.count) || 0);
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const [countsRes, feedRes] = await Promise.all([
+        fetch("/api/admin/notifications/counts", { headers }),
+        fetch("/api/admin/notifications/feed", { headers }),
+      ]);
+
+      const countsData = await countsRes.json().catch(() => ({}));
+      const feedData = await feedRes.json().catch(() => ({}));
+
+      if (!cancelled && countsRes.ok && countsData.success && countsData.counts) {
+        const m = Number(countsData.counts.messages) || 0;
+        const o = Number(countsData.counts.orders) || 0;
+        const w = Number(countsData.counts.withdrawals) || 0;
+        setMessageUnreadCount(m);
+        setBellCount(o + w);
+      }
+
+      if (!cancelled && feedRes.ok && feedData.success) {
+        setNotifItems(Array.isArray(feedData.items) ? feedData.items : []);
       }
     } catch (err) {
-      console.error("Unread messages count failed:", err);
+      console.error("Header notifications failed:", err);
     }
   }
 
-  loadUnread();
-  const id = window.setInterval(loadUnread, 60000); // optional poll every 60s
+  loadNotifs();
+  const id = window.setInterval(loadNotifs, 60000);
   return () => {
     cancelled = true;
     window.clearInterval(id);
   };
 }, [isMounted, isLoggedIn, userRole]);
     
-      
+    
+          
   // ====================== GLOBAL SEARCH FORM ROUTER ======================
   const handleSearch = (e: React.FormEvent) => {
     // Ensure standard HTML forms do not trigger heavy browser-reloading actions
@@ -765,11 +800,62 @@ try {
         <div className="user-actions">
          {isLoggedIn && (
   <>
-    <button className="icon-btn notification-btn" title="Notifications">
-      <i className="fas fa-bell"></i>
-      <span className="badge hidden"></span>
-    </button>
+    {/* BELL: orders + withdrawals */}
+    {isAdminRole(userRole) ? (
+      <div className="notif-dropdown-container" style={{ position: "relative" }}>
+        <button
+          type="button"
+          className="icon-btn notification-btn"
+          title="Notifications"
+          onClick={() => setIsNotifOpen((v) => !v)}
+          aria-expanded={isNotifOpen}
+        >
+          <i className="fas fa-bell"></i>
+          <span className={`badge ${bellCount > 0 ? "" : "hidden"}`}>
+            {bellCount > 99 ? "99+" : bellCount || ""}
+          </span>
+        </button>
 
+        {isNotifOpen && (
+          <div className="notif-dropdown">
+            <div className="notif-dropdown-header">
+              <strong>Notifications</strong>
+            </div>
+            {notifItems.length === 0 ? (
+              <p className="notif-empty">No pending orders or withdrawals</p>
+            ) : (
+              <ul className="notif-list">
+                {notifItems.map((item) => (
+                  <li key={`\( {item.type}- \){item.id}`}>
+                    <button
+                      type="button"
+                      className="notif-item"
+                      onClick={() => {
+                        setIsNotifOpen(false);
+                        router.push(item.href);
+                      }}
+                    >
+                      <span className="notif-type">
+                        {item.type === "withdrawal" ? "Withdrawal" : "Order"}
+                      </span>
+                      <span className="notif-title">{item.title}</span>
+                      <span className="notif-sub">{item.subtitle}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+    ) : (
+      <button className="icon-btn notification-btn" title="Notifications">
+        <i className="fas fa-bell"></i>
+        <span className="badge hidden"></span>
+      </button>
+    )}
+
+    {/* ENVELOPE: messages only */}
     {isAdminRole(userRole) ? (
       <button
         type="button"
@@ -790,7 +876,6 @@ try {
     )}
   </>
 )}
-
           <div className="account-dropdown-container">
             <button
               className="icon-btn account-trigger"
