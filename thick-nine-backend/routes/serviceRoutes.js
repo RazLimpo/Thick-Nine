@@ -230,6 +230,57 @@ router.get("/", async (req, res) => {
 });
 
 
+
+
+// thick-nine-backend/routes/serviceRoutes.js
+// --- ADD THIS ROUTE ---
+
+// GET /api/services/:id  — public single active service
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !require("mongoose").Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service ID.",
+      });
+    }
+
+    const service = await Service.findOne({ _id: id, status: "active" })
+      .populate(
+        "sellerId",
+        "fullName displayName avatar averageRating location onlineStatus isVerified planType level professionalTitle metrics memberSince"
+      )
+      .lean();
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or not active.",
+      });
+    }
+
+    // Increment view count (fire-and-forget)
+    Service.updateOne({ _id: id }, { $inc: { views: 1 } }).exec().catch(() => {});
+
+    return res.status(200).json({
+      success: true,
+      service,
+    });
+  } catch (error) {
+    console.error("GET /api/services/:id error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch service.",
+    });
+  }
+});
+
+
+
+
+
 // GET /api/services/draft/:draftId
 router.get("/draft/:draftId", authMiddleware, async (req, res) => {
   try {
