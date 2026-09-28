@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import '@/styles/pages/header.css';
 import { BRAND, API_BASE_URL } from '@/lib/constants'; // Your centralized configuration file
 
 // Define structural types for cleaner component data mapping

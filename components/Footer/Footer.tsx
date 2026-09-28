@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import '@/styles/pages/footer.css';
 
 export default function Footer() {
   // We use state for the year to avoid "Hydration" errors in Next.js
