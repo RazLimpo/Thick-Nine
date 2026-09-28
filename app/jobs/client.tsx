@@ -284,7 +284,7 @@ export default function JobsClient() {
                       </button>
 
                       <Link
-                        href={`/job/${jobs.id}`}
+                        href={`/jobs/${job.id}`}
                         className="btn btn-secondary btn-small"
                       >
                         View Details & Propose
