@@ -224,23 +224,23 @@ export default function JobDetailsClient({ jobId }: { jobId: string }) {
             </div>
           </section>
 
-          {/* Right Sidebar Section */}
-          <aside className="proposal-column">
-            <div className="budget-card card card-primary-border">
-              <h2 class="card-budget-title">Budget Details</h2>
-              <div className="budget-row">
-                <span className="budget-label">
-                  <i className="fas fa-money-bill-wave"></i> Project Budget:
-                </span>
-                <span className="budget-value">$5,000 - $7,000</span>
-              </div>
-              <div className="budget-row">
-                <span className="budget-label">
-                  <i className="fas fa-calendar-alt"></i> Due Date:
-                </span>
-                <span className="budget-value">3 Months</span>
-              </div>
-            </div>
+         {/* Right Sidebar Section */}
+<aside className="proposal-column">
+  <div className="budget-card card card-primary-border">
+    <h2 className="card-budget-title">Budget Details</h2>
+    <div className="budget-row">
+      <span className="budget-label">
+        <i className="fas fa-money-bill-wave"></i> Project Budget:
+      </span>
+      <span className="budget-value">$5,000 - $7,000</span>
+    </div>
+    <div className="budget-row">
+      <span className="budget-label">
+        <i className="fas fa-calendar-alt"></i> Due Date:
+      </span>
+      <span className="budget-value">3 Months</span>
+    </div>
+  </div>
 
             <div className="proposal-form-card card">
               <h2>Submit Your Proposal</h2>
