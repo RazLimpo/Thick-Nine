@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from "react";
+import Image from "next/image";
 
 interface ToastItem {
   id: number;
@@ -203,9 +204,11 @@ export default function JobDetailsClient({ jobId }: { jobId: string }) {
             <div className="client-info-card card">
               <h2>About the Client</h2>
               <div className="client-profile">
-                <img
+                <Image
                   src="/client-avatar.jpg"
                   alt="Client Avatar"
+                  width={60}
+                  height={60}
                   className="client-avatar"
                 />
                 <div className="client-details">
@@ -224,23 +227,23 @@ export default function JobDetailsClient({ jobId }: { jobId: string }) {
             </div>
           </section>
 
-         {/* Right Sidebar Section */}
-<aside className="proposal-column">
-  <div className="budget-card card card-primary-border">
-    <h2 className="card-budget-title">Budget Details</h2>
-    <div className="budget-row">
-      <span className="budget-label">
-        <i className="fas fa-money-bill-wave"></i> Project Budget:
-      </span>
-      <span className="budget-value">$5,000 - $7,000</span>
-    </div>
-    <div className="budget-row">
-      <span className="budget-label">
-        <i className="fas fa-calendar-alt"></i> Due Date:
-      </span>
-      <span className="budget-value">3 Months</span>
-    </div>
-  </div>
+          {/* Right Sidebar Section */}
+          <aside className="proposal-column">
+            <div className="budget-card card card-primary-border">
+              <h2 className="card-budget-title">Budget Details</h2>
+              <div className="budget-row">
+                <span className="budget-label">
+                  <i className="fas fa-money-bill-wave"></i> Project Budget:
+                </span>
+                <span className="budget-value">$5,000 - $7,000</span>
+              </div>
+              <div className="budget-row">
+                <span className="budget-label">
+                  <i className="fas fa-calendar-alt"></i> Due Date:
+                </span>
+                <span className="budget-value">3 Months</span>
+              </div>
+            </div>
 
             <div className="proposal-form-card card">
               <h2>Submit Your Proposal</h2>
@@ -341,7 +344,7 @@ export default function JobDetailsClient({ jobId }: { jobId: string }) {
                   onChange={(e) => setReportReason(e.target.value)}
                   required
                 />
-                <span>It's spam or misleading</span>
+                <span>It&apos;s spam or misleading</span>
               </label>
               <label className="report-option">
                 <input
