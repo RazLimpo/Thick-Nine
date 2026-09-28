@@ -2,21 +2,35 @@ import { API_BASE_URL } from "@/lib/constants";
 import type { Service } from "@/types/service";
 
 /**
- * Fetch all marketplace services.
- * Uses the live Express backend.
+ * Fetch marketplace services from the Express backend.
+ * Returns a raw array for mapService().
  */
-export async function getServices(): Promise<Service[]> {
+export async function getServices(): Promise<any[]> {
   const response = await fetch(`${API_BASE_URL}/api/services`, {
     method: "GET",
-    headers: {  
-      "Content-Type": "application/json",
+    headers: {
+      Accept: "application/json",
     },
     cache: "no-store",
   });
 
+  const data = await response.json().catch(() => ({}));
+
   if (!response.ok) {
-    throw new Error("Failed to fetch marketplace services.");
+    throw new Error(
+      (data as { message?: string }).message ||
+        "Failed to fetch marketplace services."
+    );
   }
 
-  return response.json();
+  // Support both shapes during transition
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray((data as { services?: unknown }).services)) {
+    return (data as { services: any[] }).services;
+  }
+
+  return [];
 }

@@ -170,6 +170,66 @@ router.get("/locations", async (req, res) => {
   }
 });
 
+
+// GET /api/services  — public marketplace list
+router.get("/", async (req, res) => {
+  try {
+    const {
+      category,
+      subCategory,
+      q,
+      limit = "24",
+      page = "1",
+    } = req.query;
+
+    const filter = { status: "active" };
+
+    if (category && String(category).trim()) {
+      filter.category = String(category).trim();
+    }
+    if (subCategory && String(subCategory).trim()) {
+      filter.subCategory = String(subCategory).trim();
+    }
+    if (q && String(q).trim()) {
+      const term = String(q).trim();
+      filter.$or = [
+        { title: { $regex: term, $options: "i" } },
+        { description: { $regex: term, $options: "i" } },
+        { tags: { $regex: term, $options: "i" } },
+      ];
+    }
+
+    const lim = Math.min(Math.max(parseInt(String(limit), 10) || 24, 1), 100);
+    const pg = Math.max(parseInt(String(page), 10) || 1, 1);
+    const skip = (pg - 1) * lim;
+
+    const [services, total] = await Promise.all([
+      Service.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(lim)
+        .populate("sellerId", "fullName displayName avatar averageRating location")
+        .lean(),
+      Service.countDocuments(filter),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      services,
+      total,
+      page: pg,
+      limit: lim,
+    });
+  } catch (error) {
+    console.error("GET /api/services error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch marketplace services.",
+    });
+  }
+});
+
+
 // GET /api/services/draft/:draftId
 router.get("/draft/:draftId", authMiddleware, async (req, res) => {
   try {
