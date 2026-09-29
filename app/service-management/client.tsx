@@ -258,7 +258,7 @@ export default function ServiceManagementClient() {
                       href={`/services/details/${svc._id}`}
                       title="View Publicly"
                     >
-                      <i className="fas fa-eye" />
+                      <i className="fa-solid fa-circle-info" />
                     </Link>
                     <Link
                       href={`/post-service?draftId=${svc._id}`}

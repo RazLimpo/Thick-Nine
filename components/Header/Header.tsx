@@ -278,7 +278,6 @@ const handleAccountSwitching = async () => {
   '/freelancer-profile', 
   '/verify-email', 
   '/mandatory',
-  '/service-management',
   '/admin/login'
 ];
 
