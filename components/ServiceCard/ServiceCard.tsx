@@ -254,7 +254,7 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
           CARD CONTENT (LINKED AREA)
       ========================================================== */}
       <Link
-        href={`/services/${serviceId}`}
+        href={`/services/details/${serviceId}`}
         className="mjob-card-link"
       >
         <div className="mjob-content-area">
