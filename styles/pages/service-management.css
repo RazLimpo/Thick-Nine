@@ -208,3 +208,38 @@
   .service-info { flex-direction: column; }
   .service-actions { justify-content: center; }
 }
+
+
+/* append */
+
+.status-pill.paused {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-pill.draft {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.btn-primary-outline {
+  background: transparent;
+  border: 1px solid var(--primary-color, #d96464);
+  color: var(--primary-color, #d96464);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
