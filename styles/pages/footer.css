@@ -71,7 +71,7 @@
 }
 
 .footer-column a:hover {
-  color: var(--secondary-color);
+  color: #e0ffff;
 }
 
 /* Social Icons */
@@ -83,7 +83,7 @@
 }
 
 .social-icons a:hover {
-  color: var(--secondary-color);
+  color: #008B8B;
 }
 
 /* Bottom Copyright Row */
