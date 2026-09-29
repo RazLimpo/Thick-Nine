@@ -232,8 +232,52 @@ router.get("/", async (req, res) => {
 
 
 
-// thick-nine-backend/routes/serviceRoutes.js
-// --- ADD THIS ROUTE ---
+
+// GET /api/services/my-services  — current freelancer’s services
+
+router.get("/my-services", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const { status } = req.query; // optional: active | draft | paused
+
+    const filter = { sellerId: userId };
+    if (status && ["active", "draft", "paused"].includes(String(status))) {
+      filter.status = status;
+    }
+
+    const services = await Service.find(filter)
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // Simple stats
+    const activeCount = services.filter((s) => s.status === "active").length;
+    const totalViews = services.reduce((sum, s) => sum + (s.views || 0), 0);
+
+    return res.status(200).json({
+      success: true,
+      services,
+      stats: {
+        activeCount,
+        totalViews,
+        total: services.length,
+      },
+    });
+  } catch (error) {
+    console.error("GET /api/services/my-services error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch your services.",
+    });
+  }
+});
+
+
+
+
 
 // GET /api/services/:id  — public single active service
 router.get("/:id", async (req, res) => {

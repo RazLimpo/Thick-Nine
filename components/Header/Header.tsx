@@ -269,20 +269,24 @@ const handleAccountSwitching = async () => {
     document.body.setAttribute('data-user-role', effectiveRole); 
 
    // Setup safe context directories accessible without active registration tokens
-const safePages = [
+    const safePages = [
   '/', 
   '/search-results', 
   '/about', 
   '/terms-and-privacy', 
-  '/service-details', 
+  '/services/details',   // dynamic route prefix
   '/freelancer-profile', 
   '/verify-email', 
   '/mandatory',
+  '/service-management',
   '/admin/login'
 ];
-    const isSafePage = safePages.includes(currentPath || '');
 
-   if (!isSafePage) {
+const isSafePage = safePages.some(
+  (page) => currentPath === page || (page !== '/' && currentPath?.startsWith(page + '/'))
+);
+
+if (!isSafePage) {
   if (!loggedIn) {
     router.replace('/?auth=login'); 
   } else if (!emailVerified && currentPath !== '/verify-email') {
