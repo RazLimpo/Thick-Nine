@@ -617,8 +617,36 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
   }
 });
 
+
+
+
 // =====================================================
-// 9. GET /api/services/:id  — public single active service (LAST)
+// 9. GET /api/services/:id/manage — owner only
+// =====================================================
+router.get("/:id/manage", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const { id } = req.params;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    const service = await Service.findOne({ _id: id, sellerId: userId }).lean();
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or you do not own it.",
+      });
+    }
+    return res.status(200).json({ success: true, service });
+  } catch (error) {
+    console.error("GET manage error:", error);
+    return res.status(500).json({ success: false, message: "Failed to load service." });
+  }
+});
+
+
+// =====================================================
+// 10. GET /api/services/:id  — public single active service (LAST)
 // =====================================================
 router.get("/:id", async (req, res) => {
   try {
