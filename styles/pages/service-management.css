@@ -51,6 +51,30 @@
   letter-spacing: 1px;
 }
 
+/* Create New Service button — keep text visible */
+.stat-btn-container .create-btn,
+.stat-btn-container a.create-btn,
+.stat-btn-container a.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff !important;
+  background-color: var(--primary-color, #d96464);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.stat-btn-container .create-btn:hover,
+.stat-btn-container a.create-btn:hover,
+.stat-btn-container a.btn-primary:hover {
+  background-color: var(--primary-light, #730e0e);
+  color: #fff !important;
+  text-decoration: none;
+}
+
 /* --- Tabs --- */
 .mgmt-tabs {
   border-bottom: 2px solid #eee;
@@ -112,14 +136,14 @@
   grid-template-columns: 2fr 1fr 1fr 1fr;
   align-items: center;
   margin-bottom: 15px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   transition: transform 0.2s;
   border: 1px solid #f0f0f0;
 }
 
 .service-row:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
 }
 
 .service-info {
@@ -128,7 +152,8 @@
   gap: 15px;
 }
 
-.service-info img, .template-icon {
+.service-info img,
+.template-icon {
   width: 80px;
   height: 55px;
   border-radius: 8px;
@@ -154,6 +179,7 @@
   color: #888;
 }
 
+/* Status pills */
 .status-pill {
   padding: 5px 12px;
   border-radius: 20px;
@@ -166,22 +192,90 @@
   color: #28a745;
 }
 
+.status-pill.paused {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-pill.draft {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* --- Action icons + tooltips --- */
 .service-actions {
   display: flex;
   gap: 15px;
+  align-items: center;
 }
 
-.service-actions button, .service-actions a {
+.service-actions .action-btn,
+.service-actions button,
+.service-actions a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   font-size: 1.1rem;
   color: #555;
   cursor: pointer;
+  text-decoration: none;
+  padding: 4px;
   transition: color 0.2s;
 }
 
-.service-actions button:hover {
-  color: #e0ffff;
+.service-actions .action-btn:hover,
+.service-actions button:hover,
+.service-actions a:hover {
+  color: var(--primary-color, #d96464);
+}
+
+/* Custom tooltip from title attribute */
+.service-actions .action-btn::after,
+.service-actions button[title]::after,
+.service-actions a[title]::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: #1f2937;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-family: var(--font-family, inherit);
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 20;
+}
+
+.service-actions .action-btn:hover::after,
+.service-actions button[title]:hover::after,
+.service-actions a[title]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Templates button */
+.btn-primary-outline {
+  background: transparent;
+  border: 1px solid var(--primary-color, #d96464);
+  color: var(--primary-color, #d96464);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .empty-state {
@@ -196,15 +290,39 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+      opacity: 0;
+      transform: translateY(10px);
+  }
+  to {
+      opacity: 1;
+      transform: translateY(0);
+  }
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .glass-header { flex-direction: column; text-align: center; gap: 20px; }
-  .service-table-header { display: none; }
-  .service-row { grid-template-columns: 1fr; gap: 15px; text-align: center; }
-  .service-info { flex-direction: column; }
-  .service-actions { justify-content: center; }
+  .glass-header {
+      flex-direction: column;
+      text-align: center;
+      gap: 20px;
+  }
+
+  .service-table-header {
+      display: none;
+  }
+
+  .service-row {
+      grid-template-columns: 1fr;
+      gap: 15px;
+      text-align: center;
+  }
+
+  .service-info {
+      flex-direction: column;
+  }
+
+  .service-actions {
+      justify-content: center;
+  }
 }

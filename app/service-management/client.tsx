@@ -300,42 +300,46 @@ export default function ServiceManagementClient() {
                     </span>
                   </div>
                  <div className="service-actions">
-  {/* Owner dashboard for this service */}
   <Link
     href={`/service-dashboard/${svc._id}`}
+    className="action-btn"
     title="Service Dashboard"
+    aria-label="Service Dashboard"
   >
     <i className="fas fa-chart-line" />
   </Link>
 
-  {/* Edit form */}
   <Link
     href={`/post-service?draftId=${svc._id}`}
+    className="action-btn"
     title="Edit Service"
+    aria-label="Edit Service"
   >
     <i className="fas fa-briefcase" />
   </Link>
 
-  {/* Public buyer page */}
   <Link
     href={`/services/details/${svc._id}`}
-    title="View Publicly"
+    className="action-btn"
+    title="View Public Page"
+    aria-label="View Public Page"
   >
-    <i className="fas fa-eye" />
+    <i className="fa-solid fa-square-arrow-up-right" />
   </Link>
 
-  {/* Pause/Resume */}
   <button
-  type="button"
-  title={svc.status === "active" ? "Pause" : "Resume"}
-  onClick={() => toggleStatus(svc._id, svc.status)}
->
-  <i
-    className={
-      svc.status === "active" ? "fas fa-pause" : "fas fa-play"
-    }
-  />
-</button>
+    type="button"
+    className="action-btn"
+    title={svc.status === "active" ? "Pause Service" : "Resume Service"}
+    aria-label={svc.status === "active" ? "Pause Service" : "Resume Service"}
+    onClick={() => toggleStatus(svc._id, svc.status)}
+  >
+    <i
+      className={
+        svc.status === "active" ? "fas fa-pause" : "fas fa-play"
+      }
+    />
+  </button>
 </div>
                 </div>
               ))}
