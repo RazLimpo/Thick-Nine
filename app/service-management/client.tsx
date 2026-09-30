@@ -92,6 +92,52 @@ export default function ServiceManagementClient() {
   useEffect(() => {
     loadServices();
   }, [loadServices]);
+    
+      
+    
+    
+  
+  // ========== toggleStatus HERE ==========
+  const toggleStatus = async (serviceId: string, currentStatus: ServiceStatus) => {
+    const nextStatus = currentStatus === "active" ? "paused" : "active";
+
+    try {
+      const res = await fetch(`/api/services/${serviceId}/status`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(data.message || "Failed to update status.");
+        return;
+      }
+
+      setServices((prev) =>
+        prev.map((s) =>
+          s._id === serviceId ? { ...s, status: nextStatus } : s
+        )
+      );
+
+      setStats((prev) => ({
+        ...prev,
+        activeCount:
+          nextStatus === "active"
+            ? prev.activeCount + 1
+            : Math.max(0, prev.activeCount - 1),
+      }));
+    } catch {
+      alert("Network error while updating status.");
+    }
+  };
+  
+    
 
   const postedServices = services.filter(
     (s) => s.status === "active" || s.status === "paused"
@@ -253,24 +299,44 @@ export default function ServiceManagementClient() {
                       {statusLabel(svc.status)}
                     </span>
                   </div>
-                  <div className="service-actions">
-                    <Link
-                      href={`/services/details/${svc._id}`}
-                      title="View Publicly"
-                    >
-                      <i className="fa-solid fa-circle-info" />
-                    </Link>
-                    <Link
-                      href={`/post-service?draftId=${svc._id}`}
-                      title="Edit Service"
-                    >
-                      <i className="fas fa-briefcase" />
-                    </Link>
-                    {/* Pause/Resume can be wired later when the endpoint exists */}
-                    <button type="button" title="Pause" className="text-muted" disabled>
-                      <i className="fas fa-pause" />
-                    </button>
-                  </div>
+                 <div className="service-actions">
+  {/* Owner dashboard for this service */}
+  <Link
+    href={`/service-dashboard/${svc._id}`}
+    title="Service Dashboard"
+  >
+    <i className="fas fa-chart-line" />
+  </Link>
+
+  {/* Edit form */}
+  <Link
+    href={`/post-service?draftId=${svc._id}`}
+    title="Edit Service"
+  >
+    <i className="fas fa-briefcase" />
+  </Link>
+
+  {/* Public buyer page */}
+  <Link
+    href={`/services/details/${svc._id}`}
+    title="View Publicly"
+  >
+    <i className="fas fa-eye" />
+  </Link>
+
+  {/* Pause/Resume */}
+  <button
+  type="button"
+  title={svc.status === "active" ? "Pause" : "Resume"}
+  onClick={() => toggleStatus(svc._id, svc.status)}
+>
+  <i
+    className={
+      svc.status === "active" ? "fas fa-pause" : "fas fa-play"
+    }
+  />
+</button>
+</div>
                 </div>
               ))}
             </>

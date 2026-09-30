@@ -1,5 +1,5 @@
 // routes/serviceRoutes.js
-// FULL file: locations + publish + draft GET/POST/PUT (with uploadMedia)
+// FULL file — safer route order
 
 const express = require("express");
 const router = express.Router();
@@ -96,8 +96,6 @@ function buildServicePayloadFromForm(req, { isUpdate = false } = {}) {
   return payload;
 }
 
-
-/** Only users in freelancer mode with sufficient profile strength may post services. */
 function assertCanPostServices(user) {
   if (!user) {
     return { status: 401, message: "User not found." };
@@ -129,10 +127,14 @@ function validateDraftCore(payload) {
   return null;
 }
 
-// GET /api/services/locations
+// =====================================================
+// 1. GET /api/services/locations
+// =====================================================
 router.get("/locations", async (req, res) => {
   try {
-    const activeSellerIds = await Service.distinct("sellerId", { status: "active" });
+    const activeSellerIds = await Service.distinct("sellerId", {
+      status: "active",
+    });
 
     const users = await User.find(
       { _id: { $in: activeSellerIds } },
@@ -170,8 +172,9 @@ router.get("/locations", async (req, res) => {
   }
 });
 
-
-// GET /api/services  — public marketplace list
+// =====================================================
+// 2. GET /api/services  — public marketplace list
+// =====================================================
 router.get("/", async (req, res) => {
   try {
     const {
@@ -208,7 +211,10 @@ router.get("/", async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(lim)
-        .populate("sellerId", "fullName displayName avatar averageRating location")
+        .populate(
+          "sellerId",
+          "fullName displayName avatar averageRating location"
+        )
         .lean(),
       Service.countDocuments(filter),
     ]);
@@ -229,12 +235,9 @@ router.get("/", async (req, res) => {
   }
 });
 
-
-
-
-
-// GET /api/services/my-services  — current freelancer’s services
-
+// =====================================================
+// 3. GET /api/services/my-services
+// =====================================================
 router.get("/my-services", authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
@@ -242,18 +245,15 @@ router.get("/my-services", authMiddleware, async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
 
-    const { status } = req.query; // optional: active | draft | paused
+    const { status } = req.query;
 
     const filter = { sellerId: userId };
     if (status && ["active", "draft", "paused"].includes(String(status))) {
       filter.status = status;
     }
 
-    const services = await Service.find(filter)
-      .sort({ updatedAt: -1 })
-      .lean();
+    const services = await Service.find(filter).sort({ updatedAt: -1 }).lean();
 
-    // Simple stats
     const activeCount = services.filter((s) => s.status === "active").length;
     const totalViews = services.reduce((sum, s) => sum + (s.views || 0), 0);
 
@@ -275,66 +275,23 @@ router.get("/my-services", authMiddleware, async (req, res) => {
   }
 });
 
-
-
-
-
-// GET /api/services/:id  — public single active service
-router.get("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!id || !require("mongoose").Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid service ID.",
-      });
-    }
-
-    const service = await Service.findOne({ _id: id, status: "active" })
-      .populate(
-        "sellerId",
-        "fullName displayName avatar averageRating location onlineStatus isVerified planType level professionalTitle metrics memberSince"
-      )
-      .lean();
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: "Service not found or not active.",
-      });
-    }
-
-    // Increment view count (fire-and-forget)
-    Service.updateOne({ _id: id }, { $inc: { views: 1 } }).exec().catch(() => {});
-
-    return res.status(200).json({
-      success: true,
-      service,
-    });
-  } catch (error) {
-    console.error("GET /api/services/:id error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch service.",
-    });
-  }
-});
-
-
-
-
-
-// GET /api/services/draft/:draftId
+// =====================================================
+// 4. GET /api/services/draft/:draftId
+// =====================================================
 router.get("/draft/:draftId", authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized. User session not found." });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized. User session not found." });
     }
 
     const { draftId } = req.params;
-    const draft = await Service.findOne({ _id: draftId, sellerId: userId }).lean();
+    const draft = await Service.findOne({
+      _id: draftId,
+      sellerId: userId,
+    }).lean();
 
     if (!draft) {
       return res.status(404).json({ message: "Service draft not found." });
@@ -369,12 +326,16 @@ router.get("/draft/:draftId", authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/services/draft
+// =====================================================
+// 5. POST /api/services/draft
+// =====================================================
 router.post("/draft", authMiddleware, uploadMedia, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized. User session not found." });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized. User session not found." });
     }
 
     const payload = buildServicePayloadFromForm(req, { isUpdate: false });
@@ -399,13 +360,19 @@ router.post("/draft", authMiddleware, uploadMedia, async (req, res) => {
 
     if (typeof user.canUploadMedia === "function") {
       if (!user.canUploadMedia("images", imageCount)) {
-        return res.status(422).json({ message: "Image count exceeds your plan limit." });
+        return res
+          .status(422)
+          .json({ message: "Image count exceeds your plan limit." });
       }
       if (!user.canUploadMedia("videos", videoCount)) {
-        return res.status(422).json({ message: "Video count exceeds your plan limit." });
+        return res
+          .status(422)
+          .json({ message: "Video count exceeds your plan limit." });
       }
       if (!user.canUploadMedia("audio", audioCount)) {
-        return res.status(422).json({ message: "Audio count exceeds your plan limit." });
+        return res
+          .status(422)
+          .json({ message: "Audio count exceeds your plan limit." });
       }
     }
 
@@ -429,12 +396,16 @@ router.post("/draft", authMiddleware, uploadMedia, async (req, res) => {
   }
 });
 
-// PUT /api/services/draft/update
+// =====================================================
+// 6. PUT /api/services/draft/update
+// =====================================================
 router.put("/draft/update", authMiddleware, uploadMedia, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized. User session not found." });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized. User session not found." });
     }
 
     const draftId = req.body?.draftId;
@@ -478,13 +449,19 @@ router.put("/draft/update", authMiddleware, uploadMedia, async (req, res) => {
       const videoCount = payload.videos?.length || 0;
       const audioCount = payload.audio?.length || 0;
       if (!user.canUploadMedia("images", imageCount)) {
-        return res.status(422).json({ message: "Image count exceeds your plan limit." });
+        return res
+          .status(422)
+          .json({ message: "Image count exceeds your plan limit." });
       }
       if (!user.canUploadMedia("videos", videoCount)) {
-        return res.status(422).json({ message: "Video count exceeds your plan limit." });
+        return res
+          .status(422)
+          .json({ message: "Video count exceeds your plan limit." });
       }
       if (!user.canUploadMedia("audio", audioCount)) {
-        return res.status(422).json({ message: "Audio count exceeds your plan limit." });
+        return res
+          .status(422)
+          .json({ message: "Audio count exceeds your plan limit." });
       }
     }
 
@@ -509,14 +486,18 @@ router.put("/draft/update", authMiddleware, uploadMedia, async (req, res) => {
   }
 });
 
-// POST /api/services/publish
+// =====================================================
+// 7. POST /api/services/publish
+// =====================================================
 router.post("/publish", authMiddleware, async (req, res) => {
   try {
     const { draftId } = req.body;
     const userId = req.user?.id || req.user?._id;
 
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized. User session not found." });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized. User session not found." });
     }
 
     const user = await User.findById(userId);
@@ -547,12 +528,18 @@ router.post("/publish", authMiddleware, async (req, res) => {
       return res.status(402).json({
         message: `You do not have an active ${requestedPlan.toUpperCase()} subscription. Please complete checkout to upgrade.`,
         requiresCheckout: true,
-        redirectUrl: `/checkout/plan?plan=${requestedPlan}&draftId=${draftId}`,
+        redirectUrl: `/checkout/plan?plan=\( {requestedPlan}&draftId= \){draftId}`,
       });
     }
 
-    const canAddImages = user.canUploadMedia("images", draft.images?.length || 0);
-    const canAddVideos = user.canUploadMedia("videos", draft.videos?.length || 0);
+    const canAddImages = user.canUploadMedia(
+      "images",
+      draft.images?.length || 0
+    );
+    const canAddVideos = user.canUploadMedia(
+      "videos",
+      draft.videos?.length || 0
+    );
     const canAddAudio = user.canUploadMedia("audio", draft.audio?.length || 0);
 
     if (!canAddImages || !canAddVideos || !canAddAudio) {
@@ -572,6 +559,106 @@ router.post("/publish", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Publish error:", error);
     return res.status(500).json({ message: "Server error during publishing." });
+  }
+});
+
+// =====================================================
+// 8. PATCH /api/services/:id/status  — pause / resume
+// =====================================================
+router.patch("/:id/status", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body; // "active" | "paused"
+
+    if (!["active", "paused"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status must be "active" or "paused".',
+      });
+    }
+
+    const service = await Service.findOne({ _id: id, sellerId: userId });
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or you do not own it.",
+      });
+    }
+
+    if (service.status === "draft") {
+      return res.status(400).json({
+        success: false,
+        message: "Publish the service before pausing or resuming it.",
+      });
+    }
+
+    service.status = status;
+    await service.save();
+
+    return res.status(200).json({
+      success: true,
+      message: status === "paused" ? "Service paused." : "Service resumed.",
+      service: {
+        _id: service._id,
+        status: service.status,
+      },
+    });
+  } catch (error) {
+    console.error("PATCH /api/services/:id/status error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update service status.",
+    });
+  }
+});
+
+// =====================================================
+// 9. GET /api/services/:id  — public single active service (LAST)
+// =====================================================
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !require("mongoose").Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service ID.",
+      });
+    }
+
+    const service = await Service.findOne({ _id: id, status: "active" })
+      .populate(
+        "sellerId",
+        "fullName displayName avatar averageRating location onlineStatus isVerified planType level professionalTitle metrics memberSince"
+      )
+      .lean();
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or not active.",
+      });
+    }
+
+    Service.updateOne({ _id: id }, { $inc: { views: 1 } })
+      .exec()
+      .catch(() => {});
+
+    return res.status(200).json({
+      success: true,
+      service,
+    });
+  } catch (error) {
+    console.error("GET /api/services/:id error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch service.",
+    });
   }
 });
 
