@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Service, ServicePackage, ServiceAddon } from "@/types/service";
@@ -115,6 +115,60 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
 
     window.location.href = `/client-checkout?${params.toString()}`;
   };
+    
+    
+    
+    
+
+useEffect(() => {
+  if (!service?.id && !service?._id) return;
+
+  const id = service.id || service._id;
+  if (!id) return;
+
+  // Detect device
+  const ua = navigator.userAgent || "";
+  let device: "desktop" | "mobile" | "tablet" | "unknown" = "desktop";
+  if (/Mobi|Android.*Mobile|iPhone|iPod/i.test(ua)) device = "mobile";
+  else if (/iPad|Android(?!.*Mobile)|Tablet/i.test(ua)) device = "tablet";
+
+  // Detect source from referrer
+  const ref = document.referrer || "";
+  let source: "direct" | "social" | "external" | "search" | "unknown" = "direct";
+  if (!ref) {
+    source = "direct";
+  } else {
+    try {
+      const host = new URL(ref).hostname.toLowerCase();
+      if (
+        /google\.|bing\.|yahoo\.|duckduckgo\.|baidu\./.test(host)
+      ) {
+        source = "search";
+      } else if (
+        /facebook\.|instagram\.|twitter\.|x\.com|linkedin\.|tiktok\.|pinterest\./.test(
+          host
+        )
+      ) {
+        source = "social";
+      } else if (host === window.location.hostname) {
+        source = "direct";
+      } else {
+        source = "external";
+      }
+    } catch {
+      source = "unknown";
+    }
+  }
+
+  // Fire-and-forget (do not block UI)
+  fetch(`/api/services/${id}/view`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source, device, referrer: ref.slice(0, 500) }),
+  }).catch(() => {});
+}, [service?.id, service?._id]);
+    
+    
 
   return (
     <main className="service-details-main">
@@ -200,12 +254,12 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
                 <div className="thumbnail-strip">
                   {images.map((src, idx) => (
                     <button
-                      key={`\( {src}- \){idx}`}
-                      type="button"
-                      className={`thumbnail ${idx === activeImageIndex ? "active" : ""}`}
-                      onClick={() => setActiveImageIndex(idx)}
-                      style={{ padding: 0, border: "none", background: "none" }}
-                    >
+  key={`\( {src}- \){idx}`}
+  type="button"
+  className={`thumbnail ${idx === activeImageIndex ? "active" : ""}`}
+  onClick={() => setActiveImageIndex(idx)}
+  style={{ padding: 0, border: "none", background: "none" }}
+>
                       <Image
                         src={src}
                         alt={`Preview ${idx + 1}`}

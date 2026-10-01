@@ -562,8 +562,56 @@ router.post("/publish", authMiddleware, async (req, res) => {
   }
 });
 
+
+
+
+
+
 // =====================================================
-// 8. PATCH /api/services/:id/status  — pause / resume
+// 8. POST /api/services/:id/view  — record analytics view (public)
+// =====================================================
+router.post("/:id/view", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ServiceView = require("../models/ServiceView");
+
+    if (!id || !require("mongoose").Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid service ID." });
+    }
+
+    // Only count views for active services
+    const service = await Service.findOne({ _id: id, status: "active" }).select("_id");
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service not found or not active." });
+    }
+
+    const { source = "unknown", device = "unknown", referrer = "" } = req.body || {};
+
+    const allowedSources = ["direct", "social", "external", "search", "unknown"];
+    const allowedDevices = ["desktop", "mobile", "tablet", "unknown"];
+
+    await ServiceView.create({
+      serviceId: id,
+      source: allowedSources.includes(source) ? source : "unknown",
+      device: allowedDevices.includes(device) ? device : "unknown",
+      referrer: String(referrer || "").slice(0, 500),
+    });
+
+    // Keep existing aggregate counter in sync
+    await Service.updateOne({ _id: id }, { $inc: { views: 1 } });
+
+    return res.status(201).json({ success: true });
+  } catch (error) {
+    console.error("POST /api/services/:id/view error:", error);
+    return res.status(500).json({ success: false, message: "Failed to record view." });
+  }
+});
+
+
+
+
+// =====================================================
+// 9. PATCH /api/services/:id/status  — pause / resume
 // =====================================================
 router.patch("/:id/status", authMiddleware, async (req, res) => {
   try {
@@ -621,7 +669,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
 
 
 // =====================================================
-// 9. GET /api/services/:id/manage — owner only
+// 10. GET /api/services/:id/manage — owner only
 // =====================================================
 router.get("/:id/manage", authMiddleware, async (req, res) => {
   try {
@@ -645,8 +693,152 @@ router.get("/:id/manage", authMiddleware, async (req, res) => {
 });
 
 
+
+
+
+
 // =====================================================
-// 10. GET /api/services/:id  — public single active service (LAST)
+// 11. GET /api/services/:id/analytics — owner only
+// =====================================================
+router.get("/:id/analytics", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const { id } = req.params;
+    const ServiceView = require("../models/ServiceView");
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    // Must own the service
+    const service = await Service.findOne({ _id: id, sellerId: userId })
+      .select("_id views")
+      .lean();
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or you do not own it.",
+      });
+    }
+
+    // Optional range: ?days=7 | 30 | 90 (default 30)
+    const days = Math.min(
+      Math.max(parseInt(String(req.query.days || "30"), 10) || 30, 1),
+      365
+    );
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const views = await ServiceView.find({
+      serviceId: id,
+      createdAt: { $gte: since },
+    })
+      .select("source device createdAt")
+      .lean();
+
+    const total = views.length;
+
+    // Traffic sources
+    const sourceCounts = {
+      direct: 0,
+      social: 0,
+      external: 0,
+      search: 0,
+      unknown: 0,
+    };
+    views.forEach((v) => {
+      const s = v.source || "unknown";
+      if (sourceCounts[s] !== undefined) sourceCounts[s] += 1;
+      else sourceCounts.unknown += 1;
+    });
+
+    const sources = Object.entries(sourceCounts)
+      .filter(([, count]) => count > 0)
+      .map(([key, count]) => ({
+        key,
+        label:
+          key === "direct"
+            ? "Direct"
+            : key === "social"
+              ? "Social Media"
+              : key === "external"
+                ? "External Links"
+                : key === "search"
+                  ? "Search"
+                  : "Other",
+        count,
+        percent: total ? Math.round((count / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    // Device usage
+    const deviceCounts = {
+      desktop: 0,
+      mobile: 0,
+      tablet: 0,
+      unknown: 0,
+    };
+    views.forEach((v) => {
+      const d = v.device || "unknown";
+      if (deviceCounts[d] !== undefined) deviceCounts[d] += 1;
+      else deviceCounts.unknown += 1;
+    });
+
+    const devices = {
+      desktop: {
+        count: deviceCounts.desktop,
+        percent: total ? Math.round((deviceCounts.desktop / total) * 100) : 0,
+      },
+      mobile: {
+        count: deviceCounts.mobile,
+        percent: total ? Math.round((deviceCounts.mobile / total) * 100) : 0,
+      },
+      tablet: {
+        count: deviceCounts.tablet,
+        percent: total ? Math.round((deviceCounts.tablet / total) * 100) : 0,
+      },
+    };
+
+    // Simple daily series for chart (last `days`, capped labels later on client)
+    const dayMap = {};
+    views.forEach((v) => {
+      const day = new Date(v.createdAt).toISOString().slice(0, 10); // YYYY-MM-DD
+      dayMap[day] = (dayMap[day] || 0) + 1;
+    });
+
+    const series = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      series.push({ date: key, count: dayMap[key] || 0 });
+    }
+
+    return res.status(200).json({
+      success: true,
+      days,
+      totalViewsInRange: total,
+      allTimeViews: service.views || 0,
+      sources,
+      devices,
+      series,
+    });
+  } catch (error) {
+    console.error("GET /api/services/:id/analytics error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load analytics.",
+    });
+  }
+});
+
+
+
+
+
+// =====================================================
+// 12. GET /api/services/:id  — public single active service (LAST)
 // =====================================================
 router.get("/:id", async (req, res) => {
   try {
@@ -673,10 +865,8 @@ router.get("/:id", async (req, res) => {
       });
     }
 
-    Service.updateOne({ _id: id }, { $inc: { views: 1 } })
-      .exec()
-      .catch(() => {});
-
+    
+    
     return res.status(200).json({
       success: true,
       service,
