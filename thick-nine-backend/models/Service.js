@@ -123,6 +123,12 @@ const ServiceSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    
+     clicks: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
 
     orders: {
       type: Number,

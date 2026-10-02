@@ -838,7 +838,123 @@ router.get("/:id/analytics", authMiddleware, async (req, res) => {
 
 
 // =====================================================
-// 12. GET /api/services/:id  — public single active service (LAST)
+// 12. GET /api/services/:id/orders — owner only
+// =====================================================
+router.get("/:id/orders", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const { id } = req.params;
+    const Order = require("../models/Order");
+    const mongoose = require("mongoose");
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid service ID." });
+    }
+
+    // Confirm ownership
+    const service = await Service.findOne({ _id: id, sellerId: userId })
+      .select("_id title")
+      .lean();
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or you do not own it.",
+      });
+    }
+
+    const limit = Math.min(
+      Math.max(parseInt(String(req.query.limit || "20"), 10) || 20, 1),
+      100
+    );
+
+    const orders = await Order.find({
+      serviceId: id,
+      sellerId: userId,
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate("clientId", "fullName displayName avatar email")
+      .lean();
+
+    const mapped = orders.map((o) => {
+      const buyer = o.clientId || o.buyerId || {};
+      const buyerName =
+        buyer.displayName ||
+        buyer.fullName ||
+        o.buyerName ||
+        "Client";
+
+      return {
+        _id: o._id,
+        status: o.status || "pending",
+        packageName: o.packageName || o.package || o.title || "Package",
+        amount: o.subtotal ?? o.price ?? o.total ?? o.grandTotal ?? 0,
+        currency: o.currency || "USD",
+        buyer: {
+          _id: buyer._id || null,
+          name: buyerName,
+          avatar: buyer.avatar || "/default-avatar.png",
+        },
+        dueAt: o.dueAt || o.deliveryDueAt || o.deadline || null,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      serviceId: id,
+      count: mapped.length,
+      orders: mapped,
+    });
+  } catch (error) {
+    console.error("GET /api/services/:id/orders error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load orders.",
+    });
+  }
+});
+
+
+// =====================================================
+// 13. POST /api/services/:id/click
+// =====================================================
+
+
+router.post("/:id/click", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ServiceClick = require("../models/ServiceClick");
+    if (!id || !require("mongoose").Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid service ID." });
+    }
+    const service = await Service.findOne({ _id: id, status: "active" }).select("_id");
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service not found." });
+    }
+    const type = ["continue", "package", "other"].includes(req.body?.type)
+      ? req.body.type
+      : "continue";
+    await ServiceClick.create({ serviceId: id, type });
+    // optional aggregate field on Service if you add clicks: number
+    await Service.updateOne({ _id: id }, { $inc: { clicks: 1 } }).catch(() => {});
+    return res.status(201).json({ success: true });
+  } catch (error) {
+    console.error("POST click error:", error);
+    return res.status(500).json({ success: false, message: "Failed to record click." });
+  }
+});
+
+
+
+// =====================================================
+// 14. GET /api/services/:id  — public single active service (LAST)
 // =====================================================
 router.get("/:id", async (req, res) => {
   try {

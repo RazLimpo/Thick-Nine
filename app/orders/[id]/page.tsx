@@ -1,16 +1,18 @@
-import OrderSuccessClient from './client';
+// app/orders/[id]/page.tsx
+// Keep existing metadata style + client
+
+import OrderSuccessClient from "./client";
 
 export const metadata = {
-  title: 'Order Confirmation | Thick 9',
-  description: 'Your order details and escrow confirmation.',
+  title: "Order | Thick Nine",
+  description: "Order confirmation and details.",
 };
 
-export default async function OrderSuccessPage({
+export default async function OrderPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string }> | { id: string };
 }) {
-  const { id } = await params;
-
+  const { id } = await Promise.resolve(params);
   return <OrderSuccessClient orderId={id} />;
 }

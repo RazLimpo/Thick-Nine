@@ -1,31 +1,31 @@
-//models/Order.js
+// models/Order.js
 
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const OrderSchema = new mongoose.Schema(
   {
     // 1. User & Service References
     clientId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
     serviceId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Service',
+      ref: "Service",
       required: true,
     },
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
 
     // 2. Affiliate Attribution
     affiliateId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       default: null,
       index: true,
     },
@@ -37,7 +37,7 @@ const OrderSchema = new mongoose.Schema(
     // 3. Delivery Instructions (from HTML #instructions)
     requirements: {
       type: String,
-      default: '',
+      default: "",
     },
 
     // 4. Line Items Breakdown
@@ -91,13 +91,19 @@ const OrderSchema = new mongoose.Schema(
     // 7. Payment & Escrow State
     paymentMethod: {
       type: String,
-      enum: ['card', 'paypal'],
-      default: 'card',
+      enum: ["card", "paypal"],
+      default: "card",
     },
     status: {
       type: String,
-      enum: ['pending', 'in_escrow', 'completed', 'cancelled'],
-      default: 'pending',
+      enum: [
+        "pending",
+        "in_escrow",
+        "revision_requested",
+        "completed",
+        "cancelled",
+      ],
+      default: "pending",
       index: true,
     },
     escrowReleaseDate: {
@@ -108,11 +114,11 @@ const OrderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-
 /* ===========================================================
    MODEL EXPORT
    =========================================================== */
 
-module.exports = (mongoose.models && mongoose.models.Order) 
-  ? mongoose.models.Order 
-  : mongoose.model('Order', OrderSchema);
+module.exports =
+  mongoose.models && mongoose.models.Order
+    ? mongoose.models.Order
+    : mongoose.model("Order", OrderSchema);

@@ -104,6 +104,8 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
   const proceedToCheckout = () => {
     const serviceId = service.id || service._id || "";
     const sellerId = seller?._id || seller?.id || "";
+    
+    
 
     const params = new URLSearchParams({
       serviceId,
