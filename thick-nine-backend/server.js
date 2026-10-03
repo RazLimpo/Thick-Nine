@@ -26,6 +26,7 @@ const serviceRoutes = require('./routes/serviceRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const uploadMedia = require('./middleware/upload'); 
 const orderRoutes = require("./routes/orderRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -112,6 +113,7 @@ app.use('/api/affiliate', affiliateGrowthRouter);  // Handles /api/affiliate/ana
 app.use('/api/services', serviceRoutes);
 app.use('/api', paymentRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 
 app.get('/', (req, res) => {
   res.send(`OsinoWorks Engine Server API is Live, Secured, and Running smoothly.`);

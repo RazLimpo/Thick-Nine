@@ -1,6 +1,7 @@
 // app/api/services/[id]/route.ts
-// GET  — public single service (proxy)
-// PATCH — owner partial update (proxy)
+// GET    — public single service
+// PATCH  — owner partial update
+// DELETE — owner permanent delete
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -104,6 +105,59 @@ export async function PATCH(
     return NextResponse.json(data, { status: 200 });
   } catch (error: unknown) {
     console.error("PATCH service proxy error:", error);
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ success: false, message }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> | { id: string } }
+) {
+  try {
+    const params = await Promise.resolve(context.params);
+    const id = params?.id;
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Service ID is required." },
+        { status: 400 }
+      );
+    }
+
+    const authHeader = request.headers.get("authorization");
+    const cookie = request.headers.get("cookie");
+
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+    if (authHeader) headers.Authorization = authHeader;
+    if (cookie) headers.Cookie = cookie;
+
+    const response = await fetch(`${BACKEND_URL}/api/services/${id}`, {
+      method: "DELETE",
+      headers,
+      cache: "no-store",
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            (data as { message?: string }).message ||
+            "Failed to delete service.",
+        },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(data, { status: 200 });
+  } catch (error: unknown) {
+    console.error("DELETE service proxy error:", error);
     const message =
       error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ success: false, message }, { status: 500 });

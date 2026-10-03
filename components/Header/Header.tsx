@@ -57,8 +57,10 @@ const Header = () => {
     subtitle: string;
     href: string;
     createdAt: string;
+    read?: boolean;
   }>
 >([]);
+    
 const [isNotifOpen, setIsNotifOpen] = useState(false);  
 
   const [toast, setToast] = useState<ToastState>({ 
@@ -79,10 +81,11 @@ const [isNotifOpen, setIsNotifOpen] = useState(false);
     // ====================== UI CONTROL METHODS ======================
   // Collapses all open dropdown boxes, overlay wrappers, and slide-out menus safely
   const closeAllUI = useCallback(() => {
-    setIsAccountMenuOpen(false);
-    setIsMobileMenuOpen(false);
-    setIsModalOpen(false);
-  }, []);
+  setIsAccountMenuOpen(false);
+  setIsMobileMenuOpen(false);
+  setIsModalOpen(false);
+  setIsNotifOpen(false);
+}, []);
 
   // Opens the main entry login/register modal window smoothly
   const openAuthModal = useCallback((tab: 'login' | 'register' = 'login') => {
@@ -349,8 +352,9 @@ useEffect(() => {
     
     
     // Unread Messages Count
-    useEffect(() => {
-  if (!isMounted || !isLoggedIn || !isAdminRole(userRole)) {
+    // Notifications: admin feed OR user /api/notifications
+useEffect(() => {
+  if (!isMounted || !isLoggedIn) {
     setMessageUnreadCount(0);
     setBellCount(0);
     setNotifItems([]);
@@ -364,27 +368,68 @@ useEffect(() => {
 
   async function loadNotifs() {
     try {
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json",
+      };
 
-      const [countsRes, feedRes] = await Promise.all([
-        fetch("/api/admin/notifications/counts", { headers }),
-        fetch("/api/admin/notifications/feed", { headers }),
-      ]);
+      if (isAdminRole(userRole)) {
+        const [countsRes, feedRes] = await Promise.all([
+          fetch("/api/admin/notifications/counts", { headers }),
+          fetch("/api/admin/notifications/feed", { headers }),
+        ]);
 
-      const countsData = await countsRes.json().catch(() => ({}));
-      const feedData = await feedRes.json().catch(() => ({}));
+        const countsData = await countsRes.json().catch(() => ({}));
+        const feedData = await feedRes.json().catch(() => ({}));
 
-      if (!cancelled && countsRes.ok && countsData.success && countsData.counts) {
-        const m = Number(countsData.counts.messages) || 0;
-        const o = Number(countsData.counts.orders) || 0;
-        const w = Number(countsData.counts.withdrawals) || 0;
-        setMessageUnreadCount(m);
-        setBellCount(o + w);
+        if (!cancelled && countsRes.ok && countsData.success && countsData.counts) {
+          const m = Number(countsData.counts.messages) || 0;
+          const o = Number(countsData.counts.orders) || 0;
+          const w = Number(countsData.counts.withdrawals) || 0;
+          setMessageUnreadCount(m);
+          setBellCount(o + w);
+        }
+
+        if (!cancelled && feedRes.ok && feedData.success) {
+          setNotifItems(Array.isArray(feedData.items) ? feedData.items : []);
+        }
+        return;
       }
 
-      if (!cancelled && feedRes.ok && feedData.success) {
-        setNotifItems(Array.isArray(feedData.items) ? feedData.items : []);
-      }
+      // Freelancer / client / affiliate — user notifications API
+      const res = await fetch("/api/notifications?limit=15", {
+        headers,
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (cancelled || !res.ok) return;
+
+      const list = Array.isArray(data.notifications) ? data.notifications : [];
+      setBellCount(Number(data.unreadCount) || 0);
+      setNotifItems(
+        list.map(
+          (n: {
+            _id?: string;
+            id?: string;
+            type?: string;
+            title?: string;
+            message?: string;
+            link?: string;
+            orderId?: string;
+            createdAt?: string;
+            read?: boolean;
+          }) => ({
+            id: String(n._id || n.id || ""),
+            type: n.type || "general",
+            title: n.title || "Notification",
+            subtitle: n.message || "",
+            href: n.link || (n.orderId ? `/orders/${n.orderId}` : "#"),
+            createdAt: n.createdAt || "",
+            read: !!n.read,
+          })
+        )
+      );
     } catch (err) {
       console.error("Header notifications failed:", err);
     }
@@ -804,60 +849,87 @@ try {
         <div className="user-actions">
          {isLoggedIn && (
   <>
-    {/* BELL: orders + withdrawals */}
-    {isAdminRole(userRole) ? (
-      <div className="notif-dropdown-container" style={{ position: "relative" }}>
-        <button
-          type="button"
-          className="icon-btn notification-btn"
-          title="Notifications"
-          onClick={() => setIsNotifOpen((v) => !v)}
-          aria-expanded={isNotifOpen}
-        >
-          <i className="fas fa-bell"></i>
-          <span className={`badge ${bellCount > 0 ? "" : "hidden"}`}>
-            {bellCount > 99 ? "99+" : bellCount || ""}
-          </span>
-        </button>
+    {/* BELL: admin feed OR user notifications */}
+<div className="notif-dropdown-container" style={{ position: "relative" }}>
+  <button
+    type="button"
+    className="icon-btn notification-btn"
+    title="Notifications"
+    onClick={() => setIsNotifOpen((v) => !v)}
+    aria-expanded={isNotifOpen}
+  >
+    <i className="fas fa-bell" />
+    <span className={`badge ${bellCount > 0 ? "" : "hidden"}`}>
+      {bellCount > 99 ? "99+" : bellCount || ""}
+    </span>
+  </button>
 
-        {isNotifOpen && (
-          <div className="notif-dropdown">
-            <div className="notif-dropdown-header">
-              <strong>Notifications</strong>
-            </div>
-            {notifItems.length === 0 ? (
-              <p className="notif-empty">No pending orders or withdrawals</p>
-            ) : (
-              <ul className="notif-list">
-                {notifItems.map((item) => (
-                  <li key={`\( {item.type}- \){item.id}`}>
-                    <button
-                      type="button"
-                      className="notif-item"
-                      onClick={() => {
-                        setIsNotifOpen(false);
-                        router.push(item.href);
-                      }}
-                    >
-                      <span className="notif-type">
-                        {item.type === "withdrawal" ? "Withdrawal" : "Order"}
-                      </span>
-                      <span className="notif-title">{item.title}</span>
-                      <span className="notif-sub">{item.subtitle}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+  {isNotifOpen && (
+    <div className="notif-dropdown">
+      <div className="notif-dropdown-header">
+        <strong>Notifications</strong>
       </div>
-    ) : (
-      <button className="icon-btn notification-btn" title="Notifications">
-        <i className="fas fa-bell"></i>
-        <span className="badge hidden"></span>
-      </button>
-    )}
+      {notifItems.length === 0 ? (
+        <p className="notif-empty">
+          {isAdminRole(userRole)
+            ? "No pending orders or withdrawals"
+            : "No notifications yet"}
+        </p>
+      ) : (
+        <ul className="notif-list">
+          {notifItems.map((item) => (
+            <li key={`\( {item.type}- \){item.id}`}>
+              <button
+                type="button"
+                className="notif-item"
+                onClick={async () => {
+                  setIsNotifOpen(false);
+                  if (!isAdminRole(userRole) && item.id) {
+                    try {
+                      const token = localStorage.getItem("token");
+                      await fetch(`/api/notifications/${item.id}/read`, {
+                        method: "PATCH",
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                          Accept: "application/json",
+                        },
+                        credentials: "include",
+                      });
+                      setBellCount((c) => Math.max(0, c - 1));
+                      setNotifItems((prev) =>
+                        prev.map((n) =>
+                          n.id === item.id ? { ...n, read: true } : n
+                        )
+                      );
+                    } catch {
+                      /* ignore */
+                    }
+                  }
+                  if (item.href && item.href !== "#") {
+                    router.push(item.href);
+                  }
+                }}
+              >
+                <span className="notif-type">
+                  {isAdminRole(userRole)
+                    ? item.type === "withdrawal"
+                      ? "Withdrawal"
+                      : "Order"
+                    : item.type === "extension_approved" ||
+                        item.type === "extension_rejected"
+                      ? "Extension"
+                      : "Update"}
+                </span>
+                <span className="notif-title">{item.title}</span>
+                <span className="notif-sub">{item.subtitle}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )}
+</div>
 
     {/* ENVELOPE: messages only */}
     {isAdminRole(userRole) ? (

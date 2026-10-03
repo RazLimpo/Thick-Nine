@@ -136,6 +136,11 @@ export default function ServiceOrderManagerClient({
   const [modalTitle, setModalTitle] = useState("Order Actions");
   const [modalBuyer, setModalBuyer] = useState("the buyer");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [actionSaving, setActionSaving] = useState(false);
+  const [deliveryNote, setDeliveryNote] = useState("");
+  const [deliveryFilesText, setDeliveryFilesText] = useState("");
+  const [extendDate, setExtendDate] = useState("");
+  const [extendReason, setExtendReason] = useState("");
 
   /* ---------- auth ---------- */
   const getAuthHeaders = (): Record<string, string> => {
@@ -257,10 +262,14 @@ export default function ServiceOrderManagerClient({
     visibleOrders.length > 0 &&
     visibleOrders.every((o) => selected.has(o._id));
 
-  /* ---------- modal actions (UI only for now) ---------- */
+  /* ---------- modal actions ---------- */
   const openAction = (order: DashboardOrder, actionText: string) => {
     setActiveOrderId(order._id);
     setModalBuyer(order.buyer?.name || "the buyer");
+    setDeliveryNote("");
+    setDeliveryFilesText("");
+    setExtendDate("");
+    setExtendReason("");
 
     if (actionText.includes("Remind")) {
       setModalMode("remind");
@@ -275,11 +284,13 @@ export default function ServiceOrderManagerClient({
           ? "Submit Revised Work"
           : "Deliver Final Assets"
       );
-    } else if (actionText.includes("Extension") || actionText.includes("Extend")) {
+    } else if (
+      actionText.includes("Extension") ||
+      actionText.includes("Extend")
+    ) {
       setModalMode("extend");
       setModalTitle("Request Time Extension");
     } else {
-      // View Details → single order page
       router.push(`/orders/${order._id}`);
       return;
     }
@@ -290,14 +301,93 @@ export default function ServiceOrderManagerClient({
     setModalOpen(false);
     setModalMode(null);
     setActiveOrderId(null);
+    setDeliveryNote("");
+    setDeliveryFilesText("");
+    setExtendDate("");
+    setExtendReason("");
   };
 
-  const confirmModal = () => {
-    // No backend endpoints yet for remind / deliver / extend
-    closeModal();
-    alert(
-      "This action is ready in the UI. Backend endpoints will be wired next."
-    );
+  const confirmModal = async () => {
+    if (!activeOrderId) return;
+
+    setActionSaving(true);
+    try {
+      if (modalMode === "remind") {
+        const res = await fetch(`/api/orders/${activeOrderId}/remind`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert(data.message || "Failed to send reminder.");
+          return;
+        }
+        alert(data.message || "Reminder sent.");
+        closeModal();
+        return;
+      }
+
+      if (modalMode === "deliver") {
+        const files = deliveryFilesText
+          .split(/[\n,]+/)
+          .map((u) => u.trim())
+          .filter(Boolean)
+          .slice(0, 20);
+
+        const res = await fetch(`/api/orders/${activeOrderId}/deliver`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            note: deliveryNote.trim(),
+            files,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert(data.message || "Failed to submit delivery.");
+          return;
+        }
+        await loadOrders();
+        closeModal();
+        alert(data.message || "Delivery submitted.");
+        return;
+      }
+
+      if (modalMode === "extend") {
+        const res = await fetch(`/api/orders/${activeOrderId}/extend`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            proposedDate: extendDate || null,
+            reason: extendReason.trim(),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert(data.message || "Failed to request extension.");
+          return;
+        }
+        closeModal();
+        alert(data.message || "Extension request submitted.");
+      }
+    } catch {
+      alert("Network error while processing action.");
+    } finally {
+      setActionSaving(false);
+    }
   };
 
   /* ---------- render states ---------- */
@@ -567,46 +657,87 @@ export default function ServiceOrderManagerClient({
           {modalMode === "remind" && (
             <div id="section-remind" className="action-section">
               <p>
-                This will nudge <strong id="dynamic-buyer-name">{modalBuyer}</strong>{" "}
-                to provide the required details to start the order.
+                This will nudge{" "}
+                <strong id="dynamic-buyer-name">{modalBuyer}</strong> to provide
+                the required details to start the order.
               </p>
               <p style={{ fontSize: "0.85rem", color: "#888", marginTop: 8 }}>
-                Reminder API not wired yet.
+                A reminder timestamp is saved on the order. Email/in-app notify
+                can be added later.
               </p>
             </div>
           )}
 
           {modalMode === "deliver" && (
             <div id="section-delivery" className="action-section">
-              <p>
-                Upload your final assets below. Ensure all files are in the
-                requested format.
+              <p style={{ marginBottom: 10 }}>
+                Add a delivery note and optional file URLs for the buyer.
               </p>
-              <div className="upload-zone">
-                <i className="fas fa-cloud-upload-alt" />
-                <p>Delivery upload will be enabled when the API is ready.</p>
-              </div>
               <textarea
                 placeholder="Add a note for the buyer..."
                 className="modal-textarea"
                 rows={4}
+                value={deliveryNote}
+                onChange={(e) => setDeliveryNote(e.target.value)}
+              />
+              <label
+                style={{
+                  display: "block",
+                  fontWeight: 600,
+                  margin: "12px 0 6px",
+                  fontSize: "0.85rem",
+                }}
+              >
+                Delivery file URLs (optional, one per line)
+              </label>
+              <textarea
+                placeholder="https://…/final.zip"
+                className="modal-textarea"
+                rows={3}
+                value={deliveryFilesText}
+                onChange={(e) => setDeliveryFilesText(e.target.value)}
               />
             </div>
           )}
 
           {modalMode === "extend" && (
             <div id="section-request" className="action-section">
-              <p id="request-description">
-                Explain why you are requesting more time.
+              <p id="request-description" style={{ marginBottom: 12 }}>
+                Explain why you are requesting more time. The buyer can approve
+                or reject later.
               </p>
-              <div className="input-group">
-                <label>Proposed New Date (Optional)</label>
-                <input type="date" className="modal-input" />
+              <div className="input-group" style={{ marginBottom: 12 }}>
+                <label
+                  htmlFor="extend-date"
+                  style={{
+                    display: "block",
+                    fontWeight: 600,
+                    marginBottom: 6,
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  Proposed New Date (Optional)
+                </label>
+                <input
+                  id="extend-date"
+                  type="date"
+                  className="modal-input"
+                  value={extendDate}
+                  onChange={(e) => setExtendDate(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1.5px solid #eee",
+                  }}
+                />
               </div>
               <textarea
                 placeholder="Reason for request..."
                 className="modal-textarea"
                 rows={3}
+                value={extendReason}
+                onChange={(e) => setExtendReason(e.target.value)}
               />
             </div>
           )}
@@ -616,6 +747,7 @@ export default function ServiceOrderManagerClient({
               type="button"
               className="btn-outline close-modal"
               onClick={closeModal}
+              disabled={actionSaving}
             >
               Cancel
             </button>
@@ -624,8 +756,17 @@ export default function ServiceOrderManagerClient({
               className="btn-primary"
               id="main-action-submit"
               onClick={confirmModal}
+              disabled={actionSaving}
             >
-              Confirm Action
+              {actionSaving
+                ? "Working…"
+                : modalMode === "remind"
+                  ? "Send Reminder"
+                  : modalMode === "deliver"
+                    ? "Submit Delivery"
+                    : modalMode === "extend"
+                      ? "Send Request"
+                      : "Confirm Action"}
             </button>
           </div>
         </div>

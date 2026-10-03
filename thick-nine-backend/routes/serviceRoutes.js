@@ -922,8 +922,72 @@ router.get("/:id/orders", authMiddleware, async (req, res) => {
 });
 
 
+
 // =====================================================
-// 13. POST /api/services/:id/click
+// 13. PATCH /api/services/:id — owner partial update
+// =====================================================
+router.patch("/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const service = await Service.findOne({ _id: id, sellerId: userId });
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or you do not own it.",
+      });
+    }
+
+    // Only allow known fields (never status/sellerId via this route unless you want)
+    const allowed = [
+      "title",
+      "description",
+      "price",
+      "category",
+      "subCategory",
+      "tags",
+      "packages",
+      "addons",
+      "faqs",
+      "requirements",
+      "attributes",
+      "images",
+      "videos",
+      "audio",
+      "deliveryTime",
+    ];
+
+    const body = req.body || {};
+    allowed.forEach((key) => {
+      if (body[key] !== undefined) {
+        service[key] = body[key];
+      }
+    });
+
+    await service.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Service updated.",
+      service,
+    });
+  } catch (error) {
+    console.error("PATCH /api/services/:id error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update service.",
+    });
+  }
+});
+
+
+// =====================================================
+// 14. POST /api/services/:id/click
 // =====================================================
 
 
@@ -953,8 +1017,48 @@ router.post("/:id/click", async (req, res) => {
 
 
 
+
 // =====================================================
-// 14. GET /api/services/:id  — public single active service (LAST)
+// 15. DELETE /api/services/:id — owner only
+// =====================================================
+
+router.delete("/:id", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const { id } = req.params;
+
+    const service = await Service.findOne({ _id: id, sellerId: userId });
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or you do not own it.",
+      });
+    }
+
+    // Optional safety: block if active orders exist
+    const Order = require("../models/Order");
+    const open = await Order.countDocuments({
+      serviceId: id,
+      status: { $in: ["pending", "in_escrow", "revision_requested"] },
+    });
+    if (open > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete while this service has open orders. Pause it instead.",
+      });
+    }
+
+    await Service.deleteOne({ _id: id });
+    return res.status(200).json({ success: true, message: "Service deleted." });
+  } catch (error) {
+    console.error("DELETE /api/services/:id error:", error);
+    return res.status(500).json({ success: false, message: "Failed to delete service." });
+  }
+});
+
+
+// =====================================================
+// 16. GET /api/services/:id  — public single active service (LAST)
 // =====================================================
 router.get("/:id", async (req, res) => {
   try {

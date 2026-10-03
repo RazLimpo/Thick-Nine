@@ -40,7 +40,26 @@ const OrderSchema = new mongoose.Schema(
       default: "",
     },
 
-    // 4. Line Items Breakdown
+    
+    // 4. Service Order Manager Actions
+    lastReminderAt: { type: Date, default: null },
+    deliveryNote: { type: String, default: "" },
+    deliveryFiles: { type: [String], default: [] },
+    deliveredAt: { type: Date, default: null },
+    
+    extensionRequest: {
+      proposedDate: { type: Date, default: null },
+      reason: { type: String, default: "" },
+      requestedAt: { type: Date, default: null },
+      status: {
+        type: String,
+        enum: ["none", "pending", "approved", "rejected"],
+        default: "none",
+      },
+    },
+    
+    
+    // 5. Line Items Breakdown
     basePackagePrice: {
       type: Number, // e.g., $100
       required: true,
@@ -56,7 +75,7 @@ const OrderSchema = new mongoose.Schema(
       required: true,
     },
 
-    // 5. Fees & Calculations
+    // 6. Fees & Calculations
     buyerServiceFee: {
       type: Number, // 5% of subtotal (e.g., $7.50)
       default: 0,
@@ -74,7 +93,7 @@ const OrderSchema = new mongoose.Schema(
       required: true,
     },
 
-    // 6. Platform Revenue & Affiliate Cut
+    // 7. Platform Revenue & Affiliate Cut
     grossAdminRevenue: {
       type: Number, // sellerPlatformFee + buyerServiceFee
       required: true,
@@ -88,7 +107,7 @@ const OrderSchema = new mongoose.Schema(
       required: true,
     },
 
-    // 7. Payment & Escrow State
+    // 8. Payment & Escrow State
     paymentMethod: {
       type: String,
       enum: ["card", "paypal"],

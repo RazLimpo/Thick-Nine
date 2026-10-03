@@ -30,6 +30,16 @@ type OrderDetail = {
   sellerEarnings?: number;
   paymentMethod?: string;
   escrowReleaseDate?: string | null;
+  dueAt?: string | null;
+  deliveryNote?: string;
+  deliveryFiles?: string[];
+  deliveredAt?: string | null;
+  extensionRequest?: {
+    proposedDate?: string | null;
+    reason?: string;
+    requestedAt?: string | null;
+    status?: "none" | "pending" | "approved" | "rejected" | string;
+  };
   createdAt?: string;
   updatedAt?: string;
   serviceId?:
@@ -118,6 +128,7 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
   const [role, setRole] = useState<"seller" | "client" | "unknown">("unknown");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [extResponding, setExtResponding] = useState(false);
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole");
@@ -175,6 +186,34 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
+  const respondToExtension = async (action: "approve" | "reject") => {
+    if (!order) return;
+    setExtResponding(true);
+    try {
+      const res = await fetch(`/api/orders/${order._id}/extend/respond`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || "Failed to respond.");
+        return;
+      }
+      // Refresh order from server
+      await loadOrder();
+      alert(data.message || (action === "approve" ? "Approved." : "Rejected."));
+    } catch {
+      alert("Network error.");
+    } finally {
+      setExtResponding(false);
+    }
+  };
 
   const service =
     order && typeof order.serviceId === "object" && order.serviceId
@@ -482,6 +521,101 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
                     "No requirements submitted yet."}
                 </p>
               </section>
+
+              {/* Extension request — buyer responds; seller sees status */}
+              {order.extensionRequest &&
+                order.extensionRequest.status &&
+                order.extensionRequest.status !== "none" && (
+                  <section
+                    style={{
+                      background:
+                        order.extensionRequest.status === "pending"
+                          ? "#fff8f0"
+                          : "white",
+                      borderRadius: 16,
+                      border:
+                        order.extensionRequest.status === "pending"
+                          ? "1px solid #ffd8a8"
+                          : "1px solid #edf2f7",
+                      padding: 24,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <h3 style={{ marginBottom: 12, fontSize: "1.05rem" }}>
+                      <i
+                        className="fas fa-calendar-plus"
+                        style={{ marginRight: 8, color: "#d96464" }}
+                      />
+                      Extension request
+                    </h3>
+                    <p style={{ marginBottom: 8 }}>
+                      <strong>Status:</strong>{" "}
+                      {String(order.extensionRequest.status)
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (c) => c.toUpperCase())}
+                    </p>
+                    {order.extensionRequest.proposedDate && (
+                      <p style={{ marginBottom: 8 }}>
+                        <strong>Proposed date:</strong>{" "}
+                        {formatDate(order.extensionRequest.proposedDate)}
+                      </p>
+                    )}
+                    {order.extensionRequest.reason && (
+                      <p
+                        style={{
+                          whiteSpace: "pre-wrap",
+                          color: "#444",
+                          marginBottom: 12,
+                        }}
+                      >
+                        {order.extensionRequest.reason}
+                      </p>
+                    )}
+                    {role === "client" &&
+                      order.extensionRequest.status === "pending" && (
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            disabled={extResponding}
+                            onClick={() => respondToExtension("approve")}
+                            style={{
+                              padding: "10px 18px",
+                              borderRadius: 10,
+                              border: "none",
+                              background: "#28a745",
+                              color: "white",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {extResponding ? "…" : "Approve extension"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={extResponding}
+                            onClick={() => respondToExtension("reject")}
+                            style={{
+                              padding: "10px 18px",
+                              borderRadius: 10,
+                              border: "1.5px solid #ddd",
+                              background: "white",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    {role === "seller" &&
+                      order.extensionRequest.status === "pending" && (
+                        <p style={{ fontSize: "0.85rem", color: "#888" }}>
+                          Waiting for the buyer to approve or reject.
+                        </p>
+                      )}
+                  </section>
+                )}
 
               {/* Timeline */}
               <section

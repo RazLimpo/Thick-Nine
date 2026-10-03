@@ -478,6 +478,30 @@ export default function ServiceDashboardClient({
     }
   };
 
+  /* ---------- permanent delete ---------- */
+  const confirmDelete = async () => {
+    if (!service) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/services/${service._id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || "Failed to delete service.");
+        return;
+      }
+      setModalOpen(false);
+      router.replace("/service-management");
+    } catch {
+      alert("Network error while deleting service.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   /* ---------- social share ---------- */
   const openShare = (type: "fb" | "tw" | "li" | "link") => {
     if (typeof window === "undefined" || !service) return;
@@ -1058,10 +1082,14 @@ export default function ServiceDashboardClient({
 
           {modalMode === "delete" && (
             <div className="action-section">
-              <p style={{ color: "#b91c1c" }}>
-                Permanent delete is not enabled yet. Pause the service instead,
-                or contact support.
-              </p>
+              <div className="info-banner">
+                <i className="fas fa-exclamation-triangle" />
+                <p style={{ color: "#b91c1c", margin: 0 }}>
+                  This permanently removes <strong>{service.title}</strong> from
+                  the marketplace. Open orders must be finished or cancelled
+                  first. This cannot be undone.
+                </p>
+              </div>
             </div>
           )}
 
@@ -1348,6 +1376,18 @@ export default function ServiceDashboardClient({
                 onClick={togglePause}
               >
                 Confirm
+              </button>
+            )}
+            {modalMode === "delete" && (
+              <button
+                type="button"
+                className="btn-primary"
+                id="main-action-submit"
+                onClick={confirmDelete}
+                disabled={saving}
+                style={{ background: "#b91c1c" }}
+              >
+                {saving ? "Deleting…" : "Delete permanently"}
               </button>
             )}
             {modalMode === "content" && (
