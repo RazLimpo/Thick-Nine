@@ -350,10 +350,178 @@
 .detail-profile { text-align: center; margin-bottom: 30px; }
 .detail-avatar { width: 100px; height: 100px; border-radius: 50%; margin-bottom: 15px; }
 
+/* Tablet: hide detail panel, keep list + chat */
 @media (max-width: 992px) {
-  .detail-sidebar { display: none; }
-  .messaging-container { grid-template-columns: 80px 1fr; margin: 0; height: 100vh; border-radius: 0; }
-  .convo-info, .sidebar-header h2, .search-chats { display: none; }
+  .detail-sidebar {
+      display: none !important;
+  }
+  .messaging-container {
+      grid-template-columns: 280px 1fr;
+      margin: 0;
+      max-width: 100%;
+      height: calc(100vh - var(--header-height, 50px));
+      border-radius: 0;
+      box-shadow: none;
+  }
+  .chat-header-actions .header-divider {
+      display: none;
+  }
+  /* Hide lower-priority header actions on tablet */
+  .chat-header-actions button[title="Voice Call"],
+  .chat-header-actions button[title="Video Call"],
+  .chat-header-actions button[title="Star Chat"],
+  .chat-header-actions button[title="Archive Chat"] {
+      display: none;
+  }
+}
+
+/* Phone: one column — list OR chat */
+@media (max-width: 768px) {
+  .messaging-container {
+      grid-template-columns: 1fr;
+      height: calc(100vh - var(--header-height, 50px));
+      margin: 0;
+      border-radius: 0;
+  }
+
+  .detail-sidebar {
+      display: none !important;
+  }
+
+  /* Default: show inbox list full width */
+  .chat-sidebar {
+      display: flex;
+      width: 100%;
+      border-right: none;
+  }
+
+  .chat-main {
+      display: none;
+  }
+
+  /* When a thread is open, body gets this class from client (optional) —
+     CSS fallback: if URL has ?c= we still need JS. Use .has-active-chat on container. */
+  .messaging-container.has-active-chat .chat-sidebar {
+      display: none;
+  }
+
+  .messaging-container.has-active-chat .chat-main {
+      display: flex;
+      width: 100%;
+      min-height: 0;
+  }
+
+  .sidebar-header {
+      padding: 12px 16px;
+  }
+
+  .sidebar-header h2 {
+      font-size: 1.1rem;
+  }
+
+  .search-chats {
+      padding: 0 16px 12px;
+  }
+
+  .convo-item {
+      padding: 12px 16px;
+  }
+
+  .chat-header {
+      padding: 10px 12px;
+      gap: 8px;
+  }
+
+  .chat-user-meta h3 {
+      font-size: 0.95rem;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+  }
+
+  .chat-header-actions {
+      gap: 2px;
+      flex-shrink: 0;
+  }
+
+  .chat-header-actions button {
+      width: 32px;
+      height: 32px;
+      font-size: 0.95rem;
+  }
+
+  /* Keep only essential actions on phone */
+  .chat-header-actions button[title="Voice Call"],
+  .chat-header-actions button[title="Video Call"],
+  .chat-header-actions button[title="Search in Chat"],
+  .chat-header-actions button[title="Star Chat"],
+  .chat-header-actions button[title="Archive Chat"],
+  .chat-header-actions button[title="Block User"],
+  .chat-header-actions .header-divider {
+      display: none !important;
+  }
+
+  .chat-messages {
+      padding: 16px 12px;
+      gap: 14px;
+  }
+
+  .msg-bubble {
+      max-width: 88%;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+  }
+
+  .chat-input-area {
+      padding: 10px 12px;
+  }
+
+  .input-controls {
+      gap: 8px;
+  }
+
+  .input-actions button {
+      font-size: 1.05rem;
+      padding: 4px;
+  }
+
+  .send-btn {
+      width: 38px;
+      height: 38px;
+      flex-shrink: 0;
+  }
+
+  /* Mobile back control (shown by client when chat open) */
+  .mobile-back-chat {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: #f0f2f5;
+      border-radius: 50%;
+      color: #333;
+      cursor: pointer;
+      margin-right: 4px;
+      flex-shrink: 0;
+  }
+}
+
+/* Hide mobile back on desktop */
+.mobile-back-chat {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .chat-user-meta .status-text {
+      display: none;
+  }
+  .avatar-small {
+      width: 34px;
+      height: 34px;
+  }
 }
 
 

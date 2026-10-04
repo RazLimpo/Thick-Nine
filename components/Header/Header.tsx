@@ -430,6 +430,16 @@ useEffect(() => {
           })
         )
       );
+
+      // Envelope: DM unread count
+      const unreadRes = await fetch("/api/messages/unread-count", {
+        headers,
+        credentials: "include",
+      });
+      const unreadData = await unreadRes.json().catch(() => ({}));
+      if (!cancelled && unreadRes.ok) {
+        setMessageUnreadCount(Number(unreadData.unread) || 0);
+      }
     } catch (err) {
       console.error("Header notifications failed:", err);
     }
@@ -878,7 +888,7 @@ try {
       ) : (
         <ul className="notif-list">
           {notifItems.map((item) => (
-            <li key={`\( {item.type}- \){item.id}`}>
+            <li key={`${item.type}-${item.id}`}>
               <button
                 type="button"
                 className="notif-item"
@@ -945,10 +955,17 @@ try {
         </span>
       </button>
     ) : (
-      <button className="icon-btn notification-bell" title="Messages">
-        <i className="fas fa-envelope"></i>
-        <span className="badge hidden"></span>
-      </button>
+      <button
+  type="button"
+  className="icon-btn notification-bell"
+  title="Messages"
+  onClick={() => router.push("/messages")}
+>
+  <i className="fas fa-envelope" />
+  <span className={`badge ${messageUnreadCount > 0 ? "" : "hidden"}`}>
+    {messageUnreadCount > 99 ? "99+" : messageUnreadCount || ""}
+  </span>
+</button>
     )}
   </>
 )}

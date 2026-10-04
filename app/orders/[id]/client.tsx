@@ -1,5 +1,5 @@
 // app/orders/[id]/client.tsx
-// Merged: keeps Payment Successful (buyer) + adds Order Detail (seller & buyer)
+// Merged: Payment Successful (buyer) + Order Detail (seller & buyer) + Message other party
 
 "use client";
 
@@ -69,6 +69,15 @@ type OrderDetail = {
     | string;
 };
 
+type ChatMsg = {
+  _id: string;
+  body: string;
+  createdAt: string;
+  mine?: boolean;
+  senderName?: string;
+  status?: "sent" | "read" | "received" | string;
+};
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -117,18 +126,21 @@ function statusColor(status: string) {
 /* Component                                                          */
 /* ------------------------------------------------------------------ */
 
-export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps) {
+export default function OrderSuccessClient({
+  orderId,
+}: OrderSuccessClientProps) {
   const router = useRouter();
 
-  // --- existing success-page state (kept) ---
   const [dashboardUrl, setDashboardUrl] = useState("/client-dashboard");
-
-  // --- order detail state (new) ---
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [role, setRole] = useState<"seller" | "client" | "unknown">("unknown");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [extResponding, setExtResponding] = useState(false);
+  const [messaging, setMessaging] = useState(false);
+  const [orderChatId, setOrderChatId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     const userRole = localStorage.getItem("userRole");
@@ -164,7 +176,6 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
 
       if (!res.ok) {
         if (res.status === 401) {
-          // Keep success UI usable even if detail API needs login later
           setError(data.message || "Sign in to view full order details.");
           setLoading(false);
           return;
@@ -205,7 +216,6 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
         alert(data.message || "Failed to respond.");
         return;
       }
-      // Refresh order from server
       await loadOrder();
       alert(data.message || (action === "approve" ? "Approved." : "Rejected."));
     } catch {
@@ -214,6 +224,109 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
       setExtResponding(false);
     }
   };
+
+  const openOrderChat = async () => {
+    if (!order) return;
+
+    const recipientId =
+      role === "seller"
+        ? typeof order.clientId === "object"
+          ? order.clientId?._id
+          : order.clientId
+        : typeof order.sellerId === "object"
+          ? order.sellerId?._id
+          : order.sellerId;
+
+    if (!recipientId) {
+      alert("Could not find the other party.");
+      return;
+    }
+
+    setMessaging(true);
+    try {
+      const res = await fetch("/api/messages/conversations", {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          recipientId,
+          orderId: order._id,
+          initialMessage: "Hi! About your order…",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || "Could not start chat.");
+        return;
+      }
+      if (data.conversationId) {
+        setOrderChatId(data.conversationId);
+        await loadOrderChat();
+        router.push(`/messages?c=${data.conversationId}`);
+      }
+    } catch {
+      alert("Network error.");
+    } finally {
+      setMessaging(false);
+    }
+  };
+
+  const loadOrderChat = useCallback(async () => {
+    if (!order?._id) return;
+    setChatLoading(true);
+    try {
+      const res = await fetch(
+        `/api/messages/conversations?orderId=${order._id}`,
+        {
+          credentials: "include",
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setOrderChatId(null);
+        setChatMessages([]);
+        return;
+      }
+      const list = Array.isArray(data.conversations) ? data.conversations : [];
+      const convo = list[0];
+      if (!convo?._id) {
+        setOrderChatId(null);
+        setChatMessages([]);
+        return;
+      }
+      setOrderChatId(convo._id);
+      const threadRes = await fetch(
+        `/api/messages/conversations/${convo._id}`,
+        {
+          credentials: "include",
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        }
+      );
+      const thread = await threadRes.json().catch(() => ({}));
+      if (threadRes.ok && Array.isArray(thread.messages)) {
+        setChatMessages(thread.messages.slice(-20));
+      } else {
+        setChatMessages([]);
+      }
+    } catch {
+      setOrderChatId(null);
+      setChatMessages([]);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [order?._id]);
+
+  useEffect(() => {
+    if (order?._id && (role === "seller" || role === "client")) {
+      loadOrderChat();
+    }
+  }, [order?._id, role, loadOrderChat]);
 
   const service =
     order && typeof order.serviceId === "object" && order.serviceId
@@ -243,13 +356,12 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
   const addons = Array.isArray(order?.selectedAddons)
     ? order!.selectedAddons
     : [];
-  const clientName =
-    client?.displayName || client?.fullName || "Client";
+  const clientName = client?.displayName || client?.fullName || "Client";
   const thumb = service?.images?.[0] || "/default-service.png";
 
   return (
     <main className="order-success-container">
-      {/* ========== EXISTING: Payment success card (buyers) ========== */}
+      {/* ========== Payment success card (buyers) ========== */}
       {showSuccessBanner && (
         <div className="order-success-card">
           <div className="success-icon-badge">✓</div>
@@ -281,7 +393,13 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
 
       {/* Seller-facing title when no success banner */}
       {role === "seller" && (
-        <div style={{ maxWidth: 900, margin: "0 auto 20px", padding: "0 20px" }}>
+        <div
+          style={{
+            maxWidth: 900,
+            margin: "0 auto 20px",
+            padding: "0 20px",
+          }}
+        >
           <nav style={{ marginBottom: 16 }}>
             {serviceIdStr ? (
               <Link href={`/service-dashboard/${serviceIdStr}/orders`}>
@@ -299,7 +417,6 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
         </div>
       )}
 
-      {/* ========== Loading / soft error for detail ========== */}
       {loading && (
         <p style={{ textAlign: "center", color: "#94a3b8", padding: 24 }}>
           Loading order details…
@@ -320,7 +437,6 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
         </p>
       )}
 
-      {/* ========== Order detail (when API returns data) ========== */}
       {order && (
         <div
           style={{
@@ -350,7 +466,13 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
               }}
             >
               <div>
-                <p style={{ fontSize: "0.8rem", color: "#888", marginBottom: 4 }}>
+                <p
+                  style={{
+                    fontSize: "0.8rem",
+                    color: "#888",
+                    marginBottom: 4,
+                  }}
+                >
                   Order {shortId(order._id)}
                 </p>
                 <h2 style={{ fontSize: "1.25rem", marginBottom: 8 }}>
@@ -424,7 +546,7 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
             className="order-detail-grid"
           >
             <div>
-              {/* Parties */}
+              {/* Parties + Message */}
               <section
                 style={{
                   background: "white",
@@ -442,10 +564,18 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
                   Parties
                 </h3>
                 <div
-                  style={{ display: "flex", flexDirection: "column", gap: 14 }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14,
+                  }}
                 >
                   <div
-                    style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
                   >
                     <Image
                       src={client?.avatar || "/default-avatar.png"}
@@ -491,7 +621,166 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
                     </div>
                   )}
                 </div>
+
+                {(role === "seller" || role === "client") && (
+                  <button
+                    type="button"
+                    onClick={openOrderChat}
+                    disabled={messaging}
+                    style={{
+                      marginTop: 16,
+                      padding: "10px 16px",
+                      borderRadius: 10,
+                      border: "none",
+                      background: "#d96464",
+                      color: "white",
+                      fontWeight: 600,
+                      cursor: messaging ? "wait" : "pointer",
+                      opacity: messaging ? 0.7 : 1,
+                    }}
+                  >
+                    <i
+                      className="fas fa-envelope"
+                      style={{ marginRight: 8 }}
+                    />
+                    {messaging
+                      ? "Opening…"
+                      : role === "seller"
+                        ? "Message buyer"
+                        : "Message seller"}
+                  </button>
+                )}
               </section>
+
+
+              {/* Message history (order-linked DM) */}
+              {(role === "seller" || role === "client") && (
+                <section
+                  style={{
+                    background: "white",
+                    borderRadius: 16,
+                    border: "1px solid #edf2f7",
+                    padding: 24,
+                    marginBottom: 20,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 12,
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <h3 style={{ margin: 0, fontSize: "1.05rem" }}>
+                      <i
+                        className="fas fa-comments"
+                        style={{ marginRight: 8, color: "#d96464" }}
+                      />
+                      Message history
+                    </h3>
+                    {orderChatId && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(`/messages?c=${orderChatId}`)
+                        }
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          border: "1.5px solid #eee",
+                          background: "white",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        Open full chat
+                      </button>
+                    )}
+                  </div>
+
+                  {chatLoading ? (
+                    <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
+                      Loading messages…
+                    </p>
+                  ) : chatMessages.length === 0 ? (
+                    <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
+                      No messages on this order yet. Use{" "}
+                      <strong>
+                        {role === "seller"
+                          ? "Message buyer"
+                          : "Message seller"}
+                      </strong>{" "}
+                      above to start.
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                        maxHeight: 280,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {chatMessages.map((m) => (
+                        <div
+                          key={m._id}
+                          style={{
+                            alignSelf: m.mine ? "flex-end" : "flex-start",
+                            maxWidth: "85%",
+                            padding: "10px 14px",
+                            borderRadius: 12,
+                            background: m.mine ? "#d96464" : "#f0f2f5",
+                            color: m.mine ? "white" : "#222",
+                            fontSize: "0.9rem",
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: 0,
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {m.body}
+                          </p>
+                          <p
+                            style={{
+                              margin: "6px 0 0",
+                              fontSize: "0.7rem",
+                              opacity: 0.75,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              justifyContent: m.mine ? "flex-end" : "flex-start",
+                            }}
+                          >
+                            {formatDate(m.createdAt)}
+                            {m.mine ? (
+                              m.status === "read" ? (
+                                <i
+                                  className="fas fa-check-double"
+                                  title="Read"
+                                  style={{ color: m.mine ? "#bfdbfe" : "#3b82f6" }}
+                                />
+                              ) : (
+                                <i
+                                  className="fas fa-check"
+                                  title="Sent"
+                                />
+                              )
+                            ) : null}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
 
               {/* Requirements */}
               <section
@@ -522,7 +811,7 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
                 </p>
               </section>
 
-              {/* Extension request — buyer responds; seller sees status */}
+              {/* Extension request */}
               {order.extensionRequest &&
                 order.extensionRequest.status &&
                 order.extensionRequest.status !== "none" && (
@@ -573,7 +862,13 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
                     )}
                     {role === "client" &&
                       order.extensionRequest.status === "pending" && (
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 10,
+                            flexWrap: "wrap",
+                          }}
+                        >
                           <button
                             type="button"
                             className="btn-primary"
@@ -680,7 +975,11 @@ export default function OrderSuccessClient({ orderId }: OrderSuccessClientProps)
                   Pricing
                 </h3>
                 <div
-                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
                 >
                   <PriceRow
                     label="Base package"

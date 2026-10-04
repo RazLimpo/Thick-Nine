@@ -69,6 +69,16 @@ type DashboardOrder = {
   createdAt?: string;
 };
 
+type DashConvo = {
+  _id: string;
+  otherUser?: { _id?: string; name?: string; avatar?: string } | null;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unread?: number;
+  orderId?: string | null;
+  serviceId?: string | null;
+};
+
 /* ------------------------------------------------------------------ */
 /* Chart helper                                                       */
 /* ------------------------------------------------------------------ */
@@ -166,6 +176,8 @@ export default function ServiceDashboardClient({
 
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [conversations, setConversations] = useState<DashConvo[]>([]);
+  const [convosLoading, setConvosLoading] = useState(false);
 
   /* ---------- auth headers ---------- */
   const getAuthHeaders = (): Record<string, string> => {
@@ -252,6 +264,43 @@ export default function ServiceDashboardClient({
     }
   }, [serviceId]);
 
+  const loadConversations = useCallback(async () => {
+    setConvosLoading(true);
+    try {
+      // Prefer threads tagged with this service; also load general inbox for order-linked chats
+      const [byServiceRes, allRes] = await Promise.all([
+        fetch(`/api/messages/conversations?serviceId=${serviceId}`, {
+          credentials: "include",
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        }),
+        fetch(`/api/messages/conversations`, {
+          credentials: "include",
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        }),
+      ]);
+      const byService = await byServiceRes.json().catch(() => ({}));
+      const all = await allRes.json().catch(() => ({}));
+      const serviceList: DashConvo[] = Array.isArray(byService.conversations)
+        ? byService.conversations
+        : [];
+      const allList: DashConvo[] = Array.isArray(all.conversations)
+        ? all.conversations
+        : [];
+      // Merge: service-tagged first, then others (dedupe by _id)
+      const map = new Map<string, DashConvo>();
+      [...serviceList, ...allList].forEach((c) => {
+        if (c?._id) map.set(c._id, c);
+      });
+      setConversations(Array.from(map.values()).slice(0, 12));
+    } catch {
+      setConversations([]);
+    } finally {
+      setConvosLoading(false);
+    }
+  }, [serviceId]);
+
   /* ---------- effects ---------- */
   useEffect(() => {
     loadService();
@@ -268,6 +317,12 @@ export default function ServiceDashboardClient({
       loadOrders();
     }
   }, [service, loadOrders]);
+
+  useEffect(() => {
+    if (service) {
+      loadConversations();
+    }
+  }, [service, loadConversations]);
 
   /* ---------- open Content & Pricing modal ---------- */
   const openContentModal = () => {
@@ -896,6 +951,108 @@ export default function ServiceDashboardClient({
                     </div>
                   );
                 })
+              )}
+            </div>
+          </div>
+
+          {/* Message history */}
+          <div className="action-card">
+            <div className="card-header">
+              <h3>
+                <i className="fas fa-comments" /> Message history
+                {!convosLoading && conversations.length > 0
+                  ? ` (${conversations.length})`
+                  : ""}
+              </h3>
+              <Link href="/messages" className="view-all">
+                Open inbox
+              </Link>
+            </div>
+
+            <div className="order-list">
+              {convosLoading ? (
+                <div
+                  className="empty-state"
+                  style={{
+                    padding: 30,
+                    color: "#94a3b8",
+                    textAlign: "center",
+                  }}
+                >
+                  <p>Loading messages…</p>
+                </div>
+              ) : conversations.length === 0 ? (
+                <div
+                  className="empty-state"
+                  style={{
+                    padding: 30,
+                    color: "#94a3b8",
+                    textAlign: "center",
+                  }}
+                >
+                  <p>
+                    No chats yet. Message a buyer from an order detail page.
+                  </p>
+                </div>
+              ) : (
+                conversations.map((c) => (
+                  <div key={c._id} className="order-item">
+                    <div className="order-user">
+                      <Image
+                        src={c.otherUser?.avatar || "/default-avatar.png"}
+                        alt={c.otherUser?.name || "User"}
+                        width={36}
+                        height={36}
+                        style={{
+                          borderRadius: "50%",
+                          objectFit: "cover",
+                        }}
+                      />
+                      <span>
+                        <strong>{c.otherUser?.name || "User"}</strong>
+                        {(c.unread || 0) > 0 && (
+                          <span
+                            style={{
+                              marginLeft: 8,
+                              background: "#d96464",
+                              color: "white",
+                              borderRadius: 10,
+                              fontSize: "0.7rem",
+                              padding: "2px 7px",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {c.unread}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <span
+                      className="order-timer"
+                      style={{
+                        flex: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        color: "#666",
+                        fontSize: "0.85rem",
+                      }}
+                      title={c.lastMessage || ""}
+                    >
+                      {c.lastMessage || "—"}
+                    </span>
+                    <Link
+                      href={`/messages?c=${c._id}`}
+                      className="btn-sm-primary btn-manage"
+                      style={{
+                        textAlign: "center",
+                        textDecoration: "none",
+                      }}
+                    >
+                      Open
+                    </Link>
+                  </div>
+                ))
               )}
             </div>
           </div>
