@@ -244,8 +244,16 @@ export default function MessagesClient() {
           </div>
 
           <div className="search-chats">
-            <i className="fas fa-search" />
-            <input type="text" placeholder="Search conversations..." value={searchConvo} onChange={(e) => setSearchConvo(e.target.value)} />
+            <div className="search-chats-inner">
+              <i className="fas fa-search" aria-hidden="true" />
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchConvo}
+                onChange={(e) => setSearchConvo(e.target.value)}
+                aria-label="Search conversations"
+              />
+            </div>
           </div>
 
           {error && <p style={{ padding: "0 20px", color: "#e74c3c", fontSize: "0.85rem" }}>{error}</p>}

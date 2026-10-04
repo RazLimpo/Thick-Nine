@@ -28,35 +28,53 @@
 
 .search-chats {
   padding: 0 20px 15px;
-  position: relative;
 }
 
-.search-chats i {
-  position: absolute;
-  left: 32px; /* container padding 20px + inset */
-  top: 50%;
-  transform: translateY(-50%);
-  color: #999;
-  font-size: 0.9rem;
-  pointer-events: none;
-  z-index: 1;
-  line-height: 1;
-}
-
-.search-chats input {
+/* Flex row keeps icon + text perfectly aligned */
+.search-chats-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px 10px 40px;
-  border: none;
   background: #f0f2f5;
   border-radius: 8px;
-  outline: none;
-  font-size: 0.9rem;
+  padding: 0 14px;
   box-sizing: border-box;
 }
 
-.search-chats input::placeholder {
+.search-chats-inner i {
+  position: static;
+  transform: none;
+  left: auto;
+  top: auto;
+  color: #999;
+  font-size: 0.9rem;
+  line-height: 1;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.search-chats-inner input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 11px 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  outline: none;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  color: #333;
+}
+
+.search-chats-inner input::placeholder {
   color: #999;
 }
+
+/* legacy selectors (no-op if structure updated) */
+.search-chats > i { display: none; }
+
 
 .conversation-list {
   flex-grow: 1;
@@ -433,8 +451,8 @@
       padding: 0 16px 12px;
   }
 
-  .search-chats i {
-      left: 28px; /* 16px padding + inset */
+  .search-chats-inner {
+      padding: 0 12px;
   }
 
   .convo-item {
