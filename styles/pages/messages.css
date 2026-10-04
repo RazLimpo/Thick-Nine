@@ -183,7 +183,29 @@
   gap: 15px;
 }
 
-.input-actions button { background: none; border: none; color: #999; font-size: 1.2rem; cursor: pointer; }
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.input-actions button {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 6px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.input-actions button:hover {
+  color: var(--primary-color, #d96464);
+}
 .input-wrapper { flex-grow: 1; background: #f0f2f5; border-radius: 20px; padding: 10px 15px; }
 .input-wrapper textarea {
   width: 100%; border: none; background: none; outline: none; resize: none;
