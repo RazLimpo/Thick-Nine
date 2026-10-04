@@ -33,19 +33,29 @@
 
 .search-chats i {
   position: absolute;
-  left: 30px;
+  left: 32px; /* container padding 20px + inset */
   top: 50%;
   transform: translateY(-50%);
   color: #999;
+  font-size: 0.9rem;
+  pointer-events: none;
+  z-index: 1;
+  line-height: 1;
 }
 
 .search-chats input {
   width: 100%;
-  padding: 10px 10px 10px 35px;
+  padding: 10px 12px 10px 40px;
   border: none;
   background: #f0f2f5;
   border-radius: 8px;
   outline: none;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.search-chats input::placeholder {
+  color: #999;
 }
 
 .conversation-list {
@@ -421,6 +431,10 @@
 
   .search-chats {
       padding: 0 16px 12px;
+  }
+
+  .search-chats i {
+      left: 28px; /* 16px padding + inset */
   }
 
   .convo-item {
@@ -913,41 +927,8 @@ button.is-blocking {
 
 
 
-/* Custom Tooltip Styling */
-[title] {
-  position: relative;
-  cursor: pointer;
-}
+/* Tooltips: use native browser title only (no custom ::after — avoids double tips) */
 
-[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 125%; /* Position above the button */
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #333;
-  color: #fff;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  pointer-events: none; /* Prevents flickering */
-}
-
-/* Optional: Add a small arrow to the tooltip */
-[title]:hover::before {
-  content: '';
-  position: absolute;
-  bottom: 110%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 6px 6px 0 6px;
-  border-style: solid;
-  border-color: #333 transparent transparent transparent;
-  z-index: 1000;
-}
 
 
 
