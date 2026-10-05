@@ -3,6 +3,16 @@
 
 const mongoose = require("mongoose");
 
+const AttachmentSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    name: { type: String, default: "file" },
+    mime: { type: String, default: "" },
+    size: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const DirectMessageSchema = new mongoose.Schema(
   {
     conversationId: {
@@ -19,9 +29,13 @@ const DirectMessageSchema = new mongoose.Schema(
     },
     body: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
       maxlength: 4000,
+    },
+    attachments: {
+      type: [AttachmentSchema],
+      default: [],
     },
     readBy: [
       {

@@ -1017,3 +1017,41 @@ button.is-blocking {
   from { opacity: 0; transform: translateX(20px); }
   to { opacity: 1; transform: translateX(0); }
 }
+
+
+/* Active sidebar filter */
+.filter-btn.is-active-filter {
+  color: var(--primary-color, #d96464);
+}
+
+/* Emoji picker */
+.emoji-picker-panel {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  margin-bottom: 4px;
+}
+
+.emoji-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.emoji-btn:hover {
+  background: #eee;
+}
+
+.attachment-preview-container {
+  display: flex;
+}

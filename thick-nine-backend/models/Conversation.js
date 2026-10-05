@@ -11,7 +11,6 @@ const ConversationSchema = new mongoose.Schema(
         required: true,
       },
     ],
-    // Optional context links
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
@@ -38,11 +37,20 @@ const ConversationSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    // Per-user flags (ObjectId of the user who starred / archived / blocked)
+    starredBy: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    ],
+    archivedBy: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    ],
+    blockedBy: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    ],
   },
   { timestamps: true }
 );
 
-// Exactly two participants for 1:1 DM (sorted for uniqueness helpers)
 ConversationSchema.index({ participants: 1 });
 ConversationSchema.index({ lastMessageAt: -1 });
 
