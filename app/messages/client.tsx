@@ -635,86 +635,77 @@ export default function MessagesClient() {
             ) : (
               <>
                 <div className="date-divider">Messages</div>
-                {messages.map((m) => (
-                  <div
-                    key={m._id}
-                    className={`message ${m.mine ? "msg-sent" : "msg-received"}`}
-                    style={{
-                      flexDirection: "column",
-                      alignItems: m.mine ? "flex-end" : "flex-start",
-                    }}
-                  >
-                    <div className="msg-bubble">
-                      {(m.attachments || []).map((a, i) =>
-                        a.mime?.startsWith("image/") ||
-                        a.url?.startsWith("data:image") ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={i}
-                            src={a.url}
-                            alt={a.name}
-                            style={{
-                              maxWidth: "100%",
-                              borderRadius: 8,
-                              marginBottom: 6,
-                              display: "block",
-                            }}
-                          />
-                        ) : (
-                          <a
-                            key={i}
-                            href={a.url}
-                            download={a.name}
-                            className="msg-attachment-item"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <i className="fas fa-file-alt" />
-                            <span>{a.name}</span>
-                          </a>
-                        )
-                      )}
-                      {m.body ? <div className="msg-text">{m.body}</div> : null}
-                    </div>
-                    <span
-                      className="msg-time"
-                      title={
-                        m.createdAt
-                          ? new Date(m.createdAt).toLocaleString()
-                          : undefined
-                      }
-                      style={{
-                        display: "block",
-                        marginTop: 4,
-                        padding: "0 4px",
-                        fontSize: "0.7rem",
-                        color: "#999",
-                        textAlign: m.mine ? "right" : "left",
-                      }}
-                    >
-                      {formatSendTimestamp(m.createdAt)}
-                      {m.mine ? (
-                        <>
-                          {" "}
-                          {m.status === "read" ? (
-                            <i
-                              className="fas fa-check-double"
-                              title="Read"
-                              style={{ color: "#60a5fa" }}
-                            />
-                          ) : (
-                            <i
-                              className="fas fa-check"
-                              title="Sent"
-                              style={{ opacity: 0.7 }}
-                            />
-                          )}
-                        </>
-                      ) : null}
-                    </span>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </>
+{messages.map((m) => (
+  <div
+    key={m._id}
+    className={`message ${m.mine ? "msg-sent" : "msg-received"}`}
+  >
+    <div className="msg-bubble">
+      {(m.attachments || []).map((a, i) =>
+        a.mime?.startsWith("image/") ||
+        a.url?.startsWith("data:image") ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={a.url}
+            alt={a.name}
+            style={{
+              maxWidth: "100%",
+              borderRadius: 8,
+              marginBottom: 6,
+              display: "block",
+            }}
+          />
+        ) : (
+          <a
+            key={i}
+            href={a.url}
+            download={a.name}
+            className="msg-attachment-item"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <i className="fas fa-file-alt" />
+            <span>{a.name}</span>
+          </a>
+        )
+      )}
+
+      {m.body ? <div className="msg-text">{m.body}</div> : null}
+
+      {/* Moved inside .msg-bubble */}
+      <span
+        className="msg-time"
+        title={
+          m.createdAt
+            ? new Date(m.createdAt).toLocaleString()
+            : undefined
+        }
+      >
+        {formatSendTimestamp(m.createdAt)}
+        {m.mine ? (
+          <>
+            {" "}
+            {m.status === "read" ? (
+              <i
+                className="fas fa-check-double"
+                title="Read"
+                style={{ color: "#60a5fa" }}
+              />
+            ) : (
+              <i
+                className="fas fa-check"
+                title="Sent"
+                style={{ opacity: 0.7 }}
+              />
+            )}
+          </>
+        ) : null}
+      </span>
+    </div>
+  </div>
+))}
+<div ref={messagesEndRef} />
+                                </>
             )}
           </div>
 
