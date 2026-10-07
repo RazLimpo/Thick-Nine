@@ -149,7 +149,17 @@ export default function ServiceDashboardClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Action");
   const [modalMode, setModalMode] = useState<
-    "info" | "pause" | "delete" | "content" | "seo" | "faqs" | "media" | null
+    | "info"
+    | "pause"
+    | "delete"
+    | "content"
+    | "seo"
+    | "faqs"
+    | "media"
+    | "tips"
+    | "coupons"
+    | "offer"
+    | null
   >(null);
   const [saving, setSaving] = useState(false);
 
@@ -178,6 +188,37 @@ export default function ServiceDashboardClient({
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [conversations, setConversations] = useState<DashConvo[]>([]);
   const [convosLoading, setConvosLoading] = useState(false);
+
+  // Coupons
+  type CouponRow = {
+    _id: string;
+    code: string;
+    name?: string;
+    discountType: string;
+    discountValue: number;
+    minimumSpend?: number;
+    usedCount?: number;
+    totalUsageLimit?: number | null;
+    isActive?: boolean;
+    endDate?: string | null;
+  };
+  const [coupons, setCoupons] = useState<CouponRow[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponName, setCouponName] = useState("");
+  const [couponType, setCouponType] = useState<"percentage" | "fixed_amount">(
+    "percentage"
+  );
+  const [couponValue, setCouponValue] = useState("15");
+  const [couponMinSpend, setCouponMinSpend] = useState("0");
+  const [couponEndDate, setCouponEndDate] = useState("");
+
+  // Custom offer
+  const [offerBuyerId, setOfferBuyerId] = useState("");
+  const [offerTitle, setOfferTitle] = useState("");
+  const [offerDescription, setOfferDescription] = useState("");
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerDays, setOfferDays] = useState("3");
 
   /* ---------- auth headers ---------- */
   const getAuthHeaders = (): Record<string, string> => {
@@ -505,6 +546,191 @@ export default function ServiceDashboardClient({
     } finally {
       setSaving(false);
     }
+  };
+
+
+  /* ---------- coupons ---------- */
+  const loadCoupons = useCallback(async () => {
+    setCouponsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/coupons?serviceId=${encodeURIComponent(serviceId)}`,
+        {
+          credentials: "include",
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      setCoupons(Array.isArray(data.coupons) ? data.coupons : []);
+    } catch {
+      setCoupons([]);
+    } finally {
+      setCouponsLoading(false);
+    }
+  }, [serviceId]);
+
+  const openCouponsModal = () => {
+    setModalMode("coupons");
+    setModalTitle("Manage Coupons");
+    setModalOpen(true);
+    loadCoupons();
+  };
+
+  const createCoupon = async () => {
+    const code = couponCode.trim().toUpperCase();
+    if (code.length < 3) {
+      alert("Code must be at least 3 characters.");
+      return;
+    }
+    const discountValue = Number(couponValue);
+    if (!discountValue || discountValue <= 0) {
+      alert("Enter a valid discount value.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/coupons", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code,
+          name: couponName.trim() || code,
+          discountType: couponType,
+          discountValue,
+          minimumSpend: Number(couponMinSpend) || 0,
+          serviceId,
+          endDate: couponEndDate || null,
+          usageLimitPerUser: 1,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || "Failed to create coupon.");
+        return;
+      }
+      setCouponCode("");
+      setCouponName("");
+      setCouponValue("15");
+      setCouponMinSpend("0");
+      setCouponEndDate("");
+      await loadCoupons();
+    } catch {
+      alert("Network error.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleCoupon = async (id: string, isActive: boolean) => {
+    try {
+      const res = await fetch(`/api/coupons/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ isActive: !isActive }),
+      });
+      if (res.ok) await loadCoupons();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const deleteCoupon = async (id: string) => {
+    if (!confirm("Delete this coupon?")) return;
+    try {
+      const res = await fetch(`/api/coupons/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) await loadCoupons();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  /* ---------- custom offer ---------- */
+  const openOfferModal = () => {
+    // Prefill buyer from first order if available
+    const firstBuyer = orders.find((o) => o.buyer?._id)?.buyer?._id || "";
+    setOfferBuyerId(firstBuyer || "");
+    setOfferTitle(service?.title ? `Custom: ${service.title}` : "Custom offer");
+    setOfferDescription("");
+    setOfferPrice(
+      typeof service?.price === "number" ? String(service.price) : ""
+    );
+    setOfferDays("3");
+    setModalMode("offer");
+    setModalTitle("Create Custom Offer");
+    setModalOpen(true);
+  };
+
+  const sendCustomOffer = async () => {
+    if (!offerBuyerId.trim()) {
+      alert("Enter the buyer’s user ID (from an order on this service).");
+      return;
+    }
+    if (!offerTitle.trim()) {
+      alert("Title is required.");
+      return;
+    }
+    const price = Number(offerPrice);
+    if (!price || price < 1) {
+      alert("Enter a valid price.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/offers", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          buyerId: offerBuyerId.trim(),
+          serviceId,
+          title: offerTitle.trim(),
+          description: offerDescription.trim(),
+          price,
+          deliveryDays: Number(offerDays) || 3,
+          expiresInDays: 7,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || "Failed to send offer.");
+        return;
+      }
+      setModalOpen(false);
+      setModalMode(null);
+      if (data.conversationId) {
+        if (confirm("Offer sent. Open the chat with the buyer?")) {
+          router.push(`/messages?c=${data.conversationId}`);
+        }
+      } else {
+        alert("Custom offer sent.");
+      }
+    } catch {
+      alert("Network error.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openTipsModal = () => {
+    setModalMode("tips");
+    setModalTitle("Promotion & Growth Playbook");
+    setModalOpen(true);
   };
 
   /* ---------- pause / resume ---------- */
@@ -1106,14 +1332,24 @@ export default function ServiceDashboardClient({
               <i className="fas fa-comments" /> Communication
             </h3>
             <p>Stay updated with active inquiries.</p>
-            <button type="button" className="btn-secondary full-width" disabled>
+            <Link
+              href="/messages"
+              className="btn-secondary full-width"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                textDecoration: "none",
+              }}
+            >
               <i className="fas fa-envelope" /> Direct Messages
-            </button>
+            </Link>
             <button
               type="button"
               className="btn-outline full-width"
               style={{ marginTop: 10 }}
-              disabled
+              onClick={openOfferModal}
             >
               <i className="fas fa-paper-plane" /> Create Custom Offer
             </button>
@@ -1123,14 +1359,18 @@ export default function ServiceDashboardClient({
             <h3>
               <i className="fas fa-bullhorn" /> Promotion
             </h3>
-            <button type="button" className="btn-outline full-width" disabled>
+            <button
+              type="button"
+              className="btn-outline full-width"
+              onClick={openCouponsModal}
+            >
               <i className="fas fa-ticket-alt" /> Manage Coupons
             </button>
             <button
               type="button"
               className="btn-outline full-width"
               style={{ marginTop: 10 }}
-              disabled
+              onClick={openTipsModal}
             >
               <i className="fas fa-chart-line" /> Promotion Tips
             </button>
@@ -1516,6 +1756,362 @@ export default function ServiceDashboardClient({
             </div>
           )}
 
+
+          {modalMode === "tips" && (
+            <div
+              className="action-section"
+              style={{ maxHeight: 420, overflowY: "auto", fontSize: "0.9rem", lineHeight: 1.5 }}
+            >
+              <p style={{ marginTop: 0 }}>
+                Strategic discounts and promotions can boost bookings when
+                executed carefully. Use this playbook to grow volume without
+                eroding margins.
+              </p>
+              <h4 style={{ marginBottom: 6 }}>1. Timing for maximum ROI</h4>
+              <ul style={{ paddingLeft: 18, marginTop: 0 }}>
+                <li>
+                  <strong>Off-peak slots:</strong> Discount slow days/times only
+                  (e.g. mid-week mornings).
+                </li>
+                <li>
+                  <strong>Seasonal demand:</strong> Short offers around holidays
+                  or industry peaks.
+                </li>
+                <li>
+                  <strong>Short windows:</strong> 3–7 day expiry creates urgency.
+                </li>
+              </ul>
+              <h4 style={{ marginBottom: 6 }}>2. High-converting coupons</h4>
+              <ul style={{ paddingLeft: 18, marginTop: 0 }}>
+                <li>
+                  <strong>% off</strong> for premium packages;{" "}
+                  <strong>$ off</strong> for entry services.
+                </li>
+                <li>
+                  Set a <strong>minimum spend</strong> so buyers add extras.
+                </li>
+                <li>
+                  Limit to <strong>1 use per client</strong> on aggressive codes.
+                </li>
+              </ul>
+              <h4 style={{ marginBottom: 6 }}>3. Acquisition vs retention</h4>
+              <ul style={{ paddingLeft: 18, marginTop: 0 }}>
+                <li>New buyers: modest 10–15% welcome code.</li>
+                <li>Loyalty: private codes via DM, not public blasts.</li>
+                <li>Win-back: “We miss you” after 60–90 days inactive.</li>
+              </ul>
+              <h4 style={{ marginBottom: 6 }}>4. Avoid these traps</h4>
+              <ul style={{ paddingLeft: 18, marginTop: 0 }}>
+                <li>Never price below your cost floor.</li>
+                <li>Constant discounts train buyers to wait.</li>
+                <li>
+                  Fix profile, portfolio, and reviews before running promos.
+                </li>
+              </ul>
+              <p style={{ fontSize: "0.8rem", color: "#888" }}>
+                Sample codes: WELCOME15 · MIDWEEK20 · SAVE30PLUS · MISSYOU25 —
+                create them under <strong>Manage Coupons</strong>.
+              </p>
+            </div>
+          )}
+
+          {modalMode === "coupons" && (
+            <div
+              className="action-section"
+              style={{ maxHeight: 440, overflowY: "auto" }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  marginBottom: 16,
+                  paddingBottom: 16,
+                  borderBottom: "1px solid #eee",
+                }}
+              >
+                <strong style={{ fontSize: "0.9rem" }}>Create coupon</strong>
+                <input
+                  type="text"
+                  placeholder="Code (e.g. WELCOME15)"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  maxLength={32}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1.5px solid #eee",
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Display name (optional)"
+                  value={couponName}
+                  onChange={(e) => setCouponName(e.target.value)}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1.5px solid #eee",
+                  }}
+                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <select
+                    value={couponType}
+                    onChange={(e) =>
+                      setCouponType(
+                        e.target.value as "percentage" | "fixed_amount"
+                      )
+                    }
+                    style={{
+                      flex: 1,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1.5px solid #eee",
+                    }}
+                  >
+                    <option value="percentage">Percentage %</option>
+                    <option value="fixed_amount">Fixed $</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="Value"
+                    value={couponValue}
+                    onChange={(e) => setCouponValue(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1.5px solid #eee",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="Min spend $"
+                    value={couponMinSpend}
+                    onChange={(e) => setCouponMinSpend(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1.5px solid #eee",
+                    }}
+                  />
+                  <input
+                    type="date"
+                    value={couponEndDate}
+                    onChange={(e) => setCouponEndDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1.5px solid #eee",
+                    }}
+                    title="End date (optional)"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={createCoupon}
+                  disabled={saving}
+                  style={{ width: "100%" }}
+                >
+                  {saving ? "Saving…" : "Create coupon"}
+                </button>
+              </div>
+
+              {couponsLoading ? (
+                <p style={{ color: "#94a3b8" }}>Loading coupons…</p>
+              ) : coupons.length === 0 ? (
+                <p style={{ color: "#94a3b8" }}>
+                  No coupons yet. Create WELCOME15 or MIDWEEK20 to get started.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {coupons.map((c) => (
+                    <div
+                      key={c._id}
+                      style={{
+                        border: "1px solid #eee",
+                        borderRadius: 10,
+                        padding: 12,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div>
+                        <strong>{c.code}</strong>
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontSize: "0.75rem",
+                            color: c.isActive ? "#16a34a" : "#94a3b8",
+                          }}
+                        >
+                          {c.isActive ? "Active" : "Off"}
+                        </span>
+                        <div style={{ fontSize: "0.8rem", color: "#666" }}>
+                          {c.discountType === "percentage"
+                            ? `${c.discountValue}% off`
+                            : `$${c.discountValue} off`}
+                          {c.minimumSpend
+                            ? ` · min $${c.minimumSpend}`
+                            : ""}
+                          {` · used ${c.usedCount || 0}`}
+                          {c.totalUsageLimit != null
+                            ? `/${c.totalUsageLimit}`
+                            : ""}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn-outline"
+                          style={{ padding: "6px 10px", fontSize: "0.8rem" }}
+                          onClick={() => toggleCoupon(c._id, !!c.isActive)}
+                        >
+                          {c.isActive ? "Pause" : "Activate"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-outline"
+                          style={{
+                            padding: "6px 10px",
+                            fontSize: "0.8rem",
+                            color: "#b91c1c",
+                          }}
+                          onClick={() => deleteCoupon(c._id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {modalMode === "offer" && (
+            <div className="action-section">
+              <p style={{ fontSize: "0.85rem", color: "#666", marginTop: 0 }}>
+                Sends a priced custom offer to a buyer and posts it in your DM
+                thread. Prefer a buyer ID from an order on this service.
+              </p>
+              <div className="input-group" style={{ marginBottom: 12 }}>
+                <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  Buyer user ID
+                </label>
+                <input
+                  type="text"
+                  value={offerBuyerId}
+                  onChange={(e) => setOfferBuyerId(e.target.value)}
+                  placeholder="MongoDB user id of the client"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1.5px solid #eee",
+                  }}
+                />
+                {orders.filter((o) => o.buyer?._id).length > 0 && (
+                  <select
+                    style={{
+                      width: "100%",
+                      marginTop: 8,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1.5px solid #eee",
+                    }}
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (e.target.value) setOfferBuyerId(e.target.value);
+                    }}
+                  >
+                    <option value="">Pick from recent orders…</option>
+                    {orders
+                      .filter((o) => o.buyer?._id)
+                      .map((o) => (
+                        <option key={o._id} value={o.buyer!._id!}>
+                          {o.buyer?.name || "Client"} ({o.buyer?._id})
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
+              <div className="input-group" style={{ marginBottom: 12 }}>
+                <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={offerTitle}
+                  onChange={(e) => setOfferTitle(e.target.value)}
+                  maxLength={120}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1.5px solid #eee",
+                  }}
+                />
+              </div>
+              <div className="input-group" style={{ marginBottom: 12 }}>
+                <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  Description
+                </label>
+                <textarea
+                  className="modal-textarea"
+                  value={offerDescription}
+                  onChange={(e) => setOfferDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
+                    Price (USD)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={offerPrice}
+                    onChange={(e) => setOfferPrice(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1.5px solid #eee",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontWeight: 600, display: "block", marginBottom: 6 }}>
+                    Delivery days
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={offerDays}
+                    onChange={(e) => setOfferDays(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1.5px solid #eee",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="modal-actions">
             <button
               type="button"
@@ -1589,6 +2185,16 @@ export default function ServiceDashboardClient({
                 disabled={saving}
               >
                 {saving ? "Saving…" : "Save media"}
+              </button>
+            )}
+            {modalMode === "offer" && (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={sendCustomOffer}
+                disabled={saving}
+              >
+                {saving ? "Sending…" : "Send offer"}
               </button>
             )}
           </div>
