@@ -9,6 +9,13 @@ const AttachmentSchema = new mongoose.Schema(
     name: { type: String, default: "file" },
     mime: { type: String, default: "" },
     size: { type: Number, default: 0 },
+    // Cloudinary cleanup fields
+    publicId: { type: String, default: "" },
+    resourceType: {
+      type: String,
+      enum: ["image", "video", "raw", "auto", ""],
+      default: "image",
+    },
   },
   { _id: false }
 );
@@ -43,11 +50,17 @@ const DirectMessageSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    // Soft-delete support (optional hybrid cleanup)
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 DirectMessageSchema.index({ conversationId: 1, createdAt: 1 });
+DirectMessageSchema.index({ deletedAt: 1, createdAt: 1 });
 
 module.exports =
   mongoose.models && mongoose.models.DirectMessage

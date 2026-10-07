@@ -17,7 +17,14 @@ type Convo = {
   blocked?: boolean;
 };
 
-type Attachment = { url: string; name: string; mime?: string; size?: number };
+type Attachment = {
+  url: string;
+  name: string;
+  mime?: string;
+  size?: number;
+  publicId?: string;
+  resourceType?: string;
+};
 
 type Msg = {
   _id: string;
@@ -33,7 +40,9 @@ type PendingFile = {
   name: string;
   mime: string;
   size: number;
-  url: string; // data URL for send/preview
+  url: string;
+  publicId?: string;
+  resourceType?: string;
   isImage: boolean;
 };
 
@@ -127,6 +136,7 @@ export default function MessagesClient() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Realtime without socket.io: light polling
 
   const getAuthHeaders = (): Record<string, string> => {
     const headers: Record<string, string> = { Accept: "application/json" };
@@ -163,7 +173,7 @@ export default function MessagesClient() {
   }, [router, listFilter]);
 
   const loadThread = useCallback(
-    async (id: string) => {
+    async (id: string, silent = false) => {
       if (!id) {
         setMessages([]);
         setOtherName("Select a chat");
@@ -172,7 +182,7 @@ export default function MessagesClient() {
         setThreadBlocked(false);
         return;
       }
-      setLoadingThread(true);
+      if (!silent) setLoadingThread(true);
       try {
         const res = await fetch(`/api/messages/conversations/${id}`, {
           credentials: "include",
@@ -191,14 +201,16 @@ export default function MessagesClient() {
         setThreadStarred(!!data.conversation?.starred);
         setThreadArchived(!!data.conversation?.archived);
         setThreadBlocked(!!data.conversation?.blocked);
-        loadInbox();
+        if (!silent) loadInbox();
       } catch (err: unknown) {
-        showToast(
-          err instanceof Error ? err.message : "Failed to load thread",
-          "removed"
-        );
+        if (!silent) {
+          showToast(
+            err instanceof Error ? err.message : "Failed to load thread",
+            "removed"
+          );
+        }
       } finally {
-        setLoadingThread(false);
+        if (!silent) setLoadingThread(false);
       }
     },
     [loadInbox]
@@ -207,6 +219,26 @@ export default function MessagesClient() {
   useEffect(() => {
     loadInbox();
   }, [loadInbox]);
+
+  /* ---------- light polling (no socket.io install needed) ---------- */
+  useEffect(() => {
+    if (!activeId) return;
+    const tick = () => {
+      if (document.visibilityState === "hidden") return;
+      loadThread(activeId, true);
+    };
+    const id = setInterval(tick, 5000);
+    return () => clearInterval(id);
+  }, [activeId, loadThread]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      loadInbox();
+    }, 15000);
+    return () => clearInterval(id);
+  }, [loadInbox]);
+
+
 
   useEffect(() => {
     if (activeId) loadThread(activeId);
@@ -280,28 +312,45 @@ export default function MessagesClient() {
     if (!files.length) return;
 
     const next: PendingFile[] = [];
+    showToast("Uploading…", "info");
     for (const file of files.slice(0, 5)) {
-      if (file.size > 1_500_000) {
-        showToast(`${file.name} is too large (max ~1.5MB)`, "removed");
-        continue;
-      }
       try {
-        const url = await readFileAsDataURL(file);
+        const form = new FormData();
+        form.append("file", file);
+        // Do NOT set Content-Type — browser sets multipart boundary
+        const headers = getAuthHeaders();
+        delete (headers as { "Content-Type"?: string })["Content-Type"];
+        const up = await fetch("/api/messages/upload", {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: form,
+        });
+        const upData = await up.json().catch(() => ({}));
+        if (!up.ok || !upData.attachment?.url) {
+          showToast(
+            upData.message || `Upload failed for ${file.name}`,
+            "removed"
+          );
+          continue;
+        }
         next.push({
           id: `${file.name}-${file.size}-${Date.now()}`,
-          name: file.name,
-          mime: file.type || "application/octet-stream",
-          size: file.size,
-          url,
-          isImage: file.type.startsWith("image/"),
+          name: upData.attachment.name || file.name,
+          mime: upData.attachment.mime || file.type,
+          size: upData.attachment.size || file.size,
+          url: upData.attachment.url,
+          publicId: upData.attachment.publicId || "",
+          resourceType: upData.attachment.resourceType || "image",
+          isImage: (upData.attachment.mime || file.type).startsWith("image/"),
         });
       } catch {
-        showToast(`Could not read ${file.name}`, "removed");
+        showToast(`Could not upload ${file.name}`, "removed");
       }
     }
     if (next.length) {
       setPendingFiles((prev) => [...prev, ...next].slice(0, 5));
-      showToast(`${next.length} file(s) ready to send`, "info");
+      showToast(`${next.length} file(s) ready to send`, "success");
     }
   };
 
@@ -331,6 +380,8 @@ export default function MessagesClient() {
         name: f.name,
         mime: f.mime,
         size: f.size,
+        publicId: f.publicId || "",
+        resourceType: f.resourceType || "image",
       }));
       const res = await fetch(`/api/messages/conversations/${activeId}/messages`, {
         method: "POST",
@@ -635,77 +686,69 @@ export default function MessagesClient() {
             ) : (
               <>
                 <div className="date-divider">Messages</div>
-{messages.map((m) => (
-  <div
-    key={m._id}
-    className={`message ${m.mine ? "msg-sent" : "msg-received"}`}
-  >
-    <div className="msg-bubble">
-      {(m.attachments || []).map((a, i) =>
-        a.mime?.startsWith("image/") ||
-        a.url?.startsWith("data:image") ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={i}
-            src={a.url}
-            alt={a.name}
-            style={{
-              maxWidth: "100%",
-              borderRadius: 8,
-              marginBottom: 6,
-              display: "block",
-            }}
-          />
-        ) : (
-          <a
-            key={i}
-            href={a.url}
-            download={a.name}
-            className="msg-attachment-item"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <i className="fas fa-file-alt" />
-            <span>{a.name}</span>
-          </a>
-        )
-      )}
-
-      {m.body ? <div className="msg-text">{m.body}</div> : null}
-
-      {/* Moved inside .msg-bubble */}
-      <span
-        className="msg-time"
-        title={
-          m.createdAt
-            ? new Date(m.createdAt).toLocaleString()
-            : undefined
-        }
-      >
-        {formatSendTimestamp(m.createdAt)}
-        {m.mine ? (
-          <>
-            {" "}
-            {m.status === "read" ? (
-              <i
-                className="fas fa-check-double"
-                title="Read"
-                style={{ color: "#60a5fa" }}
-              />
-            ) : (
-              <i
-                className="fas fa-check"
-                title="Sent"
-                style={{ opacity: 0.7 }}
-              />
-            )}
-          </>
-        ) : null}
-      </span>
-    </div>
-  </div>
-))}
-<div ref={messagesEndRef} />
-                                </>
+                {messages.map((m) => (
+                  <div
+                    key={m._id}
+                    className={`message ${m.mine ? "msg-sent" : "msg-received"}`}
+                  >
+                    <div className="msg-bubble">
+                      {(m.attachments || []).map((a, i) =>
+                        a.mime?.startsWith("image/") ||
+                        a.url?.startsWith("data:image") ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={i}
+                            src={a.url}
+                            alt={a.name}
+                            style={{
+                              maxWidth: "100%",
+                              borderRadius: 8,
+                              marginBottom: 6,
+                              display: "block",
+                            }}
+                          />
+                        ) : (
+                          <a
+                            key={i}
+                            href={a.url}
+                            download={a.name}
+                            className="msg-attachment-item"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <i className="fas fa-file-alt" />
+                            <span>{a.name}</span>
+                          </a>
+                        )
+                      )}
+                      {m.body ? <div className="msg-text">{m.body}</div> : null}
+                      <span
+                        className="msg-time"
+                        title={
+                          m.createdAt
+                            ? new Date(m.createdAt).toLocaleString()
+                            : undefined
+                        }
+                      >
+                        {formatSendTimestamp(m.createdAt)}
+                        {m.mine ? (
+                          <>
+                            {" "}
+                            {m.status === "read" ? (
+                              <i
+                                className="fas fa-check-double"
+                                title="Read"
+                              />
+                            ) : (
+                              <i className="fas fa-check" title="Sent" />
+                            )}
+                          </>
+                        ) : null}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </>
             )}
           </div>
 

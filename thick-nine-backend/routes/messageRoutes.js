@@ -2,6 +2,11 @@
  * routes/messageRoutes.js
  * User-to-user DMs (Conversation + DirectMessage)
  * Mount: app.use("/api/messages", require("./routes/messageRoutes"));
+ *
+ * Polish (NO socket.io required):
+ *  - Cloudinary uploads via existing cloudinary + multer
+ *  - Message delete destroys Cloudinary public_id
+ *  - Client uses light polling for near-realtime
  */
 
 const express = require("express");
@@ -10,6 +15,14 @@ const mongoose = require("mongoose");
 const authMiddleware = require("../middleware/auth");
 const Conversation = require("../models/Conversation");
 const DirectMessage = require("../models/DirectMessage");
+
+const multer = require("multer");
+const { uploadMessageFile, destroyMessageFile } = require("../utils/messageUpload");
+
+const memoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 5 }, // hard cap; hybrid limits inside helper
+});
 
 function uid(req) {
   return req.user?.id || req.user?._id;
@@ -44,7 +57,6 @@ router.get("/conversations", authMiddleware, async (req, res) => {
     } else if (mode === "archived") {
       filter.archivedBy = userId;
     } else {
-      // default inbox: hide archived for this user
       filter.archivedBy = { $ne: userId };
     }
 
@@ -63,6 +75,7 @@ router.get("/conversations", authMiddleware, async (req, res) => {
           conversationId: c._id,
           senderId: { $ne: userId },
           readBy: { $ne: userId },
+          deletedAt: null,
         });
         return {
           _id: c._id,
@@ -138,7 +151,6 @@ router.post("/conversations", authMiddleware, async (req, res) => {
       await conversation.save();
     }
 
-    // If either party blocked the other
     if (hasId(conversation.blockedBy, userId) || hasId(conversation.blockedBy, recipientId)) {
       return res.status(403).json({
         success: false,
@@ -269,7 +281,17 @@ router.get("/conversations/:id", authMiddleware, async (req, res) => {
       150
     );
 
-    const messages = await DirectMessage.find({ conversationId: id })
+    // Optional: only messages newer than cursor (for efficient polling)
+    const since = req.query.since ? new Date(String(req.query.since)) : null;
+    const msgFilter = {
+      conversationId: id,
+      deletedAt: null,
+    };
+    if (since && !Number.isNaN(since.getTime())) {
+      msgFilter.createdAt = { $gt: since };
+    }
+
+    const messages = await DirectMessage.find(msgFilter)
       .sort({ createdAt: 1 })
       .limit(limit)
       .populate("senderId", "fullName displayName avatar")
@@ -280,6 +302,7 @@ router.get("/conversations/:id", authMiddleware, async (req, res) => {
         conversationId: id,
         senderId: { $ne: userId },
         readBy: { $ne: userId },
+        deletedAt: null,
       },
       { $addToSet: { readBy: userId } }
     );
@@ -333,7 +356,7 @@ router.get("/conversations/:id", authMiddleware, async (req, res) => {
 
 // -------------------------------------------------------
 // POST /api/messages/conversations/:id/messages
-// Body: { body?: string, attachments?: [{ url, name, mime, size }] }
+// Body: { body?: string, attachments?: [{ url, name, mime, size, publicId, resourceType }] }
 // -------------------------------------------------------
 router.post("/conversations/:id/messages", authMiddleware, async (req, res) => {
   try {
@@ -351,16 +374,22 @@ router.post("/conversations/:id/messages", authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid id." });
     }
 
-    // sanitize attachments (cap size / count)
     attachments = attachments
       .slice(0, 5)
       .map((a) => ({
-        url: String(a.url || "").slice(0, 2_000_000),
+        url: String(a.url || ""),
         name: String(a.name || "file").slice(0, 200),
         mime: String(a.mime || "").slice(0, 100),
         size: Number(a.size) || 0,
+        publicId: String(a.publicId || "").slice(0, 300),
+        resourceType: String(a.resourceType || "image").slice(0, 20),
       }))
-      .filter((a) => a.url);
+      .filter((a) => {
+        if (!a.url) return false;
+        // Prefer Cloudinary / http(s) URLs only (no large data URLs)
+        if (a.url.startsWith("data:")) return false;
+        return a.url.startsWith("http://") || a.url.startsWith("https://");
+      });
 
     if (!body && attachments.length === 0) {
       return res.status(400).json({
@@ -381,7 +410,6 @@ router.post("/conversations/:id/messages", authMiddleware, async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied." });
     }
 
-    // Block check: either party blocked
     if (hasId(conversation.blockedBy, userId)) {
       return res.status(403).json({
         success: false,
@@ -414,7 +442,6 @@ router.post("/conversations/:id/messages", authMiddleware, async (req, res) => {
     conversation.lastMessage = preview;
     conversation.lastMessageAt = msg.createdAt;
     conversation.lastSenderId = userId;
-    // Sending pulls out of archive for sender
     conversation.archivedBy = (conversation.archivedBy || []).filter(
       (x) => String(x) !== String(userId)
     );
@@ -427,6 +454,7 @@ router.post("/conversations/:id/messages", authMiddleware, async (req, res) => {
         body: msg.body,
         attachments: msg.attachments,
         createdAt: msg.createdAt,
+        senderId: userId,
         mine: true,
         status: "sent",
       },
@@ -434,6 +462,177 @@ router.post("/conversations/:id/messages", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("POST message error:", error);
     return res.status(500).json({ success: false, message: "Failed to send message." });
+  }
+});
+
+// -------------------------------------------------------
+// DELETE /api/messages/messages/:messageId
+// Soft-delete message + destroy Cloudinary assets
+// -------------------------------------------------------
+router.delete("/messages/:messageId", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const { messageId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    if (!messageId || !mongoose.Types.ObjectId.isValid(messageId)) {
+      return res.status(400).json({ success: false, message: "Invalid message id." });
+    }
+
+    const msg = await DirectMessage.findById(messageId);
+    if (!msg || msg.deletedAt) {
+      return res.status(404).json({ success: false, message: "Message not found." });
+    }
+
+    if (String(msg.senderId) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the sender can delete this message.",
+      });
+    }
+
+    // Soft-delete first (UI stays snappy)
+    msg.deletedAt = new Date();
+    await msg.save();
+
+    // Hard-delete Cloudinary assets
+    const destroyed = [];
+    for (const att of msg.attachments || []) {
+      if (att.publicId) {
+        const result = await destroyMessageFile(
+          att.publicId,
+          att.resourceType || "image"
+        );
+        destroyed.push({ publicId: att.publicId, result });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Message deleted.",
+      destroyed,
+    });
+  } catch (error) {
+    console.error("DELETE message error:", error);
+    return res.status(500).json({ success: false, message: "Failed to delete message." });
+  }
+});
+
+// -------------------------------------------------------
+// POST /api/messages/upload — Cloudinary (existing package)
+// multipart field: "file"
+// -------------------------------------------------------
+router.post(
+  "/upload",
+  authMiddleware,
+  (req, res, next) => {
+    memoryUpload.single("file")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message || "Upload failed.",
+        });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: "No file uploaded." });
+      }
+      const result = await uploadMessageFile(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
+      return res.status(200).json({
+        success: true,
+        attachment: {
+          url: result.url,
+          name: result.name || req.file.originalname,
+          mime: req.file.mimetype,
+          size: result.bytes || req.file.size,
+          publicId: result.publicId,
+          resourceType: result.resourceType,
+        },
+      });
+    } catch (error) {
+      console.error("message upload error:", error);
+      const status =
+        error.code === "CLOUDINARY_MISSING" || error.code === "FILE_TOO_LARGE"
+          ? 400
+          : 500;
+      return res.status(status).json({
+        success: false,
+        message: error.message || "Upload failed.",
+      });
+    }
+  }
+);
+
+// -------------------------------------------------------
+// POST /api/messages/cleanup-old
+// Optional cron: soft-deleted OR older than ?days=90 → destroy Cloudinary
+// Protect with CRON_SECRET header: x-cron-secret
+// -------------------------------------------------------
+router.post("/cleanup-old", async (req, res) => {
+  try {
+    const secret = process.env.CRON_SECRET;
+    if (secret && req.headers["x-cron-secret"] !== secret) {
+      return res.status(401).json({ success: false, message: "Unauthorized cron." });
+    }
+
+    const days = Math.min(
+      Math.max(parseInt(String(req.query.days || req.body?.days || "90"), 10) || 90, 7),
+      365
+    );
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Soft-deleted with attachments, or very old messages with attachments
+    const candidates = await DirectMessage.find({
+      $or: [
+        { deletedAt: { $ne: null }, "attachments.0": { $exists: true } },
+        { createdAt: { $lt: cutoff }, "attachments.0": { $exists: true } },
+      ],
+    })
+      .limit(100)
+      .lean();
+
+    let destroyedCount = 0;
+    for (const msg of candidates) {
+      for (const att of msg.attachments || []) {
+        if (att.publicId) {
+          await destroyMessageFile(att.publicId, att.resourceType || "image");
+          destroyedCount += 1;
+        }
+      }
+      // Clear publicIds so we don't re-destroy
+      await DirectMessage.updateOne(
+        { _id: msg._id },
+        {
+          $set: {
+            attachments: (msg.attachments || []).map((a) => ({
+              ...a,
+              publicId: "",
+              url: a.url, // keep url for history or blank if preferred
+            })),
+          },
+        }
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      scanned: candidates.length,
+      destroyedCount,
+      days,
+    });
+  } catch (error) {
+    console.error("cleanup-old error:", error);
+    return res.status(500).json({ success: false, message: "Cleanup failed." });
   }
 });
 
@@ -463,6 +662,7 @@ router.get("/unread-count", authMiddleware, async (req, res) => {
       conversationId: { $in: ids },
       senderId: { $ne: userId },
       readBy: { $ne: userId },
+      deletedAt: null,
     });
 
     return res.status(200).json({ success: true, unread });
