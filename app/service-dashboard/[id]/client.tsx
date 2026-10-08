@@ -1091,7 +1091,10 @@ export default function ServiceDashboardClient({
                   ? ` (${orders.length})`
                   : ""}
               </h3>
-              <Link href="/orders" className="view-all">
+              <Link
+                href={`/service-dashboard/${serviceId}/orders`}
+                className="view-all"
+              >
                 View All Orders
               </Link>
             </div>
