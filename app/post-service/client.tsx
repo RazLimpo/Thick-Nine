@@ -168,8 +168,13 @@ useEffect(() => {
       `Profile strength too low (${strength}%). Complete your profile to post services.`,
       "warning"
     );
-    router.replace("/freelancer-profile");
-    return;
+    // Delay redirect to allow toast to display
+    const timer = setTimeout(() => {
+      router.replace("/freelancer-profile");
+    }, 1500);
+    
+    // Cleanup: clear timeout if effect runs again
+    return () => clearTimeout(timer);
   }
 }, [router, showToast]);
 
