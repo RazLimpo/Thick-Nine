@@ -100,12 +100,12 @@
 
 .dashboard-layout {
   max-width: var(--max-width);
-  margin: 20px auto;
+  margin: 10px auto;
   padding: 0 20px;
 }
 
 .main-content-padding {
-  padding: 20px 0; /* Add top/bottom padding inside the layout */
+  padding: 10px 0; /* Add top/bottom padding inside the layout */
 }
 
 /* 3. Settings Master Layout (Sidebar + Content) */
@@ -113,7 +113,7 @@
 .settings-master-layout {
   display: flex;
   gap: 40px;
-  margin-top: 30px;
+  margin-top: 20px;
   background-color: white; /* Give the whole area a clean background */
   border-radius: 8px;
   border: 1px solid #ddd;
@@ -652,7 +652,17 @@ This ensures all form inputs have the spacious appearance.
 
 @media (max-width: 576px) {
   .dashboard-layout {
-      padding: 0 10px;
+      margin: 8px auto 16px;
+      padding: 0 12px;
+  }
+
+  .main-content-padding {
+      padding: 8px 0 16px;
+  }
+
+  .settings-master-layout {
+      margin-top: 12px;
+      gap: 16px;
   }
 
   .settings-nav-sidebar ul {

@@ -1,32 +1,28 @@
-// routes/userRoutes.js
-const express = require('express');
-const router = express.Router();
-const userController = require('../controllers/userController');
-const auth = require('../middleware/auth'); // Matches your auth middleware name in server.js
+// routes/userRoutes.js — profile section (merge into your existing file)
 
-// PUT /api/users/profile
-router.put('/profile', auth, userController.updateUserProfile);
+const express = require("express");
+const router = express.Router();
+const userController = require("../controllers/userController");
+const auth = require("../middleware/auth");
+
+// GET /api/users/profile  — load current user for settings page
+router.get("/profile", auth, userController.getUserProfile);
+
+// PUT /api/users/profile  — update profile / payout / settings / legal
+router.put("/profile", auth, userController.updateUserProfile);
+
+// Optional alias used by some clients
+router.patch("/profile", auth, userController.updateUserProfile);
 
 /* ===========================================================
-   AFFILIATE DASHBOARD ROUTES
+   AFFILIATE DASHBOARD ROUTES (keep your existing ones)
    =========================================================== */
 
-// GET /api/users/affiliate/me
-router.get('/affiliate/me', auth, userController.getAffiliateProfile);
-
-// GET /api/users/affiliate/stats
-router.get('/affiliate/stats', auth, userController.getAffiliateStats);
-
-// GET /api/users/affiliate/earnings
-router.get('/affiliate/earnings', auth, userController.getAffiliateEarnings);
-
-// PUT /api/users/affiliate/store
-router.put('/affiliate/store', auth, userController.updateAffiliateStore);
-
-// GET /api/users/affiliate/store/:affiliateId (Public Route - No auth required)
-router.get('/affiliate/store/:affiliateId', userController.getPublicAffiliateStore);
-
-// POST /api/users/affiliate/prestige/add-points
-router.post('/affiliate/prestige/add-points', auth, userController.addPrestigePoints);
+router.get("/affiliate/me", auth, userController.getAffiliateProfile);
+router.get("/affiliate/stats", auth, userController.getAffiliateStats);
+router.get("/affiliate/earnings", auth, userController.getAffiliateEarnings);
+router.put("/affiliate/store", auth, userController.updateAffiliateStore);
+router.get("/affiliate/store/:affiliateId", userController.getPublicAffiliateStore);
+router.post("/affiliate/prestige/add-points", auth, userController.addPrestigePoints);
 
 module.exports = router;

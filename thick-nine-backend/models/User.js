@@ -487,29 +487,35 @@ const UserSchema = new mongoose.Schema(
        =========================================================== */
 
     payoutDetails: {
-
-        method: {
-            type: String,
-            enum: [
-                "PayPal",
-                "Bank",
-                "M-Pesa",
-                "None"
-            ],
-            default: "None"
-        },
-
-        accountEmail: {
-            type: String,
-            default: ""
-        }
-
+      method: {
+        type: String,
+        enum: ["Payoneer", "Bank", "M-Pesa", "None"],
+        default: "None",
+      },
+      accountEmail: { type: String, default: "" },
+      accountName: { type: String, default: "" },
+      bankName: { type: String, default: "" },
+      bankCountry: { type: String, default: "" },
+      routingNumber: { type: String, default: "" },
+      accountNumber: { type: String, default: "" },
+      schedule: {
+        type: String,
+        enum: ["automatic", "manual"],
+        default: "manual",
+      },
     },
 
-
-
     /* ===========================================================
-       SECTION 14 — SOCIAL
+       SECTION 14 — LEGAL & TAX / AVAILABILITY
+       =========================================================== */
+
+    legalBusinessName: { type: String, default: "", trim: true },
+    taxId: { type: String, default: "", trim: true },
+    availability: { type: String, default: "Full-Time", trim: true },
+
+    
+        /* ===========================================================
+       SECTION 15 — SOCIAL
        =========================================================== */
 
     followers: [{
@@ -535,7 +541,7 @@ const UserSchema = new mongoose.Schema(
 
 
     /* ===========================================================
-       SECTION 15 — ACCOUNT HEALTH
+       SECTION 16 — ACCOUNT HEALTH
        =========================================================== */
 
     accountStrength: {
@@ -546,7 +552,7 @@ const UserSchema = new mongoose.Schema(
     
     
    /* =========================================================== 
-   SECTION 16 — AFFILIATE DATA 
+   SECTION 17 — AFFILIATE DATA 
 =========================================================== */
 
 affiliateProfile: {
@@ -578,7 +584,7 @@ storeConfig: {
     
     
       /* ===========================================================
-       SECTION 17 — USER SETTINGS
+       SECTION 18 — USER SETTINGS
        =========================================================== */
 
     settings: {
@@ -633,7 +639,7 @@ storeConfig: {
 
 
 /* ===========================================================
-   VIRTUAL FIELDS
+   19. VIRTUAL FIELDS
    =========================================================== */
 
 UserSchema.virtual("displayLocation").get(function () {
@@ -667,7 +673,7 @@ UserSchema.virtual("profileCompletion").get(function () {
 
 
 /* ===========================================================
-   DATABASE INDEXES
+   20. DATABASE INDEXES
    =========================================================== */
 
 UserSchema.index({ role: 1 });
@@ -689,7 +695,7 @@ UserSchema.index({ createdAt: -1 });
 
 
 /* ===========================================================
-   MARKETPLACE METHODS
+   21. MARKETPLACE METHODS
    =========================================================== */
 
 UserSchema.methods.canUploadMedia = function (
