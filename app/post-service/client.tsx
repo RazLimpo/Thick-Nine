@@ -170,7 +170,7 @@ useEffect(() => {
     );
     // Delay redirect to allow toast to display
     const timer = setTimeout(() => {
-      router.replace("/freelancer-profile");
+      router.replace("/freelancer-settings");
     }, 1500);
     
     // Cleanup: clear timeout if effect runs again
