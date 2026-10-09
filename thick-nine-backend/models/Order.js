@@ -58,6 +58,9 @@ const OrderSchema = new mongoose.Schema(
       },
     },
     
+    // Delivery deadline (set on order start / updated when extension approved)
+    dueAt: { type: Date, default: null },
+    
     
     // 5. Line Items Breakdown
     basePackagePrice: {

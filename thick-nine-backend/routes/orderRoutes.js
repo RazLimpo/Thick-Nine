@@ -1,40 +1,101 @@
-// Add to thick-nine-backend — e.g. routes/orderRoutes.js
-// GET /api/orders/:id — participant only (seller or client)
-//
-// Make sure this router is mounted at app.use("/api/orders", orderRoutes)
+// routes/orderRoutes.js
+// Mount: app.use("/api/orders", orderRoutes);
+// IMPORTANT: static paths (/mine) MUST come before /:id routes
 
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const authMiddleware = require("../middleware/auth");
-const mongoose = require("mongoose");
 
+function uid(req) {
+  return req.user?.id || req.user?._id;
+}
 
+// =====================================================
+// 0. GET /api/orders/mine — seller's orders (all services)
+//    MUST be registered BEFORE /:id
+// =====================================================
+router.get("/mine", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+
+    const orders = await Order.find({ sellerId: userId })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .limit(limit)
+      .populate("clientId", "fullName displayName avatar")
+      .populate("serviceId", "title images")
+      .lean();
+
+    const mapped = orders.map((o) => {
+      const buyer = o.clientId || {};
+      const service = o.serviceId || {};
+      return {
+        _id: o._id,
+        status: o.status,
+        packageName:
+          o.packageName ||
+          (Array.isArray(o.selectedAddons) && o.selectedAddons[0]?.title) ||
+          service.title ||
+          "Package",
+        amount: o.sellerEarnings ?? o.subtotal ?? o.grandTotal ?? 0,
+        dueAt: o.dueAt || o.escrowReleaseDate || null,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+        orderNumber: o.orderNumber || null,
+        buyer: {
+          _id: buyer._id || null,
+          name:
+            buyer.fullName || buyer.displayName || buyer.name || "Client",
+          avatar: buyer.avatar || "/default-avatar.png",
+        },
+        service: service._id
+          ? { _id: service._id, title: service.title || "" }
+          : null,
+      };
+    });
+
+    return res.status(200).json({ success: true, orders: mapped });
+  } catch (error) {
+    console.error("GET /api/orders/mine error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to load orders." });
+  }
+});
 
 // =====================================================
 // 1. POST /api/orders/:id/remind — seller only
 // =====================================================
-
 router.post("/:id/remind", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId = uid(req);
     const { id } = req.params;
-    const mongoose = require("mongoose");
-    const Order = require("../models/Order");
 
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid order ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid order ID." });
     }
 
     const order = await Order.findById(id);
     if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
     }
     if (String(order.sellerId) !== String(userId)) {
-      return res.status(403).json({ success: false, message: "Not your order." });
+      return res
+        .status(403)
+        .json({ success: false, message: "Not your order." });
     }
     if (order.status !== "pending") {
       return res.status(400).json({
@@ -46,11 +107,10 @@ router.post("/:id/remind", authMiddleware, async (req, res) => {
     order.lastReminderAt = new Date();
     await order.save();
 
-    // Email / in-app notification can be plugged here later
-
     return res.status(200).json({
       success: true,
-      message: "Reminder recorded. Buyer will be notified when messaging is enabled.",
+      message:
+        "Reminder recorded. Buyer will be notified when messaging is enabled.",
       order: {
         _id: order._id,
         status: order.status,
@@ -59,38 +119,40 @@ router.post("/:id/remind", authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error("POST /api/orders/:id/remind error:", error);
-    return res.status(500).json({ success: false, message: "Failed to send reminder." });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to send reminder." });
   }
 });
 
-
-
 // =====================================================
 // 2. POST /api/orders/:id/deliver — seller only
-//    Body: { note?: string, files?: string[] }
-//    Works for in_escrow and revision_requested
+//    Body: { note?: string, deliveryNote?: string, files?: string[], deliveryFiles?: string[] }
 // =====================================================
-
 router.post("/:id/deliver", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId = uid(req);
     const { id } = req.params;
-    const mongoose = require("mongoose");
-    const Order = require("../models/Order");
 
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid order ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid order ID." });
     }
 
     const order = await Order.findById(id);
     if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
     }
     if (String(order.sellerId) !== String(userId)) {
-      return res.status(403).json({ success: false, message: "Not your order." });
+      return res
+        .status(403)
+        .json({ success: false, message: "Not your order." });
     }
 
     const allowed = ["in_escrow", "revision_requested"];
@@ -101,15 +163,20 @@ router.post("/:id/deliver", authMiddleware, async (req, res) => {
       });
     }
 
-    const note = String(req.body?.note || "").slice(0, 2000);
-    const files = Array.isArray(req.body?.files)
-      ? req.body.files.map((f) => String(f).slice(0, 500)).filter(Boolean).slice(0, 20)
+    const note = String(
+      req.body?.deliveryNote || req.body?.note || ""
+    ).slice(0, 2000);
+    const filesRaw = req.body?.deliveryFiles || req.body?.files;
+    const files = Array.isArray(filesRaw)
+      ? filesRaw
+          .map((f) => String(f).slice(0, 500))
+          .filter(Boolean)
+          .slice(0, 20)
       : [];
 
     order.deliveryNote = note;
     order.deliveryFiles = files;
     order.deliveredAt = new Date();
-    // Stay in_escrow until buyer accepts / complete flow; revision goes back to in_escrow
     if (order.status === "revision_requested") {
       order.status = "in_escrow";
     }
@@ -128,35 +195,39 @@ router.post("/:id/deliver", authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error("POST /api/orders/:id/deliver error:", error);
-    return res.status(500).json({ success: false, message: "Failed to submit delivery." });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to submit delivery." });
   }
 });
 
-
-
-
 // =====================================================
 // 3. POST /api/orders/:id/extend — seller only
-//    Body: { proposedDate?: string (ISO/date), reason?: string }
 // =====================================================
 router.post("/:id/extend", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId = uid(req);
     const { id } = req.params;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid order ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid order ID." });
     }
 
     const order = await Order.findById(id);
     if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
     }
     if (String(order.sellerId) !== String(userId)) {
-      return res.status(403).json({ success: false, message: "Not your order." });
+      return res
+        .status(403)
+        .json({ success: false, message: "Not your order." });
     }
 
     if (order.status !== "in_escrow") {
@@ -181,8 +252,6 @@ router.post("/:id/extend", authMiddleware, async (req, res) => {
     };
     await order.save();
 
-    // Notify buyer later (email / in-app)
-
     return res.status(200).json({
       success: true,
       message: "Extension request submitted. Waiting for buyer response.",
@@ -201,28 +270,22 @@ router.post("/:id/extend", authMiddleware, async (req, res) => {
   }
 });
 
-
-
-
-
-
 // =====================================================
-// 4. POST /api/orders/:id/extend/respond — client (buyer) only
-//    Body: { action: "approve" | "reject" }
+// 4. POST /api/orders/:id/extend/respond — buyer only
 // =====================================================
-
 router.post("/:id/extend/respond", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId = uid(req);
     const { id } = req.params;
     const action = String(req.body?.action || "").toLowerCase();
-    const Notification = require("../models/Notification");
 
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid order ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid order ID." });
     }
     if (action !== "approve" && action !== "reject") {
       return res.status(400).json({
@@ -233,7 +296,9 @@ router.post("/:id/extend/respond", authMiddleware, async (req, res) => {
 
     const order = await Order.findById(id);
     if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
     }
     if (String(order.clientId) !== String(userId)) {
       return res.status(403).json({
@@ -261,10 +326,10 @@ router.post("/:id/extend/respond", authMiddleware, async (req, res) => {
 
     await order.save();
 
-    // ---- Seller in-app notification ----
     const short = String(order._id).slice(-6).toUpperCase();
     const approved = action === "approve";
     try {
+      const Notification = require("../models/Notification");
       await Notification.create({
         userId: order.sellerId,
         type: approved ? "extension_approved" : "extension_rejected",
@@ -277,7 +342,6 @@ router.post("/:id/extend/respond", authMiddleware, async (req, res) => {
         read: false,
       });
     } catch (notifyErr) {
-      // Do not fail the main action if notification write fails
       console.error("Extension notify error:", notifyErr);
     }
 
@@ -300,24 +364,21 @@ router.post("/:id/extend/respond", authMiddleware, async (req, res) => {
   }
 });
 
-
-
-
 // =====================================================
-// 5. GET /api/orders/:id
+// 5. GET /api/orders/:id — participant only
 // =====================================================
-
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId = uid(req);
     const { id } = req.params;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
-
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid order ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid order ID." });
     }
 
     const order = await Order.findById(id)
@@ -327,16 +388,18 @@ router.get("/:id", authMiddleware, async (req, res) => {
       .lean();
 
     if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
     }
 
     const sellerId = String(order.sellerId?._id || order.sellerId);
     const clientId = String(order.clientId?._id || order.clientId);
-    const uid = String(userId);
+    const uidStr = String(userId);
 
     let role = null;
-    if (sellerId === uid) role = "seller";
-    else if (clientId === uid) role = "client";
+    if (sellerId === uidStr) role = "seller";
+    else if (clientId === uidStr) role = "client";
     else {
       return res.status(403).json({
         success: false,
@@ -359,6 +422,3 @@ router.get("/:id", authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-
-// If you already have orderRoutes.js, paste only the router.get("/:id", ...)
-// handler into that file — do not create a second router mount.
