@@ -238,6 +238,15 @@ const UserSchema = new mongoose.Schema(
         url: String
     }],
     
+    skillMedia: [{
+  title: String,
+  url: String,
+  type: {
+    type: String,
+    enum: ["video", "audio", "image", "link"],
+    default: "link",
+  },
+}],
     
     
     

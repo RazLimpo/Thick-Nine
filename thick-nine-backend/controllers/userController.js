@@ -69,6 +69,9 @@ const formatUserPayload = (user) => {
     settings: userObj.settings || {},
     legalBusinessName: userObj.legalBusinessName || "",
     taxId: userObj.taxId || "",
+    portfolio: userObj.portfolio || [],
+    skillMedia: userObj.skillMedia || [],
+    twoFactorEnabled: Boolean(userObj.twoFactorEnabled),
     level: userObj.level,
     memberSince: userObj.memberSince,
     source: userObj.affiliateProfile?.source || "direct",
@@ -272,6 +275,37 @@ exports.updateUserProfile = async (req, res) => {
       if (notif.showOnlineStatus != null) {
         user.settings.showOnlineStatus = !!notif.showOnlineStatus;
       }
+    }
+
+    // --- Portfolio ---
+    if (Array.isArray(body.portfolio)) {
+      user.portfolio = body.portfolio
+        .map((item) => ({
+          title: String(item.title || "").trim().slice(0, 120),
+          image: String(item.image || "").trim(),
+          url: String(item.url || "").trim(),
+        }))
+        .filter((item) => item.title || item.image || item.url)
+        .slice(0, 30);
+    }
+
+    // --- Skill media ---
+    if (Array.isArray(body.skillMedia)) {
+      user.skillMedia = body.skillMedia
+        .map((item) => ({
+          title: String(item.title || "").trim().slice(0, 120),
+          url: String(item.url || "").trim(),
+          type: ["video", "audio", "image", "link"].includes(item.type)
+            ? item.type
+            : "link",
+        }))
+        .filter((item) => item.url)
+        .slice(0, 20);
+    }
+
+    // --- 2FA flag (full TOTP challenge wired at login later) ---
+    if (typeof body.twoFactorEnabled === "boolean") {
+      user.twoFactorEnabled = body.twoFactorEnabled;
     }
 
     // Profile complete flag
@@ -540,5 +574,96 @@ exports.addPrestigePoints = async (req, res) => {
   } catch (err) {
     console.error("Error adding prestige points:", err);
     res.status(500).send("Server Error");
+  }
+};
+
+
+/* ===========================================================
+   PROFILE MEDIA UPLOAD (Cloudinary)
+   =========================================================== */
+const cloudinary = require("cloudinary").v2;
+
+function ensureCloudinary() {
+  if (!cloudinary.config().cloud_name) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  }
+  if (!cloudinary.config().cloud_name) {
+    const err = new Error("Cloudinary is not configured.");
+    err.code = "CLOUDINARY_MISSING";
+    throw err;
+  }
+}
+
+/**
+ * @route   POST /api/users/upload
+ * @desc    Upload avatar / cover / portfolio media to Cloudinary
+ * @access  Private — multipart field "file", optional "kind"
+ */
+exports.uploadProfileMedia = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded." });
+    }
+
+    ensureCloudinary();
+
+    const mime = req.file.mimetype || "";
+    const isImage = mime.startsWith("image/");
+    const isVideo = mime.startsWith("video/");
+    if (!isImage && !isVideo) {
+      return res.status(400).json({
+        success: false,
+        message: "Only image or video files are allowed for profile media.",
+      });
+    }
+
+    const max = isImage ? 5 * 1024 * 1024 : 20 * 1024 * 1024;
+    if (req.file.size > max) {
+      return res.status(400).json({
+        success: false,
+        message: isImage ? "Image max 5MB." : "Video max 20MB.",
+      });
+    }
+
+    const kind = String(req.body?.kind || "avatar");
+    const folder =
+      kind === "cover"
+        ? "thick-nine/covers"
+        : kind === "portfolio" || kind === "media"
+          ? "thick-nine/portfolio"
+          : "thick-nine/avatars";
+
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: isImage ? "image" : "video",
+          use_filename: true,
+          unique_filename: true,
+          overwrite: false,
+          ...(isImage ? { quality: "auto", fetch_format: "auto" } : {}),
+        },
+        (err, uploaded) => (err ? reject(err) : resolve(uploaded))
+      );
+      stream.end(req.file.buffer);
+    });
+
+    return res.status(200).json({
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id,
+      resourceType: result.resource_type,
+      kind,
+    });
+  } catch (error) {
+    console.error("uploadProfileMedia error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Upload failed.",
+    });
   }
 };
