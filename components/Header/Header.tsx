@@ -565,7 +565,7 @@ if (isAdminRole(userRole)) {
     // Append Role-Specific Sub-Menu Lists
     if (userRole === 'freelancer') {
       items.push(
-        <li key="f-orders"><Link href="/freelancer-order-management" onClick={closeAllUI}><i className="fas fa-spinner"></i> Order Management</Link></li>,
+        <li key="f-orders"><Link href="/freelancer-orders" onClick={closeAllUI}><i className="fas fa-spinner"></i> Order Management</Link></li>,
         <li key="f-withdraw"><Link href="/freelancer-withdrawal" onClick={closeAllUI}><i className="fas fa-wallet"></i> Withdrawal</Link></li>,
         <li key="f-stats"><Link href="/freelancer-analytics" onClick={closeAllUI}><i className="fas fa-chart-line"></i> Stats</Link></li>,
         <li key="f-clients"><Link href="/freelancer-client-management" onClick={closeAllUI}><i className="fas fa-users"></i> Clients</Link></li>,
