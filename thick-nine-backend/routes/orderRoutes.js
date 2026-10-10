@@ -47,6 +47,7 @@ router.get("/mine", authMiddleware, async (req, res) => {
         dueAt: o.dueAt || o.escrowReleaseDate || null,
         createdAt: o.createdAt,
         updatedAt: o.updatedAt,
+        deliveredAt: o.deliveredAt || null,
         orderNumber: o.orderNumber || null,
         buyer: {
           _id: buyer._id || null,

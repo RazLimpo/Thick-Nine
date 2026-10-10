@@ -22,12 +22,17 @@ type OrderRow = {
   service?: { _id?: string; title?: string } | null;
   dueAt?: string | null;
   createdAt?: string;
+  deliveredAt?: string | null;
+  updatedAt?: string;
   orderNumber?: string;
 };
 
 type ModalMode = "remind" | "deliver" | "extend" | "revision" | null;
 
-function showToast(msg: string, type: "success" | "removed" | "info" = "success") {
+function showToast(
+  msg: string,
+  type: "success" | "removed" | "info" = "success"
+) {
   const container = document.getElementById("toast-container");
   if (!container) return;
   const toast = document.createElement("div");
@@ -70,7 +75,8 @@ function formatCountdown(dueAt?: string | null) {
     if (ms <= 0) return { text: "Overdue", urgent: true };
     const hours = Math.floor(ms / (1000 * 60 * 60));
     const days = Math.floor(hours / 24);
-    if (days >= 1) return { text: `${days}d ${hours % 24}h`, urgent: days < 1 };
+    if (days >= 1)
+      return { text: `${days}d ${hours % 24}h`, urgent: false };
     return { text: `${hours}h left`, urgent: hours < 6 };
   } catch {
     return { text: "—", urgent: false };
@@ -98,11 +104,7 @@ function primaryAction(status: string): {
   mode: ModalMode;
 } {
   const s = (status || "").toLowerCase();
-  if (
-    s.includes("requirement") ||
-    s === "pending" ||
-    s.includes("wait")
-  ) {
+  if (s.includes("requirement") || s === "pending" || s.includes("wait")) {
     return { label: "Remind Buyer", mode: "remind" };
   }
   if (s.includes("revision")) {
@@ -114,6 +116,46 @@ function primaryAction(status: string): {
   return { label: "Manage", mode: null };
 }
 
+function csvEscape(val: unknown): string {
+  const s = String(val ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const content = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Average calendar days from createdAt → deliveredAt (or updatedAt) for completed orders */
+function computeAvgDeliveryDays(orders: OrderRow[]): string {
+  const durations: number[] = [];
+  for (const o of orders) {
+    const s = (o.status || "").toLowerCase();
+    if (!(s.includes("complete") || s === "delivered")) continue;
+    const start = o.createdAt ? new Date(o.createdAt).getTime() : NaN;
+    const endRaw = o.deliveredAt || o.updatedAt;
+    const end = endRaw ? new Date(endRaw).getTime() : NaN;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start)
+      continue;
+    const days = (end - start) / (1000 * 60 * 60 * 24);
+    durations.push(days);
+  }
+  if (!durations.length) return "—";
+  const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+  if (avg < 1) {
+    const hours = Math.round(avg * 24);
+    return hours <= 1 ? "< 1 day" : `${hours}h`;
+  }
+  return `${avg.toFixed(1)} days`;
+}
+
 export default function FreelancerOrdersClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -121,6 +163,7 @@ export default function FreelancerOrdersClient() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>(null);
@@ -144,7 +187,6 @@ export default function FreelancerOrdersClient() {
   const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
-      // Prefer seller-wide list; fall back to empty
       const res = await fetch("/api/orders/mine?limit=100", {
         credentials: "include",
         headers: getAuthHeaders(),
@@ -156,7 +198,6 @@ export default function FreelancerOrdersClient() {
         return;
       }
       if (!res.ok) {
-        // Fallback: try generic
         const res2 = await fetch("/api/orders?as=seller&limit=100", {
           credentials: "include",
           headers: getAuthHeaders(),
@@ -201,9 +242,7 @@ export default function FreelancerOrdersClient() {
           st.includes("wait");
       } else if (statusFilter === "in-progress") {
         matchS =
-          st.includes("progress") ||
-          st === "in_escrow" ||
-          st === "active";
+          st.includes("progress") || st === "in_escrow" || st === "active";
       } else if (statusFilter === "revision") {
         matchS = st.includes("revision");
       }
@@ -232,9 +271,14 @@ export default function FreelancerOrdersClient() {
     return {
       active,
       earnings,
-      avgDelivery: "—", // needs completed-order duration data
+      avgDelivery: computeAvgDeliveryDays(orders),
     };
   }, [orders]);
+
+  const selectedOrders = useMemo(
+    () => orders.filter((o) => selected.has(o._id)),
+    [orders, selected]
+  );
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -309,6 +353,107 @@ export default function FreelancerOrdersClient() {
     }
   };
 
+  const handleBulkExport = () => {
+    const list = selectedOrders.length ? selectedOrders : filtered;
+    if (!list.length) {
+      showToast("No orders to export", "removed");
+      return;
+    }
+    const header = [
+      "Order ID",
+      "Order Number",
+      "Buyer",
+      "Package",
+      "Status",
+      "Amount",
+      "Due At",
+      "Created At",
+      "Delivered At",
+    ];
+    const rows = list.map((o) => [
+      o._id,
+      o.orderNumber || "",
+      o.buyer?.name || "",
+      o.packageName || o.service?.title || "",
+      o.status,
+      String(o.amount ?? ""),
+      o.dueAt || "",
+      o.createdAt || "",
+      o.deliveredAt || "",
+    ]);
+    downloadCsv(
+      `freelancer-orders-${new Date().toISOString().slice(0, 10)}.csv`,
+      [header, ...rows]
+    );
+    showToast(`Exported ${list.length} order(s)`, "success");
+  };
+
+  const handleBulkMessage = async () => {
+    if (!selectedOrders.length) {
+      showToast("Select at least one order", "removed");
+      return;
+    }
+    setBulkBusy(true);
+    let ok = 0;
+    let fail = 0;
+    let lastConversationId: string | null = null;
+
+    try {
+      for (const order of selectedOrders) {
+        const recipientId = order.buyer?._id;
+        if (!recipientId) {
+          fail += 1;
+          continue;
+        }
+        try {
+          const res = await fetch("/api/messages/conversations", {
+            method: "POST",
+            credentials: "include",
+            headers: getAuthHeaders(true),
+            body: JSON.stringify({
+              recipientId,
+              orderId: order._id,
+              initialMessage: `Hi! Following up on your order ${
+                order.orderNumber || `#${order._id.slice(-6)}`
+              }.`,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            ok += 1;
+            lastConversationId =
+              data.conversationId || data.conversation?._id || lastConversationId;
+          } else {
+            fail += 1;
+          }
+        } catch {
+          fail += 1;
+        }
+      }
+
+      if (ok > 0) {
+        showToast(
+          fail
+            ? `Messaged ${ok} buyer(s); ${fail} failed`
+            : `Opened threads for ${ok} buyer(s)`,
+          fail ? "info" : "success"
+        );
+        if (lastConversationId) {
+          router.push(`/messages?c=${lastConversationId}`);
+        } else {
+          router.push("/messages");
+        }
+      } else {
+        showToast(
+          "Could not start messages (missing buyer ids or API error)",
+          "removed"
+        );
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const modalTitle = () => {
     if (modalMode === "remind") return "Send Reminder";
     if (modalMode === "deliver") return "Deliver Order";
@@ -345,7 +490,11 @@ export default function FreelancerOrdersClient() {
               <p className="large-value" id="avg-delivery-time">
                 {stats.avgDelivery}
               </p>
-              <span className="sub-text">When history data is available</span>
+              <span className="sub-text">
+                {stats.avgDelivery === "—"
+                  ? "After completed orders with delivery dates"
+                  : "Based on completed orders"}
+              </span>
             </div>
           </div>
 
@@ -392,11 +541,23 @@ export default function FreelancerOrdersClient() {
               </div>
 
               {loading ? (
-                <p style={{ padding: 24, color: "#94a3b8", textAlign: "center" }}>
+                <p
+                  style={{
+                    padding: 24,
+                    color: "#94a3b8",
+                    textAlign: "center",
+                  }}
+                >
                   Loading orders…
                 </p>
               ) : filtered.length === 0 ? (
-                <p style={{ padding: 24, color: "#94a3b8", textAlign: "center" }}>
+                <p
+                  style={{
+                    padding: 24,
+                    color: "#94a3b8",
+                    textAlign: "center",
+                  }}
+                >
                   No orders match your filters.
                 </p>
               ) : (
@@ -447,9 +608,7 @@ export default function FreelancerOrdersClient() {
                         {cd.text !== "—" && (
                           <i
                             className={
-                              cd.urgent
-                                ? "fas fa-bolt"
-                                : "far fa-clock"
+                              cd.urgent ? "fas fa-bolt" : "far fa-clock"
                             }
                           />
                         )}{" "}
@@ -619,20 +778,24 @@ export default function FreelancerOrdersClient() {
           <button
             type="button"
             className="btn-bulk"
-            onClick={() => showToast("Bulk messaging coming soon", "info")}
+            disabled={bulkBusy}
+            onClick={handleBulkMessage}
           >
-            <i className="fas fa-envelope" /> Message All
+            <i className="fas fa-envelope" />{" "}
+            {bulkBusy ? "Messaging…" : "Message All"}
           </button>
           <button
             type="button"
             className="btn-bulk"
-            onClick={() => showToast("Export coming soon", "info")}
+            disabled={bulkBusy}
+            onClick={handleBulkExport}
           >
             <i className="fas fa-file-export" /> Export Data
           </button>
           <button
             type="button"
             className="btn-bulk text-danger"
+            disabled={bulkBusy}
             onClick={() => {
               setSelected(new Set());
               showToast("Selection cleared", "info");
