@@ -16,7 +16,7 @@ function uid(req) {
   return req.user?.id || req.user?._id;
 }
 
-// GET /api/offers?serviceId=  — seller's offers
+// GET /api/offers?serviceId=  — seller's / buyer's offers
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const userId = uid(req);
@@ -81,7 +81,6 @@ router.post("/", authMiddleware, async (req, res) => {
       }
     }
 
-    // Ensure / find DM conversation
     let conversation = await Conversation.findOne({
       participants: { $all: [userId, buyerId], $size: 2 },
     });
@@ -107,9 +106,10 @@ router.post("/", authMiddleware, async (req, res) => {
       expiresAt,
     });
 
-    // Post system-style message into DM
+    // OFFER_ID line is required for messages "Accept & Pay" button
     const body = [
       `📋 Custom offer: ${offer.title}`,
+      `OFFER_ID:${offer._id}`,
       `Price: $${offer.price}`,
       `Delivery: ${offer.deliveryDays} day(s)`,
       description ? `\n${description.slice(0, 500)}` : "",
@@ -130,7 +130,6 @@ router.post("/", authMiddleware, async (req, res) => {
     if (serviceId) conversation.serviceId = serviceId;
     await conversation.save();
 
-    // Optional notification if Notification model exists
     try {
       const Notification = require("../models/Notification");
       await Notification.create({

@@ -71,6 +71,28 @@ function formatSendTimestamp(iso?: string) {
   }
 }
 
+
+function parseOfferFromBody(body?: string): {
+  offerId: string;
+  title: string;
+  price: number;
+  deliveryDays: number;
+} | null {
+  if (!body || !body.includes("Custom offer")) return null;
+  const idMatch = body.match(/OFFER_ID:([a-fA-F0-9]{24})/);
+  // legacy: no OFFER_ID line — cannot accept via API
+  if (!idMatch) return null;
+  const titleMatch = body.match(/Custom offer:\s*(.+)/);
+  const priceMatch = body.match(/Price:\s*\$?([0-9]+(?:\.[0-9]+)?)/i);
+  const daysMatch = body.match(/Delivery:\s*([0-9]+)/i);
+  return {
+    offerId: idMatch[1],
+    title: (titleMatch?.[1] || "Custom offer").trim(),
+    price: Number(priceMatch?.[1]) || 0,
+    deliveryDays: Number(daysMatch?.[1]) || 3,
+  };
+}
+
 function formatListTime(iso?: string) {
   if (!iso) return "";
   try {
@@ -362,6 +384,52 @@ export default function MessagesClient() {
     setText((t) => t + emoji);
     setEmojiOpen(false);
     textareaRef.current?.focus();
+  };
+
+
+  const handleOfferAction = async (
+    offerId: string,
+    action: "accept" | "decline",
+    meta?: { title?: string; price?: number; deliveryDays?: number; sellerId?: string; serviceId?: string }
+  ) => {
+    try {
+      const res = await fetch(`/api/offers/${offerId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.message || "Could not update offer", "removed");
+        return;
+      }
+      if (action === "decline") {
+        showToast("Offer declined", "info");
+        return;
+      }
+      showToast("Offer accepted — continue to payment", "success");
+      // Prefer data from offer response
+      const offer = data.offer || {};
+      const price = offer.price ?? meta?.price ?? 0;
+      const days = offer.deliveryDays ?? meta?.deliveryDays ?? 3;
+      const title = encodeURIComponent(offer.title || meta?.title || "Custom offer");
+      const sellerId =
+        offer.sellerId?._id || offer.sellerId || meta?.sellerId || "";
+      const serviceId =
+        offer.serviceId?._id || offer.serviceId || meta?.serviceId || "";
+      const qs = new URLSearchParams({
+        offerId,
+        price: String(price),
+        deliveryTime: String(days),
+        title: offer.title || meta?.title || "Custom offer",
+      });
+      if (sellerId) qs.set("sellerId", String(sellerId));
+      if (serviceId) qs.set("serviceId", String(serviceId));
+      router.push(`/client-checkout?${qs.toString()}`);
+    } catch {
+      showToast("Network error", "removed");
+    }
   };
 
   const sendMessage = async () => {
@@ -720,7 +788,56 @@ export default function MessagesClient() {
                           </a>
                         )
                       )}
-                      {m.body ? <div className="msg-text">{m.body}</div> : null}
+                      {m.body ? (
+                        (() => {
+                          const offer = !m.mine ? parseOfferFromBody(m.body) : null;
+                          if (offer) {
+                            return (
+                              <div className="msg-text">
+                                <div style={{ whiteSpace: "pre-wrap" }}>{m.body}</div>
+                                <div
+                                  style={{
+                                    marginTop: 10,
+                                    display: "flex",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    className="btn-primary"
+                                    style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+                                    onClick={() =>
+                                      handleOfferAction(offer.offerId, "accept", {
+                                        title: offer.title,
+                                        price: offer.price,
+                                        deliveryDays: offer.deliveryDays,
+                                      })
+                                    }
+                                  >
+                                    Accept &amp; Pay
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+                                    onClick={() =>
+                                      handleOfferAction(offer.offerId, "decline")
+                                    }
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="msg-text" style={{ whiteSpace: "pre-wrap" }}>
+                              {m.body}
+                            </div>
+                          );
+                        })()
+                      ) : null}
                       <span
                         className="msg-time"
                         title={

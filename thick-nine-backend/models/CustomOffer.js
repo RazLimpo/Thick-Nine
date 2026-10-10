@@ -25,6 +25,12 @@ const CustomOfferSchema = new mongoose.Schema(
       ref: "Conversation",
       default: null,
     },
+    // Set when buyer pays via checkout
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      default: null,
+    },
     title: {
       type: String,
       required: true,

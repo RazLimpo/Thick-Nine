@@ -19,8 +19,9 @@ interface OrderPayload {
   requirements: string;
   affiliateCode: string | null;
   paymentMethod: 'card';
-  /** Days promised by the service — backend uses this (or Service.deliveryTime) to set dueAt */
   deliveryTimeDays: number;
+  offerId?: string | null;
+  couponCode?: string | null;
 }
 
 interface ToastMessage {
@@ -62,6 +63,14 @@ export default function ClientCheckout() {
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
 
+  const [couponInput, setCouponInput] = useState('');
+  const [couponApplied, setCouponApplied] = useState<{
+    code: string;
+    discountAmount: number;
+  } | null>(null);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [offerId, setOfferId] = useState<string | null>(null);
+
   const [serviceData, setServiceData] = useState<{
     serviceId: string;
     sellerId: string;
@@ -97,6 +106,8 @@ export default function ClientCheckout() {
       '3';
     const deliveryTimeDays = Math.max(1, Number(daysRaw) || 3);
 
+    setOfferId(urlParams.get('offerId') || null);
+
     setServiceData({
       serviceId: urlParams.get('serviceId') || '',
       sellerId: urlParams.get('sellerId') || '',
@@ -117,8 +128,10 @@ export default function ClientCheckout() {
     0
   );
   const subtotal = serviceData.basePrice + addonsTotal;
-  const buyerServiceFee = Number((subtotal * 0.05).toFixed(2));
-  const grandTotal = Number((subtotal + buyerServiceFee).toFixed(2));
+  const discountAmount = couponApplied?.discountAmount || 0;
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const buyerServiceFee = Number((discountedSubtotal * 0.05).toFixed(2));
+  const grandTotal = Number((discountedSubtotal + buyerServiceFee).toFixed(2));
 
   const showToast = (
     message: string,
@@ -146,6 +159,50 @@ export default function ClientCheckout() {
       if (token) h.Authorization = `Bearer ${token}`;
     }
     return h;
+  };
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      showToast('Enter a coupon code', 'error');
+      return;
+    }
+    setCouponBusy(true);
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({
+          code,
+          serviceId: serviceData.serviceId || null,
+          orderAmount: subtotal,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setCouponApplied(null);
+        showToast(data.message || 'Invalid coupon', 'error');
+        return;
+      }
+      setCouponApplied({
+        code: data.coupon?.code || code,
+        discountAmount: Number(data.discountAmount) || 0,
+      });
+      showToast(
+        `Coupon applied — save $${Number(data.discountAmount || 0).toFixed(2)}`,
+        'success'
+      );
+    } catch {
+      showToast('Could not validate coupon', 'error');
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
+  const clearCoupon = () => {
+    setCouponApplied(null);
+    setCouponInput('');
   };
 
   const handlePayNow = async (e: React.FormEvent) => {
@@ -178,7 +235,21 @@ export default function ClientCheckout() {
         ? localStorage.getItem('affiliateCode')
         : null);
 
+    let clientId = urlParams.get('clientId') || '';
+    if (!clientId && typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          clientId = u.id || u._id || '';
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
     const orderPayload: OrderPayload = {
+      clientId: clientId || undefined,
       serviceId: serviceData.serviceId,
       sellerId: serviceData.sellerId,
       basePackagePrice: serviceData.basePrice,
@@ -187,6 +258,8 @@ export default function ClientCheckout() {
       affiliateCode,
       paymentMethod: 'card',
       deliveryTimeDays: serviceData.deliveryTimeDays,
+      offerId: offerId || null,
+      couponCode: couponApplied?.code || null,
     };
 
     try {
@@ -231,6 +304,18 @@ export default function ClientCheckout() {
     <main>
       <section className="checkout-page-container main-content-padding">
         <h1>Secure Checkout</h1>
+        {offerId && (
+          <p
+            style={{
+              marginBottom: 12,
+              color: '#008060',
+              fontWeight: 600,
+              fontSize: '0.95rem',
+            }}
+          >
+            Paying for an accepted custom offer
+          </p>
+        )}
 
         <div className="checkout-layout">
           <div className="checkout-main-column">
@@ -393,6 +478,51 @@ export default function ClientCheckout() {
                 <span className="item-title">Subtotal</span>
                 <span className="item-price">${subtotal.toFixed(2)}</span>
               </div>
+
+              {/* Coupon */}
+              <div className="form-group" style={{ margin: '12px 0' }}>
+                <label htmlFor="coupon-code">Promo code</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    id="coupon-code"
+                    type="text"
+                    placeholder="WELCOME15"
+                    value={couponInput}
+                    disabled={!!couponApplied}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    style={{ flex: 1 }}
+                  />
+                  {couponApplied ? (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={clearCoupon}
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={couponBusy}
+                      onClick={applyCoupon}
+                    >
+                      {couponBusy ? '…' : 'Apply'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {couponApplied && (
+                <div className="order-summary-item fee-item">
+                  <span className="item-title">
+                    Discount ({couponApplied.code})
+                  </span>
+                  <span className="item-price" style={{ color: '#008060' }}>
+                    −${discountAmount.toFixed(2)}
+                  </span>
+                </div>
+              )}
 
               <div className="order-summary-item fee-item">
                 <span className="item-title">Service Fee (5%)</span>

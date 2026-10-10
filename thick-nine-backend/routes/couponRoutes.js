@@ -1,6 +1,7 @@
 /**
  * routes/couponRoutes.js
  * Mount: app.use("/api/coupons", require("./routes/couponRoutes"));
+ * Static paths (/validate) registered before /:id
  */
 
 const express = require("express");
@@ -14,7 +15,7 @@ function uid(req) {
   return req.user?.id || req.user?._id;
 }
 
-// GET /api/coupons?serviceId=  — seller's coupons
+// GET /api/coupons?serviceId=
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const userId = uid(req);
@@ -22,10 +23,7 @@ router.get("/", authMiddleware, async (req, res) => {
 
     const filter = { sellerId: userId };
     if (req.query.serviceId && mongoose.Types.ObjectId.isValid(String(req.query.serviceId))) {
-      filter.$or = [
-        { serviceId: req.query.serviceId },
-        { serviceId: null },
-      ];
+      filter.$or = [{ serviceId: req.query.serviceId }, { serviceId: null }];
     }
 
     const coupons = await Coupon.find(filter).sort({ createdAt: -1 }).limit(50).lean();
@@ -47,7 +45,8 @@ router.post("/", authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: "Code must be at least 3 characters." });
     }
 
-    const discountType = req.body?.discountType === "fixed_amount" ? "fixed_amount" : "percentage";
+    const discountType =
+      req.body?.discountType === "fixed_amount" ? "fixed_amount" : "percentage";
     const discountValue = Number(req.body?.discountValue);
     if (!discountValue || discountValue <= 0) {
       return res.status(400).json({ success: false, message: "discountValue must be > 0." });
@@ -101,7 +100,90 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-// PATCH /api/coupons/:id — toggle active / update basics
+// POST /api/coupons/validate — BEFORE /:id
+// Body: { code, serviceId?, orderAmount }
+router.post("/validate", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const code = String(req.body?.code || "").trim().toUpperCase();
+    const orderAmount = Number(req.body?.orderAmount) || 0;
+    const serviceId = req.body?.serviceId || null;
+
+    if (!code) {
+      return res.status(400).json({ success: false, message: "code required." });
+    }
+
+    const coupon = await Coupon.findOne({ code, isActive: true }).lean();
+    if (!coupon) {
+      return res.status(404).json({ success: false, message: "Invalid or inactive coupon." });
+    }
+
+    const now = new Date();
+    if (coupon.startDate && now < new Date(coupon.startDate)) {
+      return res.status(400).json({ success: false, message: "Coupon not active yet." });
+    }
+    if (coupon.endDate && now > new Date(coupon.endDate)) {
+      return res.status(400).json({ success: false, message: "Coupon expired." });
+    }
+    if (coupon.totalUsageLimit != null && coupon.usedCount >= coupon.totalUsageLimit) {
+      return res.status(400).json({ success: false, message: "Coupon usage limit reached." });
+    }
+    if (coupon.minimumSpend && orderAmount < coupon.minimumSpend) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum spend is $${coupon.minimumSpend}.`,
+      });
+    }
+    if (coupon.serviceId && serviceId && String(coupon.serviceId) !== String(serviceId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Coupon not valid for this service.",
+      });
+    }
+
+    if (userId && coupon.usageLimitPerUser) {
+      const entry = (coupon.redemptions || []).find(
+        (r) => String(r.userId) === String(userId)
+      );
+      if (entry && entry.count >= coupon.usageLimitPerUser) {
+        return res.status(400).json({
+          success: false,
+          message: "You already used this coupon.",
+        });
+      }
+    }
+
+    let discount = 0;
+    if (coupon.discountType === "percentage") {
+      discount = (orderAmount * coupon.discountValue) / 100;
+      if (coupon.maxDiscountAmount != null) {
+        discount = Math.min(discount, coupon.maxDiscountAmount);
+      }
+    } else {
+      discount = coupon.discountValue;
+    }
+    discount = Math.min(discount, orderAmount);
+    discount = Math.round(discount * 100) / 100;
+
+    return res.status(200).json({
+      success: true,
+      coupon: {
+        _id: coupon._id,
+        code: coupon.code,
+        name: coupon.name,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+      },
+      discountAmount: discount,
+      finalAmount: Math.max(0, Math.round((orderAmount - discount) * 100) / 100),
+    });
+  } catch (error) {
+    console.error("validate coupon error:", error);
+    return res.status(500).json({ success: false, message: "Validation failed." });
+  }
+});
+
+// PATCH /api/coupons/:id
 router.patch("/:id", authMiddleware, async (req, res) => {
   try {
     const userId = uid(req);
@@ -148,83 +230,6 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("DELETE coupon error:", error);
     return res.status(500).json({ success: false, message: "Failed to delete coupon." });
-  }
-});
-
-// POST /api/coupons/validate — public/buyer checkout
-// Body: { code, serviceId?, orderAmount, buyerId? }
-router.post("/validate", authMiddleware, async (req, res) => {
-  try {
-    const userId = uid(req);
-    const code = String(req.body?.code || "").trim().toUpperCase();
-    const orderAmount = Number(req.body?.orderAmount) || 0;
-    const serviceId = req.body?.serviceId || null;
-
-    if (!code) {
-      return res.status(400).json({ success: false, message: "code required." });
-    }
-
-    const coupon = await Coupon.findOne({ code, isActive: true }).lean();
-    if (!coupon) {
-      return res.status(404).json({ success: false, message: "Invalid or inactive coupon." });
-    }
-
-    const now = new Date();
-    if (coupon.startDate && now < new Date(coupon.startDate)) {
-      return res.status(400).json({ success: false, message: "Coupon not active yet." });
-    }
-    if (coupon.endDate && now > new Date(coupon.endDate)) {
-      return res.status(400).json({ success: false, message: "Coupon expired." });
-    }
-    if (coupon.totalUsageLimit != null && coupon.usedCount >= coupon.totalUsageLimit) {
-      return res.status(400).json({ success: false, message: "Coupon usage limit reached." });
-    }
-    if (coupon.minimumSpend && orderAmount < coupon.minimumSpend) {
-      return res.status(400).json({
-        success: false,
-        message: `Minimum spend is $${coupon.minimumSpend}.`,
-      });
-    }
-    if (coupon.serviceId && serviceId && String(coupon.serviceId) !== String(serviceId)) {
-      return res.status(400).json({ success: false, message: "Coupon not valid for this service." });
-    }
-
-    if (userId && coupon.usageLimitPerUser) {
-      const entry = (coupon.redemptions || []).find(
-        (r) => String(r.userId) === String(userId)
-      );
-      if (entry && entry.count >= coupon.usageLimitPerUser) {
-        return res.status(400).json({ success: false, message: "You already used this coupon." });
-      }
-    }
-
-    let discount = 0;
-    if (coupon.discountType === "percentage") {
-      discount = (orderAmount * coupon.discountValue) / 100;
-      if (coupon.maxDiscountAmount != null) {
-        discount = Math.min(discount, coupon.maxDiscountAmount);
-      }
-    } else {
-      discount = coupon.discountValue;
-    }
-    discount = Math.min(discount, orderAmount);
-    discount = Math.round(discount * 100) / 100;
-
-    return res.status(200).json({
-      success: true,
-      coupon: {
-        _id: coupon._id,
-        code: coupon.code,
-        name: coupon.name,
-        discountType: coupon.discountType,
-        discountValue: coupon.discountValue,
-      },
-      discountAmount: discount,
-      finalAmount: Math.max(0, Math.round((orderAmount - discount) * 100) / 100),
-    });
-  } catch (error) {
-    console.error("validate coupon error:", error);
-    return res.status(500).json({ success: false, message: "Validation failed." });
   }
 });
 
