@@ -104,16 +104,43 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
   const proceedToCheckout = () => {
     const serviceId = service.id || service._id || "";
     const sellerId = seller?._id || seller?.id || "";
-    
-    
+
+    const deliveryTimeDays = Math.max(
+      1,
+      parseInt(String(delivery).replace(/\D/g, ""), 10) ||
+        Number(service.deliveryTime) ||
+        3
+    );
+
+    let clientId = "";
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("user");
+        if (raw) {
+          const u = JSON.parse(raw);
+          clientId = u.id || u._id || "";
+        }
+      } catch {
+        /* ignore */
+      }
+    }
 
     const params = new URLSearchParams({
       serviceId,
       sellerId,
       title: service.title || "Service",
       price: String(basePrice),
+      deliveryTime: String(deliveryTimeDays),
       addons: JSON.stringify(selectedAddons),
     });
+
+    if (clientId) params.set("clientId", clientId);
+
+    fetch(`/api/services/${serviceId}/click`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "continue" }),
+    }).catch(() => {});
 
     window.location.href = `/client-checkout?${params.toString()}`;
   };
