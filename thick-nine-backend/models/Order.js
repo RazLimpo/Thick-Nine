@@ -113,6 +113,10 @@ const OrderSchema = new mongoose.Schema(
     buyerRating: { type: Number, min: 1, max: 5, default: null },
     buyerReview: { type: String, default: "", maxlength: 2000 },
     ratedAt: { type: Date, default: null },
+
+    // Invoice (issued on first download / after complete)
+    invoiceNumber: { type: String, default: null, index: true },
+    invoicedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

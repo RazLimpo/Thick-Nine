@@ -49,6 +49,8 @@ type OrderDetail = {
   buyerRating?: number | null;
   buyerReview?: string;
   ratedAt?: string | null;
+  invoiceNumber?: string | null;
+  invoicedAt?: string | null;
   extensionRequest?: {
     proposedDate?: string | null;
     reason?: string;
@@ -244,6 +246,35 @@ export default function OrderSuccessClient({
   }, [loadOrder]);
 
 
+
+  const downloadInvoice = () => {
+    if (!order) return;
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    // Open invoice in new tab; backend validates auth via header if we use fetch blob
+    const url = `/api/orders/${order._id}/invoice`;
+    // Fetch with auth then open blob (Bearer not sent on plain window.open)
+    (async () => {
+      try {
+        const res = await fetch(url, {
+          credentials: "include",
+          headers: getAuthHeaders(),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          alert(data.message || "Could not load invoice.");
+          return;
+        }
+        const html = await res.text();
+        const blob = new Blob([html], { type: "text/html" });
+        const obj = URL.createObjectURL(blob);
+        window.open(obj, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(obj), 60_000);
+      } catch {
+        alert("Network error loading invoice.");
+      }
+    })();
+  };
 
   const submitDispute = async () => {
     if (!order) return;
@@ -1332,6 +1363,39 @@ export default function OrderSuccessClient({
                 </div>
               )}
 
+
+              {/* Invoice download */}
+              {(role === "client" || role === "seller") &&
+                (order.status === "completed" ||
+                  order.deliveredAt ||
+                  order.status === "in_escrow" ||
+                  order.status === "cancelled" ||
+                  order.status === "disputed") && (
+                  <div style={{ marginBottom: 16 }}>
+                    <button
+                      type="button"
+                      className="btn-dashboard"
+                      onClick={downloadInvoice}
+                      style={{
+                        background: "#1e293b",
+                        borderColor: "#1e293b",
+                      }}
+                    >
+                      <i className="fas fa-file-invoice" /> Download invoice
+                      {order.invoiceNumber ? ` (${order.invoiceNumber})` : ""}
+                    </button>
+                    <p
+                      style={{
+                        margin: "8px 0 0",
+                        fontSize: "0.8rem",
+                        color: "#666",
+                      }}
+                    >
+                      Opens a printable receipt — use your browser Print → Save
+                      as PDF for a PDF copy.
+                    </p>
+                  </div>
+                )}
               {role === "client" && (
                 <div className="order-actions" style={{ marginTop: 16 }}>
                   {/* Accept delivery & complete — explicit step */}

@@ -759,6 +759,164 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
 // =====================================================
 // 5. GET /api/orders/:id — participant only
 // =====================================================
+
+// =====================================================
+// GET /api/orders/:id/invoice — buyer or seller; HTML invoice (PDF engine later)
+// =====================================================
+router.get("/:id/invoice", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order ID." });
+    }
+
+    const order = await Order.findById(id)
+      .populate("clientId", "fullName displayName email")
+      .populate("sellerId", "fullName displayName email")
+      .populate("serviceId", "title");
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found." });
+    }
+
+    const isClient = String(order.clientId?._id || order.clientId) === String(userId);
+    const isSeller = String(order.sellerId?._id || order.sellerId) === String(userId);
+    if (!isClient && !isSeller) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the buyer or seller can download this invoice.",
+      });
+    }
+
+    // Prefer completed; allow download after delivery for transparency
+    const okStatus = ["completed", "in_escrow", "revision_requested", "disputed", "cancelled"];
+    if (!okStatus.includes(order.status) && !order.deliveredAt) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice is available after delivery or completion.",
+      });
+    }
+
+    if (!order.invoiceNumber) {
+      const y = new Date().getFullYear();
+      const seq = String(order._id).slice(-6).toUpperCase();
+      order.invoiceNumber = `INV-${y}-${seq}`;
+      order.invoicedAt = order.invoicedAt || new Date();
+      await order.save();
+    }
+
+    const client = order.clientId || {};
+    const seller = order.sellerId || {};
+    const serviceTitle =
+      (order.serviceId && order.serviceId.title) ||
+      "Service";
+    const buyerName = client.displayName || client.fullName || "Buyer";
+    const sellerName = seller.displayName || seller.fullName || "Seller";
+    const money = (n) =>
+      `$${Number(n || 0).toFixed(2)}`;
+    const d = (iso) =>
+      iso ? new Date(iso).toLocaleString() : "—";
+
+    const addons = Array.isArray(order.selectedAddons)
+      ? order.selectedAddons
+          .map(
+            (a) =>
+              `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${String(
+                a.title || "Add-on"
+              )}</td><td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${money(
+                a.price
+              )}</td></tr>`
+          )
+          .join("")
+      : "";
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${order.invoiceNumber} — Thick 9</title>
+  <style>
+    body { font-family: system-ui, sans-serif; color: #222; max-width: 720px; margin: 32px auto; padding: 0 16px; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    .muted { color: #666; font-size: 0.9rem; }
+    .row { display: flex; justify-content: space-between; gap: 24px; margin: 24px 0; flex-wrap: wrap; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th { text-align: left; border-bottom: 2px solid #222; padding: 8px; }
+    .totals td { padding: 6px 8px; }
+    .totals .grand { font-weight: 700; font-size: 1.1rem; }
+    @media print { body { margin: 0; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <p class="no-print muted"><button onclick="window.print()">Print / Save as PDF</button></p>
+  <h1>Invoice ${order.invoiceNumber}</h1>
+  <p class="muted">Thick 9 · Platform receipt</p>
+  <p class="muted">Issued ${d(order.invoicedAt)} · Order ${String(order._id)}</p>
+  <div class="row">
+    <div>
+      <strong>Bill to</strong><br/>
+      ${buyerName}<br/>
+      <span class="muted">${client.email || ""}</span>
+    </div>
+    <div>
+      <strong>Provider</strong><br/>
+      ${sellerName}<br/>
+      <span class="muted">${seller.email || ""}</span>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Description</th><th style="text-align:right">Amount</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee">${serviceTitle}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${money(
+          order.basePackagePrice
+        )}</td>
+      </tr>
+      ${addons}
+    </tbody>
+  </table>
+  <table class="totals" style="margin-top:20px;max-width:320px;margin-left:auto">
+    <tr><td>Subtotal</td><td style="text-align:right">${money(order.subtotal)}</td></tr>
+    <tr><td>Buyer service fee</td><td style="text-align:right">${money(
+      order.buyerServiceFee
+    )}</td></tr>
+    <tr class="grand"><td>Total paid</td><td style="text-align:right">${money(
+      order.grandTotal
+    )}</td></tr>
+    <tr><td class="muted">Seller earnings (ref)</td><td class="muted" style="text-align:right">${money(
+      order.sellerEarnings
+    )}</td></tr>
+  </table>
+  <p class="muted" style="margin-top:32px">Status: ${String(
+    order.status
+  )} · Payment: ${String(order.paymentMethod || "—")}</p>
+  <p class="muted">This document is a platform receipt for the amounts recorded on the order.</p>
+</body>
+</html>`;
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${order.invoiceNumber}.html"`
+    );
+    return res.status(200).send(html);
+  } catch (error) {
+    console.error("GET /api/orders/:id/invoice error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate invoice.",
+    });
+  }
+});
+
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const userId = uid(req);
