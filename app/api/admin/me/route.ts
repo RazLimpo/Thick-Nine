@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { API_BASE_URL } from "@/lib/constants";
 
+export const dynamic = "force-dynamic";
+
 const BACKEND =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.BACKEND_API_URL ||
