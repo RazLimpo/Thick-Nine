@@ -32,8 +32,23 @@ type OrderDetail = {
   escrowReleaseDate?: string | null;
   dueAt?: string | null;
   deliveryNote?: string;
-  deliveryFiles?: string[];
+  deliveryFiles?: Array<
+    | string
+    | {
+        url?: string | null;
+        previewUrl?: string | null;
+        name?: string;
+        mime?: string;
+        locked?: boolean;
+      }
+  >;
+  disputeReason?: string;
+  disputedAt?: string | null;
+  disputeResolution?: string;
   deliveredAt?: string | null;
+  buyerRating?: number | null;
+  buyerReview?: string;
+  ratedAt?: string | null;
   extensionRequest?: {
     proposedDate?: string | null;
     reason?: string;
@@ -102,6 +117,21 @@ function formatDate(iso?: string | null) {
   }
 }
 
+function normalizeFileRow(f: any): {
+  url: string | null;
+  name: string;
+  locked: boolean;
+} {
+  if (typeof f === "string") {
+    return { url: f, name: f.split("/").pop() || "file", locked: false };
+  }
+  return {
+    url: f?.url || f?.previewUrl || null,
+    name: f?.name || "file",
+    locked: !!f?.locked,
+  };
+}
+
 function shortId(id: string) {
   return `#${(id || "").slice(-6).toUpperCase()}`;
 }
@@ -134,6 +164,17 @@ export default function OrderSuccessClient({
   const [dashboardUrl, setDashboardUrl] = useState("/client-dashboard");
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [role, setRole] = useState<"seller" | "client" | "unknown">("unknown");
+  const [hoverStar, setHoverStar] = useState(0);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [ratingBusy, setRatingBusy] = useState(false);
+  const [ratingMsg, setRatingMsg] = useState<string | null>(null);
+  const [completeBusy, setCompleteBusy] = useState(false);
+  const [completeMsg, setCompleteMsg] = useState<string | null>(null);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeBusy, setDisputeBusy] = useState(false);
+  const [disputeMsg, setDisputeMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [extResponding, setExtResponding] = useState(false);
@@ -184,6 +225,10 @@ export default function OrderSuccessClient({
       }
 
       setOrder(data.order || null);
+      if (data.order?.buyerRating) {
+        setSelectedRating(Number(data.order.buyerRating) || 0);
+        setReviewText(data.order.buyerReview || "");
+      }
       if (data.role === "seller" || data.role === "client") {
         setRole(data.role);
       }
@@ -197,6 +242,118 @@ export default function OrderSuccessClient({
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
+
+
+  const submitDispute = async () => {
+    if (!order) return;
+    if (disputeReason.trim().length < 10) {
+      setDisputeMsg("Please describe the issue (at least 10 characters).");
+      return;
+    }
+    if (
+      !window.confirm(
+        "Open a dispute? The order will be locked for completion until support resolves it."
+      )
+    ) {
+      return;
+    }
+    setDisputeBusy(true);
+    setDisputeMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${order._id}/dispute`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ reason: disputeReason.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDisputeMsg(data.message || "Could not open dispute.");
+        return;
+      }
+      setDisputeMsg(data.message || "Dispute submitted.");
+      setDisputeOpen(false);
+      await loadOrder();
+    } catch {
+      setDisputeMsg("Network error while opening dispute.");
+    } finally {
+      setDisputeBusy(false);
+    }
+  };
+
+  const completeOrder = async () => {
+    if (!order) return;
+    if (
+      !window.confirm(
+        "Accept this delivery and mark the order as completed? Escrow release will follow your platform policy."
+      )
+    ) {
+      return;
+    }
+    setCompleteBusy(true);
+    setCompleteMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${order._id}/complete`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCompleteMsg(data.message || "Could not complete order.");
+        return;
+      }
+      setCompleteMsg(data.message || "Order completed.");
+      await loadOrder();
+    } catch {
+      setCompleteMsg("Network error while completing order.");
+    } finally {
+      setCompleteBusy(false);
+    }
+  };
+
+  const submitRating = async () => {
+    if (!order) return;
+    if (selectedRating < 1 || selectedRating > 5) {
+      setRatingMsg("Please select a rating from 1 to 5 stars.");
+      return;
+    }
+    setRatingBusy(true);
+    setRatingMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${order._id}/rate`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rating: selectedRating,
+          review: reviewText.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRatingMsg(data.message || "Could not save rating.");
+        return;
+      }
+      setRatingMsg(data.message || "Thanks for your rating!");
+      await loadOrder();
+    } catch {
+      setRatingMsg("Network error while saving rating.");
+    } finally {
+      setRatingBusy(false);
+    }
+  };
 
   const respondToExtension = async (action: "approve" | "reject") => {
     if (!order) return;
@@ -1040,13 +1197,580 @@ export default function OrderSuccessClient({
                 </p>
               )}
 
+
+              {/* Delivery files (preview locked until complete) */}
+              {order.deliveredAt &&
+                Array.isArray(order.deliveryFiles) &&
+                order.deliveryFiles.length > 0 && (
+                  <section
+                    style={{
+                      background: "white",
+                      borderRadius: 16,
+                      border: "1px solid #edf2f7",
+                      padding: 24,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <h3 style={{ margin: "0 0 12px", fontSize: "1.05rem" }}>
+                      <i
+                        className="fas fa-box-open"
+                        style={{ marginRight: 8, color: "#d96464" }}
+                      />
+                      Delivery files
+                      {order.status !== "completed" && role === "client" ? (
+                        <span
+                          style={{
+                            marginLeft: 10,
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            color: "#b45309",
+                          }}
+                        >
+                          Preview only until you accept
+                        </span>
+                      ) : null}
+                    </h3>
+                    {order.deliveryNote ? (
+                      <p
+                        style={{
+                          margin: "0 0 12px",
+                          color: "#555",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {order.deliveryNote}
+                      </p>
+                    ) : null}
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {order.deliveryFiles.map((raw, i) => {
+                        const f = normalizeFileRow(raw);
+                        return (
+                          <li key={i} style={{ marginBottom: 8 }}>
+                            {f.url ? (
+                              <a
+                                href={f.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ fontWeight: 600 }}
+                              >
+                                {f.name}
+                              </a>
+                            ) : (
+                              <span style={{ color: "#888" }}>{f.name}</span>
+                            )}
+                            {f.locked ? (
+                              <span
+                                style={{
+                                  marginLeft: 8,
+                                  fontSize: "0.75rem",
+                                  background: "#fef3c7",
+                                  color: "#92400e",
+                                  padding: "2px 8px",
+                                  borderRadius: 8,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Watermarked / locked
+                              </span>
+                            ) : order.status === "completed" ? (
+                              <span
+                                style={{
+                                  marginLeft: 8,
+                                  fontSize: "0.75rem",
+                                  background: "#dcfce7",
+                                  color: "#166534",
+                                  padding: "2px 8px",
+                                  borderRadius: 8,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Full file
+                              </span>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {role === "client" &&
+                      order.status !== "completed" && (
+                        <p
+                          style={{
+                            margin: "12px 0 0",
+                            fontSize: "0.85rem",
+                            color: "#666",
+                          }}
+                        >
+                          Final (unwatermarked) files unlock after you{" "}
+                          <strong>Accept delivery &amp; complete</strong>.
+                        </p>
+                      )}
+                  </section>
+                )}
+
+              {order.status === "disputed" && (
+                <div
+                  style={{
+                    marginBottom: 20,
+                    padding: 16,
+                    borderRadius: 12,
+                    border: "1px solid #fecaca",
+                    background: "#fef2f2",
+                    color: "#991b1b",
+                  }}
+                >
+                  <strong>
+                    <i className="fas fa-gavel" /> Order under dispute
+                  </strong>
+                  {order.disputeReason ? (
+                    <p style={{ margin: "8px 0 0" }}>{order.disputeReason}</p>
+                  ) : null}
+                  {order.disputedAt ? (
+                    <p style={{ margin: "6px 0 0", fontSize: "0.85rem" }}>
+                      Opened {formatDate(order.disputedAt)}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
               {role === "client" && (
-                <div className="order-actions" style={{ marginTop: 8 }}>
+                <div className="order-actions" style={{ marginTop: 16 }}>
+                  {/* Accept delivery & complete — explicit step */}
+                  {order.deliveredAt &&
+                    order.status !== "completed" &&
+                    order.status !== "cancelled" && (
+                      <div
+                        style={{
+                          marginBottom: 20,
+                          padding: 16,
+                          border: "1px solid #bbf7d0",
+                          borderRadius: 10,
+                          background: "#f0fdf4",
+                        }}
+                      >
+                        <h3
+                          style={{
+                            margin: "0 0 8px",
+                            fontSize: "1.05rem",
+                            color: "#166534",
+                          }}
+                        >
+                          <i className="fas fa-check-circle" /> Delivery received
+                        </h3>
+                        <p
+                          style={{
+                            margin: "0 0 10px",
+                            fontSize: "0.9rem",
+                            color: "#555",
+                          }}
+                        >
+                          The freelancer submitted delivery
+                          {order.deliveredAt
+                            ? ` on ${formatDate(order.deliveredAt)}`
+                            : ""}
+                          . Review the files/note above, then accept to close
+                          this order.
+                        </p>
+                        {order.deliveryNote ? (
+                          <p
+                            style={{
+                              margin: "0 0 10px",
+                              fontSize: "0.9rem",
+                              color: "#666",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            “{order.deliveryNote}”
+                          </p>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="btn-dashboard"
+                          disabled={completeBusy}
+                          onClick={completeOrder}
+                          style={{
+                            background: "#16a34a",
+                            borderColor: "#16a34a",
+                            opacity: completeBusy ? 0.7 : 1,
+                          }}
+                        >
+                          {completeBusy
+                            ? "Completing…"
+                            : "Accept delivery & complete order"}
+                        </button>
+                        {completeMsg && (
+                          <p
+                            style={{
+                              margin: "10px 0 0",
+                              fontSize: "0.9rem",
+                              color: completeMsg
+                                .toLowerCase()
+                                .includes("completed")
+                                ? "#166534"
+                                : "#c0392b",
+                            }}
+                          >
+                            {completeMsg}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                  {order.status === "completed" && (
+                    <div
+                      style={{
+                        marginBottom: 16,
+                        padding: 12,
+                        borderRadius: 8,
+                        background: "#ecfdf5",
+                        color: "#166534",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      <i className="fas fa-flag-checkered" /> This order is{" "}
+                      <strong>completed</strong>
+                      {order.escrowReleaseDate
+                        ? ` · Escrow release around ${formatDate(
+                            order.escrowReleaseDate
+                          )}`
+                        : ""}
+                      .
+                    </div>
+                  )}
+
+
+                  {/* Dispute */}
+                  {order.status !== "completed" &&
+                    order.status !== "cancelled" &&
+                    order.status !== "disputed" && (
+                      <div style={{ marginBottom: 16 }}>
+                        {!disputeOpen ? (
+                          <button
+                            type="button"
+                            onClick={() => setDisputeOpen(true)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#c0392b",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              padding: 0,
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            <i className="fas fa-gavel" /> Dispute this order
+                          </button>
+                        ) : (
+                          <div
+                            style={{
+                              padding: 14,
+                              border: "1px solid #fecaca",
+                              borderRadius: 10,
+                              background: "#fff",
+                            }}
+                          >
+                            <p
+                              style={{
+                                margin: "0 0 8px",
+                                fontSize: "0.9rem",
+                                color: "#555",
+                              }}
+                            >
+                              Explain the issue. Escrow stays held until the
+                              dispute is resolved.
+                            </p>
+                            <textarea
+                              value={disputeReason}
+                              onChange={(e) =>
+                                setDisputeReason(e.target.value)
+                              }
+                              rows={3}
+                              placeholder="What is wrong with the delivery or process?"
+                              style={{
+                                width: "100%",
+                                padding: 10,
+                                borderRadius: 8,
+                                border: "1px solid #ddd",
+                                marginBottom: 10,
+                                boxSizing: "border-box",
+                                fontFamily: "inherit",
+                              }}
+                            />
+                            <div style={{ display: "flex", gap: 10 }}>
+                              <button
+                                type="button"
+                                className="btn-dashboard"
+                                disabled={disputeBusy}
+                                onClick={submitDispute}
+                                style={{
+                                  background: "#c0392b",
+                                  borderColor: "#c0392b",
+                                }}
+                              >
+                                {disputeBusy
+                                  ? "Submitting…"
+                                  : "Submit dispute"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDisputeOpen(false)}
+                                style={{
+                                  padding: "8px 14px",
+                                  borderRadius: 8,
+                                  border: "1px solid #ddd",
+                                  background: "#f5f5f5",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                            {disputeMsg && (
+                              <p
+                                style={{
+                                  margin: "10px 0 0",
+                                  fontSize: "0.9rem",
+                                  color: "#c0392b",
+                                }}
+                              >
+                                {disputeMsg}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                  {/* Rate order — buyer */}
+                  {(order.status === "in_escrow" ||
+                    order.status === "revision_requested" ||
+                    order.status === "completed") && (
+                    <div
+                      style={{
+                        marginBottom: 20,
+                        padding: 16,
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 10,
+                        background: "#fafafa",
+                      }}
+                    >
+                      <h3
+                        style={{
+                          margin: "0 0 8px",
+                          fontSize: "1.05rem",
+                          color: "#222",
+                        }}
+                      >
+                        <i className="fas fa-star" style={{ color: "#f5a623" }} />{" "}
+                        Rate this order
+                      </h3>
+                      {order.buyerRating != null && order.ratedAt ? (
+                        <div>
+                          <p style={{ margin: "0 0 6px", color: "#555" }}>
+                            Your rating:{" "}
+                            <strong>
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <i
+                                  key={i}
+                                  className={
+                                    i < Number(order.buyerRating)
+                                      ? "fas fa-star"
+                                      : "far fa-star"
+                                  }
+                                  style={{
+                                    color:
+                                      i < Number(order.buyerRating)
+                                        ? "#f5a623"
+                                        : "#ccc",
+                                    marginRight: 2,
+                                  }}
+                                />
+                              ))}{" "}
+                              {order.buyerRating}/5
+                            </strong>
+                          </p>
+                          {order.buyerReview ? (
+                            <p
+                              style={{
+                                margin: 0,
+                                color: "#666",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              “{order.buyerReview}”
+                            </p>
+                          ) : null}
+                          <p
+                            style={{
+                              margin: "8px 0 0",
+                              fontSize: "0.85rem",
+                              color: "#888",
+                            }}
+                          >
+                            Submitted {formatDate(order.ratedAt)}
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p
+                            style={{
+                              margin: "0 0 10px",
+                              fontSize: "0.9rem",
+                              color: "#666",
+                            }}
+                          >
+                            How was your experience with this freelancer?
+                          </p>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              marginBottom: 12,
+                              fontSize: "1.6rem",
+                            }}
+                            onMouseLeave={() => setHoverStar(0)}
+                          >
+                            {[1, 2, 3, 4, 5].map((n) => {
+                              const filled =
+                                (hoverStar || selectedRating) >= n;
+                              return (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                                  onMouseEnter={() => setHoverStar(n)}
+                                  onClick={() => setSelectedRating(n)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                    color: filled ? "#f5a623" : "#ccc",
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  <i
+                                    className={
+                                      filled ? "fas fa-star" : "far fa-star"
+                                    }
+                                  />
+                                </button>
+                              );
+                            })}
+                            {selectedRating > 0 && (
+                              <span
+                                style={{
+                                  fontSize: "0.9rem",
+                                  color: "#555",
+                                  alignSelf: "center",
+                                  marginLeft: 8,
+                                }}
+                              >
+                                {selectedRating}/5
+                              </span>
+                            )}
+                          </div>
+                          <textarea
+                            placeholder="Optional review (what went well, what could improve)…"
+                            value={reviewText}
+                            onChange={(e) => setReviewText(e.target.value)}
+                            rows={3}
+                            maxLength={2000}
+                            style={{
+                              width: "100%",
+                              padding: 10,
+                              borderRadius: 8,
+                              border: "1px solid #ddd",
+                              resize: "vertical",
+                              fontFamily: "inherit",
+                              fontSize: "0.9rem",
+                              marginBottom: 10,
+                              boxSizing: "border-box",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="btn-dashboard"
+                            disabled={ratingBusy || selectedRating < 1}
+                            onClick={submitRating}
+                            style={{
+                              opacity:
+                                ratingBusy || selectedRating < 1 ? 0.6 : 1,
+                            }}
+                          >
+                            {ratingBusy ? "Saving…" : "Submit rating"}
+                          </button>
+                          {ratingMsg && (
+                            <p
+                              style={{
+                                margin: "10px 0 0",
+                                fontSize: "0.9rem",
+                                color: ratingMsg
+                                  .toLowerCase()
+                                  .includes("thanks")
+                                  ? "#2e7d32"
+                                  : "#c0392b",
+                              }}
+                            >
+                              {ratingMsg}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <Link href={dashboardUrl} className="btn-dashboard">
                     Go to Dashboard
                   </Link>
                 </div>
               )}
+
+              {/* Seller sees buyer rating when present */}
+              {role === "seller" &&
+                order.buyerRating != null && (
+                  <div
+                    style={{
+                      marginTop: 16,
+                      padding: 14,
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 10,
+                      background: "#fffbeb",
+                    }}
+                  >
+                    <strong style={{ color: "#222" }}>Buyer rating</strong>
+                    <p style={{ margin: "6px 0 0" }}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <i
+                          key={i}
+                          className={
+                            i < Number(order.buyerRating)
+                              ? "fas fa-star"
+                              : "far fa-star"
+                          }
+                          style={{
+                            color:
+                              i < Number(order.buyerRating)
+                                ? "#f5a623"
+                                : "#ccc",
+                            marginRight: 2,
+                          }}
+                        />
+                      ))}{" "}
+                      {order.buyerRating}/5
+                    </p>
+                    {order.buyerReview ? (
+                      <p
+                        style={{
+                          margin: "6px 0 0",
+                          color: "#555",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        “{order.buyerReview}”
+                      </p>
+                    ) : null}
+                  </div>
+                )}
             </div>
           </div>
         </div>

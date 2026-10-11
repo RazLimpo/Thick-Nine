@@ -12,6 +12,80 @@ function uid(req) {
   return req.user?.id || req.user?._id;
 }
 
+
+/** Cloudinary on-the-fly watermark preview (no-op for non-Cloudinary URLs) */
+function cloudinaryPreviewUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  if (!/res\.cloudinary\.com/.test(url) || !/\/upload\//.test(url)) return null;
+  // Blur + PREVIEW text overlay
+  return url.replace(
+    "/upload/",
+    "/upload/e_blur:300/l_text:Arial_60_bold:PREVIEW,co_rgb:ffffff90,g_center/"
+  );
+}
+
+function normalizeDeliveryFiles(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((f) => {
+      if (typeof f === "string") {
+        const url = String(f).slice(0, 500);
+        if (!url) return null;
+        return {
+          url,
+          previewUrl: cloudinaryPreviewUrl(url),
+          name: url.split("/").pop() || "file",
+          mime: "",
+        };
+      }
+      if (f && typeof f === "object" && f.url) {
+        const url = String(f.url).slice(0, 500);
+        const previewUrl =
+          f.previewUrl != null
+            ? String(f.previewUrl).slice(0, 500)
+            : cloudinaryPreviewUrl(url);
+        return {
+          url,
+          previewUrl: previewUrl || null,
+          name: String(f.name || url.split("/").pop() || "file").slice(0, 200),
+          mime: String(f.mime || "").slice(0, 120),
+        };
+      }
+      return null;
+    })
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+/** Buyer must not see final URLs until completed */
+function filesForRole(order, role) {
+  const files = Array.isArray(order.deliveryFiles) ? order.deliveryFiles : [];
+  const unlocked =
+    role === "seller" || order.status === "completed";
+
+  return files.map((f) => {
+    const row = typeof f === "string" ? { url: f, name: f.split("/").pop() } : f || {};
+    if (unlocked) {
+      return {
+        url: row.url,
+        previewUrl: row.previewUrl || null,
+        name: row.name || "file",
+        mime: row.mime || "",
+        locked: false,
+      };
+    }
+    // Locked: preview only (or no URL)
+    return {
+      url: row.previewUrl || null,
+      previewUrl: row.previewUrl || null,
+      name: row.name || "file",
+      mime: row.mime || "",
+      locked: true,
+    };
+  });
+}
+
+
 // =====================================================
 // 0. GET /api/orders/mine — seller's orders (all services)
 //    MUST be registered BEFORE /:id
@@ -49,6 +123,9 @@ router.get("/mine", authMiddleware, async (req, res) => {
         updatedAt: o.updatedAt,
         deliveredAt: o.deliveredAt || null,
         orderNumber: o.orderNumber || null,
+        buyerRating: o.buyerRating != null ? o.buyerRating : null,
+        buyerReview: o.buyerReview || "",
+        ratedAt: o.ratedAt || null,
         buyer: {
           _id: buyer._id || null,
           name:
@@ -168,12 +245,7 @@ router.post("/:id/deliver", authMiddleware, async (req, res) => {
       req.body?.deliveryNote || req.body?.note || ""
     ).slice(0, 2000);
     const filesRaw = req.body?.deliveryFiles || req.body?.files;
-    const files = Array.isArray(filesRaw)
-      ? filesRaw
-          .map((f) => String(f).slice(0, 500))
-          .filter(Boolean)
-          .slice(0, 20)
-      : [];
+    const files = normalizeDeliveryFiles(filesRaw);
 
     order.deliveryNote = note;
     order.deliveryFiles = files;
@@ -365,6 +437,325 @@ router.post("/:id/extend/respond", authMiddleware, async (req, res) => {
   }
 });
 
+
+// =====================================================
+// 6. POST /api/orders/:id/rate — buyer only (after delivery / complete)
+//    Body: { rating: 1-5, review?: string }
+// =====================================================
+router.post("/:id/rate", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order ID." });
+    }
+
+    const rating = Number(req.body?.rating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "rating must be a number from 1 to 5.",
+      });
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found." });
+    }
+    if (String(order.clientId) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the buyer can rate this order.",
+      });
+    }
+
+    const allowed = ["in_escrow", "revision_requested", "completed"];
+    if (!allowed.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "This order cannot be rated yet.",
+      });
+    }
+
+    if (order.buyerRating != null && order.ratedAt) {
+      return res.status(400).json({
+        success: false,
+        message: "You already rated this order.",
+      });
+    }
+
+    order.buyerRating = Math.round(rating);
+    order.buyerReview = String(req.body?.review || "").slice(0, 2000);
+    order.ratedAt = new Date();
+
+    // Optional: mark completed when buyer rates after delivery
+    if (order.status === "in_escrow" || order.status === "revision_requested") {
+      if (order.deliveredAt) {
+        order.status = "completed";
+        if (!order.escrowReleaseDate) {
+          const release = new Date();
+          release.setDate(release.getDate() + 14);
+          order.escrowReleaseDate = release;
+        }
+      }
+    }
+
+    await order.save();
+
+    try {
+      const Notification = require("../models/Notification");
+      await Notification.create({
+        userId: order.sellerId,
+        type: "order_rated",
+        title: "New order rating",
+        message: `A buyer rated an order ${order.buyerRating}/5.`,
+        link: `/orders/${order._id}`,
+        orderId: order._id,
+        read: false,
+      });
+    } catch (_) {
+      /* optional */
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Thanks for your rating.",
+      order: {
+        _id: order._id,
+        status: order.status,
+        buyerRating: order.buyerRating,
+        buyerReview: order.buyerReview,
+        ratedAt: order.ratedAt,
+      },
+    });
+  } catch (error) {
+    console.error("POST /api/orders/:id/rate error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save rating.",
+    });
+  }
+});
+
+
+
+// =====================================================
+// POST /api/orders/:id/dispute — buyer only
+// Body: { reason: string, evidence?: string[] }
+// =====================================================
+router.post("/:id/dispute", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order ID." });
+    }
+
+    const reason = String(req.body?.reason || "").trim().slice(0, 2000);
+    if (reason.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Please describe the issue (at least 10 characters).",
+      });
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found." });
+    }
+    if (String(order.clientId) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the buyer can open a dispute.",
+      });
+    }
+
+    if (order.status === "disputed") {
+      return res.status(400).json({
+        success: false,
+        message: "A dispute is already open on this order.",
+      });
+    }
+    if (order.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot dispute a cancelled order.",
+      });
+    }
+    if (order.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Completed orders cannot be disputed here. Contact support.",
+      });
+    }
+
+    const allowed = ["pending", "in_escrow", "revision_requested"];
+    if (!allowed.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot dispute an order with status "${order.status}".`,
+      });
+    }
+
+    const evidenceRaw = req.body?.evidence;
+    const evidence = Array.isArray(evidenceRaw)
+      ? evidenceRaw.map((u) => String(u).slice(0, 500)).filter(Boolean).slice(0, 10)
+      : [];
+
+    order.status = "disputed";
+    order.disputeReason = reason;
+    order.disputeEvidence = evidence;
+    order.disputedAt = new Date();
+    order.disputeResolution = "none";
+    await order.save();
+
+    try {
+      const Notification = require("../models/Notification");
+      const short = String(order._id).slice(-6).toUpperCase();
+      await Notification.create({
+        userId: order.sellerId,
+        type: "order_disputed",
+        title: "Order disputed",
+        message: `Buyer opened a dispute on order #${short}.`,
+        link: `/orders/${order._id}`,
+        orderId: order._id,
+        read: false,
+      });
+    } catch (_) {}
+
+    return res.status(200).json({
+      success: true,
+      message: "Dispute submitted. Escrow remains held until resolved.",
+      order: {
+        _id: order._id,
+        status: order.status,
+        disputeReason: order.disputeReason,
+        disputedAt: order.disputedAt,
+      },
+    });
+  } catch (error) {
+    console.error("POST /api/orders/:id/dispute error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to open dispute.",
+    });
+  }
+});
+
+// =====================================================
+// 7. POST /api/orders/:id/complete — buyer accepts delivery & closes order
+// =====================================================
+router.post("/:id/complete", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order ID." });
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found." });
+    }
+    if (String(order.clientId) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the buyer can accept and complete this order.",
+      });
+    }
+
+    if (order.status === "completed") {
+      return res.status(200).json({
+        success: true,
+        message: "Order is already completed.",
+        order: { _id: order._id, status: order.status, escrowReleaseDate: order.escrowReleaseDate },
+      });
+    }
+
+    if (order.status === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "A cancelled order cannot be completed.",
+      });
+    }
+    if (order.status === "disputed") {
+      return res.status(400).json({
+        success: false,
+        message: "This order is under dispute and cannot be completed until resolved.",
+      });
+    }
+
+    // Prefer delivery submitted; allow complete from in_escrow / revision after work
+    const openStatuses = ["in_escrow", "revision_requested", "pending"];
+    if (!openStatuses.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot complete an order with status "${order.status}".`,
+      });
+    }
+
+    if (!order.deliveredAt) {
+      return res.status(400).json({
+        success: false,
+        message: "The freelancer has not submitted delivery yet.",
+      });
+    }
+
+    order.status = "completed";
+    if (!order.escrowReleaseDate) {
+      const release = new Date();
+      release.setDate(release.getDate() + 14);
+      order.escrowReleaseDate = release;
+    }
+    await order.save();
+
+    try {
+      const Notification = require("../models/Notification");
+      const short = String(order._id).slice(-6).toUpperCase();
+      await Notification.create({
+        userId: order.sellerId,
+        type: "order_completed",
+        title: "Order completed",
+        message: `The buyer accepted delivery and completed order #${short}.`,
+        link: `/orders/${order._id}`,
+        orderId: order._id,
+        read: false,
+      });
+    } catch (_) {
+      /* optional */
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Order marked as completed. Thank you!",
+      order: {
+        _id: order._id,
+        status: order.status,
+        escrowReleaseDate: order.escrowReleaseDate,
+        deliveredAt: order.deliveredAt,
+      },
+    });
+  } catch (error) {
+    console.error("POST /api/orders/:id/complete error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to complete order.",
+    });
+  }
+});
+
 // =====================================================
 // 5. GET /api/orders/:id — participant only
 // =====================================================
@@ -408,10 +799,14 @@ router.get("/:id", authMiddleware, async (req, res) => {
       });
     }
 
+    const orderOut = { ...order };
+    orderOut.deliveryFiles = filesForRole(order, role);
+    // Hide final-only paths already handled; keep dispute fields visible
+
     return res.status(200).json({
       success: true,
       role,
-      order,
+      order: orderOut,
     });
   } catch (error) {
     console.error("GET /api/orders/:id error:", error);

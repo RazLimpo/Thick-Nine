@@ -2,9 +2,18 @@
 
 const mongoose = require("mongoose");
 
+const DeliveryFileSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true }, // final asset
+    previewUrl: { type: String, default: null }, // watermarked / safe preview
+    name: { type: String, default: "" },
+    mime: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 const OrderSchema = new mongoose.Schema(
   {
-    // 1. User & Service References
     clientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -22,7 +31,6 @@ const OrderSchema = new mongoose.Schema(
       required: true,
     },
 
-    // 2. Affiliate Attribution
     affiliateId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -34,19 +42,17 @@ const OrderSchema = new mongoose.Schema(
       default: null,
     },
 
-    // 3. Delivery Instructions (from HTML #instructions)
     requirements: {
       type: String,
       default: "",
     },
 
-    
-    // 4. Service Order Manager Actions
     lastReminderAt: { type: Date, default: null },
     deliveryNote: { type: String, default: "" },
-    deliveryFiles: { type: [String], default: [] },
+    // Final + optional preview; buyer only gets finals after completed
+    deliveryFiles: { type: [DeliveryFileSchema], default: [] },
     deliveredAt: { type: Date, default: null },
-    
+
     extensionRequest: {
       proposedDate: { type: Date, default: null },
       reason: { type: String, default: "" },
@@ -57,60 +63,22 @@ const OrderSchema = new mongoose.Schema(
         default: "none",
       },
     },
-    
-    // Delivery deadline (set on order start / updated when extension approved)
+
     dueAt: { type: Date, default: null },
-    
-    
-    // 5. Line Items Breakdown
-    basePackagePrice: {
-      type: Number, // e.g., $100
-      required: true,
-    },
-    selectedAddons: [
-      {
-        title: String, // e.g., "Extra Fast Delivery"
-        price: Number, // e.g., $25
-      },
-    ],
-    subtotal: {
-      type: Number, // basePackagePrice + addonsTotal (e.g., $150)
-      required: true,
-    },
 
-    // 6. Fees & Calculations
-    buyerServiceFee: {
-      type: Number, // 5% of subtotal (e.g., $7.50)
-      default: 0,
-    },
-    grandTotal: {
-      type: Number, // subtotal + buyerServiceFee (e.g., $157.50 paid by buyer)
-      required: true,
-    },
-    sellerPlatformFee: {
-      type: Number, // 15% deducted from subtotal (e.g., $22.50)
-      required: true,
-    },
-    sellerEarnings: {
-      type: Number, // subtotal - sellerPlatformFee (e.g., $127.50)
-      required: true,
-    },
+    basePackagePrice: { type: Number, required: true },
+    selectedAddons: [{ title: String, price: Number }],
+    subtotal: { type: Number, required: true },
 
-    // 7. Platform Revenue & Affiliate Cut
-    grossAdminRevenue: {
-      type: Number, // sellerPlatformFee + buyerServiceFee
-      required: true,
-    },
-    affiliateCommission: {
-      type: Number, // Deducted strictly from grossAdminRevenue
-      default: 0,
-    },
-    netAdminProfit: {
-      type: Number, // grossAdminRevenue - affiliateCommission
-      required: true,
-    },
+    buyerServiceFee: { type: Number, default: 0 },
+    grandTotal: { type: Number, required: true },
+    sellerPlatformFee: { type: Number, required: true },
+    sellerEarnings: { type: Number, required: true },
 
-    // 8. Payment & Escrow State
+    grossAdminRevenue: { type: Number, required: true },
+    affiliateCommission: { type: Number, default: 0 },
+    netAdminProfit: { type: Number, required: true },
+
     paymentMethod: {
       type: String,
       enum: ["card", "paypal"],
@@ -124,21 +92,30 @@ const OrderSchema = new mongoose.Schema(
         "revision_requested",
         "completed",
         "cancelled",
+        "disputed",
       ],
       default: "pending",
       index: true,
     },
-    escrowReleaseDate: {
-      type: Date, // Sets automatically to 14 days after completion
-      default: null,
+    escrowReleaseDate: { type: Date, default: null },
+
+    // Dispute (buyer)
+    disputeReason: { type: String, default: "", maxlength: 2000 },
+    disputeEvidence: { type: [String], default: [] },
+    disputedAt: { type: Date, default: null },
+    disputeResolvedAt: { type: Date, default: null },
+    disputeResolution: {
+      type: String,
+      enum: ["none", "refund_buyer", "pay_seller", "partial", "withdrawn"],
+      default: "none",
     },
+
+    buyerRating: { type: Number, min: 1, max: 5, default: null },
+    buyerReview: { type: String, default: "", maxlength: 2000 },
+    ratedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
-
-/* ===========================================================
-   MODEL EXPORT
-   =========================================================== */
 
 module.exports =
   mongoose.models && mongoose.models.Order

@@ -688,3 +688,168 @@
     }
   }
   
+  /* --- Enhancements --- */
+  .orders-history-page .oh-page-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  
+  .orders-history-page .oh-header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .orders-history-page .oh-custom-dates {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  
+  .orders-history-page .oh-custom-dates label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+    color: #555;
+  }
+  
+  .orders-history-page .oh-custom-dates input {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .orders-history-page .oh-empty {
+    text-align: center;
+    padding: 40px 24px !important;
+    color: #666;
+  }
+  
+  .orders-history-page .oh-empty-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  
+  .orders-history-page .oh-row-overdue {
+    background-color: #fff5f5;
+  }
+  
+  .orders-history-page .oh-due-overdue {
+    color: #c0392b;
+    font-weight: 600;
+  }
+  
+  .orders-history-page .oh-overdue-tag {
+    font-size: 0.75em;
+    color: #c0392b;
+    font-weight: 700;
+  }
+  
+  .orders-history-page .oh-repeat-badge {
+    margin-left: 8px;
+    font-size: 0.65em;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 2px 6px;
+    border-radius: 10px;
+  }
+  
+  .orders-history-page .oh-expand-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    padding: 4px 8px;
+  }
+  
+  .orders-history-page .oh-expand-row td {
+    background: #f8fafc;
+    padding: 12px 16px !important;
+  }
+  
+  .orders-history-page .oh-quick-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .orders-history-page .oh-earnings-chart {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px 20px 12px;
+    margin-top: 8px;
+  }
+  
+  .orders-history-page .oh-chart-title {
+    font-size: 1rem;
+    color: #34495e;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .orders-history-page .oh-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    min-height: 120px;
+  }
+  
+  .orders-history-page .oh-chart-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  
+  .orders-history-page .oh-chart-bar-wrap {
+    width: 100%;
+    height: 90px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  
+  .orders-history-page .oh-chart-bar {
+    width: 70%;
+    max-width: 40px;
+    background: linear-gradient(180deg, #27ae60, #1dbf73);
+    border-radius: 4px 4px 0 0;
+    min-height: 4px;
+  }
+  
+  .orders-history-page .oh-chart-label {
+    font-size: 0.75em;
+    color: #666;
+  }
+  
+  .orders-history-page .oh-chart-val {
+    font-size: 0.7em;
+    color: #34495e;
+    font-weight: 600;
+  }
+  
+  @media (max-width: 768px) {
+    .orders-history-page .oh-page-header-row {
+      flex-direction: column;
+    }
+    .orders-history-page .oh-chart-bars {
+      overflow-x: auto;
+    }
+  }
+  

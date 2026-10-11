@@ -31,6 +31,8 @@ type OrderRow = {
   sellerEarnings?: number;
   grandTotal?: number;
   requirements?: string;
+  rating?: number;
+  buyerRating?: number;
 };
 
 type UiStatus =
@@ -42,7 +44,10 @@ type UiStatus =
   | "pending"
   | "revision";
 
+type DatePreset = "all" | "30" | "90" | "year" | "custom";
+
 const PAGE_SIZE = 10;
+const FILTERS_KEY = "freelancer-orders-history-filters";
 
 function mapStatus(raw: string): UiStatus {
   const s = (raw || "").toLowerCase();
@@ -75,7 +80,21 @@ function formatDate(iso?: string | null) {
   }
 }
 
-function showToast(msg: string, type: "success" | "removed" | "info" = "success") {
+function isOverdue(order: OrderRow): boolean {
+  const ui = mapStatus(order.status);
+  if (ui === "completed" || ui === "canceled") return false;
+  if (!order.dueAt) return false;
+  try {
+    return new Date(order.dueAt).getTime() < Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function showToast(
+  msg: string,
+  type: "success" | "removed" | "info" = "success"
+) {
   const container = document.getElementById("toast-container");
   if (!container) return;
   const el = document.createElement("div");
@@ -91,16 +110,37 @@ function showToast(msg: string, type: "success" | "removed" | "info" = "success"
   setTimeout(() => el.remove(), 3000);
 }
 
+function csvEscape(val: unknown): string {
+  const s = String(val ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const content = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function buildTimeline(order: OrderRow) {
   const ui = mapStatus(order.status);
-  const steps: { title: string; date?: string; status: string; detail?: string }[] =
-    [
-      {
-        title: "Order Placed & Confirmed",
-        date: formatDate(order.createdAt),
-        status: "completed",
-      },
-    ];
+  const steps: {
+    title: string;
+    date?: string;
+    status: string;
+    detail?: string;
+  }[] = [
+    {
+      title: "Order Placed & Confirmed",
+      date: formatDate(order.createdAt),
+      status: "completed",
+    },
+  ];
 
   if (ui === "canceled") {
     steps.push({
@@ -140,10 +180,7 @@ function buildTimeline(order: OrderRow) {
       detail: order.deliveryNote || undefined,
     });
   } else {
-    steps.push({
-      title: "Final delivery",
-      status: "pending",
-    });
+    steps.push({ title: "Final delivery", status: "pending" });
   }
 
   if (ui === "completed") {
@@ -153,13 +190,17 @@ function buildTimeline(order: OrderRow) {
       status: "completed",
     });
   } else {
-    steps.push({
-      title: "Closeout",
-      status: "pending",
-    });
+    steps.push({ title: "Closeout", status: "pending" });
   }
 
   return steps;
+}
+
+function startOfDaysAgo(days: number): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - days);
+  return d;
 }
 
 export default function FreelancerOrdersHistoryClient() {
@@ -169,13 +210,69 @@ export default function FreelancerOrdersHistoryClient() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date-desc");
+  const [serviceFilter, setServiceFilter] = useState("all");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filtersReady, setFiltersReady] = useState(false);
 
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [trackerOrder, setTrackerOrder] = useState<OrderRow | null>(null);
   const [trackerTab, setTrackerTab] = useState<
     "summary" | "timeline" | "communication" | "files" | "invoice"
   >("summary");
+
+  // Restore saved filters
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(FILTERS_KEY);
+      if (raw) {
+        const f = JSON.parse(raw);
+        if (f.search != null) setSearch(String(f.search));
+        if (f.statusFilter) setStatusFilter(String(f.statusFilter));
+        if (f.sortBy) setSortBy(String(f.sortBy));
+        if (f.serviceFilter) setServiceFilter(String(f.serviceFilter));
+        if (f.datePreset) setDatePreset(f.datePreset as DatePreset);
+        if (f.customFrom) setCustomFrom(String(f.customFrom));
+        if (f.customTo) setCustomTo(String(f.customTo));
+      }
+    } catch {
+      /* ignore */
+    }
+    setFiltersReady(true);
+  }, []);
+
+  // Persist filters
+  useEffect(() => {
+    if (!filtersReady) return;
+    try {
+      localStorage.setItem(
+        FILTERS_KEY,
+        JSON.stringify({
+          search,
+          statusFilter,
+          sortBy,
+          serviceFilter,
+          datePreset,
+          customFrom,
+          customTo,
+        })
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [
+    filtersReady,
+    search,
+    statusFilter,
+    sortBy,
+    serviceFilter,
+    datePreset,
+    customFrom,
+    customTo,
+  ]);
 
   const getAuthHeaders = (): Record<string, string> => {
     const h: Record<string, string> = { Accept: "application/json" };
@@ -217,14 +314,69 @@ export default function FreelancerOrdersHistoryClient() {
     loadOrders();
   }, [loadOrders]);
 
+  const serviceOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    orders.forEach((o) => {
+      const id = o.service?._id || o.packageName || o.service?.title;
+      const label = o.packageName || o.service?.title || "Service";
+      if (id) map.set(String(id), label);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [orders]);
+
+  const repeatBuyerIds = useMemo(() => {
+    const counts = new Map<string, number>();
+    orders.forEach((o) => {
+      const id = o.buyer?._id;
+      if (!id) return;
+      counts.set(String(id), (counts.get(String(id)) || 0) + 1);
+    });
+    const repeat = new Set<string>();
+    counts.forEach((n, id) => {
+      if (n >= 2) repeat.add(id);
+    });
+    return repeat;
+  }, [orders]);
+
+  const inDateRange = useCallback(
+    (iso?: string | null) => {
+      if (datePreset === "all") return true;
+      if (!iso) return false;
+      const t = new Date(iso).getTime();
+      if (!Number.isFinite(t)) return false;
+
+      if (datePreset === "30") return t >= startOfDaysAgo(30).getTime();
+      if (datePreset === "90") return t >= startOfDaysAgo(90).getTime();
+      if (datePreset === "year") return t >= startOfDaysAgo(365).getTime();
+      if (datePreset === "custom") {
+        if (customFrom) {
+          const from = new Date(customFrom);
+          from.setHours(0, 0, 0, 0);
+          if (t < from.getTime()) return false;
+        }
+        if (customTo) {
+          const to = new Date(customTo);
+          to.setHours(23, 59, 59, 999);
+          if (t > to.getTime()) return false;
+        }
+        return true;
+      }
+      return true;
+    },
+    [datePreset, customFrom, customTo]
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = orders.filter((o) => {
+      if (!inDateRange(o.createdAt)) return false;
+
       const ui = mapStatus(o.status);
       const name = (o.buyer?.name || "").toLowerCase();
       const id = (o.orderNumber || o._id || "").toLowerCase();
       const svc = (o.packageName || o.service?.title || "").toLowerCase();
       const matchQ = !q || name.includes(q) || id.includes(q) || svc.includes(q);
+
       let matchS = true;
       if (statusFilter === "in-progress") {
         matchS = ui === "in-progress" || ui === "pending" || ui === "revision";
@@ -237,7 +389,14 @@ export default function FreelancerOrdersHistoryClient() {
       } else if (statusFilter === "disputed") {
         matchS = ui === "disputed";
       }
-      return matchQ && matchS;
+
+      let matchSvc = true;
+      if (serviceFilter !== "all") {
+        const key = String(o.service?._id || o.packageName || o.service?.title || "");
+        matchSvc = key === serviceFilter;
+      }
+
+      return matchQ && matchS && matchSvc;
     });
 
     list = [...list].sort((a, b) => {
@@ -263,11 +422,18 @@ export default function FreelancerOrdersHistoryClient() {
     });
 
     return list;
-  }, [orders, search, statusFilter, sortBy]);
+  }, [
+    orders,
+    search,
+    statusFilter,
+    sortBy,
+    serviceFilter,
+    inDateRange,
+  ]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sortBy]);
+  }, [search, statusFilter, sortBy, serviceFilter, datePreset, customFrom, customTo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -276,6 +442,7 @@ export default function FreelancerOrdersHistoryClient() {
     let completed = 0;
     let totalEarned = 0;
     let pendingPayouts = 0;
+    const ratings: number[] = [];
     orders.forEach((o) => {
       const ui = mapStatus(o.status);
       const amt = Number(o.amount) || 0;
@@ -286,8 +453,37 @@ export default function FreelancerOrdersHistoryClient() {
       if (ui === "in-progress" || ui === "delivered" || ui === "revision") {
         pendingPayouts += amt;
       }
+      const r = Number(o.rating ?? o.buyerRating);
+      if (Number.isFinite(r) && r > 0) ratings.push(r);
     });
-    return { completed, totalEarned, pendingPayouts, rating: "—" };
+    const avgRating =
+      ratings.length > 0
+        ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+        : "—";
+    return { completed, totalEarned, pendingPayouts, rating: avgRating };
+  }, [orders]);
+
+  /** Monthly earnings for simple chart (completed only) */
+  const earningsByMonth = useMemo(() => {
+    const map = new Map<string, number>();
+    orders.forEach((o) => {
+      if (mapStatus(o.status) !== "completed") return;
+      const d = o.deliveredAt || o.updatedAt || o.createdAt;
+      if (!d) return;
+      const dt = new Date(d);
+      if (!Number.isFinite(dt.getTime())) return;
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      map.set(key, (map.get(key) || 0) + (Number(o.amount) || 0));
+    });
+    const keys = Array.from(map.keys()).sort();
+    const last = keys.slice(-6);
+    const max = Math.max(1, ...last.map((k) => map.get(k) || 0));
+    return last.map((k) => ({
+      key: k,
+      label: k.slice(5) + "/" + k.slice(2, 4),
+      value: map.get(k) || 0,
+      pct: ((map.get(k) || 0) / max) * 100,
+    }));
   }, [orders]);
 
   const openTracker = (order: OrderRow) => {
@@ -335,8 +531,58 @@ export default function FreelancerOrdersHistoryClient() {
     }
   };
 
+  const handleExport = () => {
+    if (!filtered.length) {
+      showToast("No orders to export", "removed");
+      return;
+    }
+    const header = [
+      "Order ID",
+      "Order Number",
+      "Buyer",
+      "Service",
+      "Status",
+      "Payout",
+      "Due At",
+      "Created At",
+      "Delivered At",
+    ];
+    const rows = filtered.map((o) => [
+      o._id,
+      o.orderNumber || "",
+      o.buyer?.name || "",
+      o.packageName || o.service?.title || "",
+      o.status,
+      String(o.amount ?? ""),
+      o.dueAt || "",
+      o.createdAt || "",
+      o.deliveredAt || "",
+    ]);
+    downloadCsv(
+      `order-history-${new Date().toISOString().slice(0, 10)}.csv`,
+      [header, ...rows]
+    );
+    showToast(`Exported ${filtered.length} order(s)`, "success");
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setSortBy("date-desc");
+    setServiceFilter("all");
+    setDatePreset("all");
+    setCustomFrom("");
+    setCustomTo("");
+    showToast("Filters cleared", "info");
+  };
+
   const actionLabel = (ui: UiStatus) => {
-    if (ui === "in-progress" || ui === "delivered" || ui === "revision" || ui === "pending") {
+    if (
+      ui === "in-progress" ||
+      ui === "delivered" ||
+      ui === "revision" ||
+      ui === "pending"
+    ) {
       return { text: "Manage Order", icon: "fas fa-cogs", manage: true };
     }
     if (ui === "completed") {
@@ -348,259 +594,449 @@ export default function FreelancerOrdersHistoryClient() {
   return (
     <>
       <div className="orders-history-page">
-      <div className="page-container">
-        <h1 className="page-title">
-          <i className="fas fa-history" /> Order History
-        </h1>
-        <p className="page-subtitle">
-          A comprehensive record of all your service transactions, active and
-          completed.
-        </p>
-
-        <div className="order-summary-overview" id="freelancer-overview-cards">
-          <div style={{ width: "100%" }}>
-            <h2 className="overview-header">
-              <i className="fas fa-chart-line" /> My Performance Overview
-            </h2>
-          </div>
-
-          <div className="summary-card card-jobs-completed">
-            <div className="card-value-section">
-              <p className="card-value">{stats.completed}</p>
+        <div className="page-container">
+          <div className="oh-page-header-row">
+            <div>
+              <h1 className="page-title">
+                <i className="fas fa-history" /> Order History
+              </h1>
+              <p className="page-subtitle">
+                A comprehensive record of all your service transactions, active
+                and completed.
+              </p>
             </div>
-            <div className="card-label-section">
-              <i className="fas fa-briefcase" /> Jobs Completed
-            </div>
-          </div>
-          <div className="summary-card card-total-earned">
-            <div className="card-value-section">
-              <p className="card-value">{formatMoney(stats.totalEarned)}</p>
-            </div>
-            <div className="card-label-section">
-              <i className="fas fa-dollar-sign" /> Total Earned
-            </div>
-          </div>
-          <div className="summary-card card-average-rating">
-            <div className="card-value-section">
-              <p className="card-value">{stats.rating}</p>
-            </div>
-            <div className="card-label-section">
-              <i className="fas fa-star" /> Average Rating
-            </div>
-          </div>
-          <div className="summary-card card-pending-payouts">
-            <div className="card-value-section">
-              <p className="card-value">{formatMoney(stats.pendingPayouts)}</p>
-            </div>
-            <div className="card-label-section">
-              <i className="fas fa-hourglass-half" /> Pending Payouts
+            <div className="oh-header-actions">
+              <Link href="/freelancer-orders" className="btn-action btn-oh-primary">
+                <i className="fas fa-tasks" /> Active queue
+              </Link>
+              <button
+                type="button"
+                className="btn-action btn-dark-gray"
+                onClick={handleExport}
+              >
+                <i className="fas fa-file-export" /> Export CSV
+              </button>
             </div>
           </div>
 
-          <div style={{ width: "100%" }}>
-            <h2 className="latest-orders-header">
-              <i className="fas fa-clipboard-list" /> Latest Orders
-            </h2>
-          </div>
-        </div>
-
-        <hr />
-
-        <div className="order-controls">
-          <input
-            type="text"
-            id="order-search"
-            className="order-input-filter"
-            placeholder="Search by Order ID, Client, or Service..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            id="status-filter"
-            className="order-select-filter"
-            title="Filter by Status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+          <div
+            className="order-summary-overview"
+            id="freelancer-overview-cards"
           >
-            <option value="all">All Statuses</option>
-            <option value="in-progress">In Progress</option>
-            <option value="delivered">Delivered</option>
-            <option value="completed">Completed</option>
-            <option value="canceled">Canceled</option>
-            <option value="disputed">Disputed</option>
-          </select>
-          <select
-            id="sort-by"
-            className="order-select-filter"
-            title="Sort Order"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="date-desc">Date Placed (Newest)</option>
-            <option value="payout-desc">Payout (High to Low)</option>
-            <option value="date-asc">Date Placed (Oldest)</option>
-            <option value="payout-asc">Payout (Low to High)</option>
-          </select>
-        </div>
+            <div style={{ width: "100%" }}>
+              <h2 className="overview-header">
+                <i className="fas fa-chart-line" /> My Performance Overview
+              </h2>
+            </div>
 
-        <div className="order-list-wrapper">
-          <table className="order-table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Service Name</th>
-                <th>Client</th>
-                <th>Date Placed</th>
-                <th>Due Date</th>
-                <th>Payout</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="freelancer-order-table-body">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} style={{ textAlign: "center", padding: 30 }}>
-                    Loading history…
-                  </td>
-                </tr>
-              ) : pageRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="empty-state"
-                    style={{ textAlign: "center", padding: 30 }}
-                  >
-                    No orders match your current filters.
-                  </td>
-                </tr>
-              ) : (
-                pageRows.map((order) => {
-                  const ui = mapStatus(order.status);
-                  const oid =
-                    order.orderNumber || `#${String(order._id).slice(-6)}`;
-                  const act = actionLabel(ui);
-                  return (
-                    <tr key={order._id} data-order-id={order._id}>
-                      <td>
-                        <button
-                          type="button"
-                          className="clickable-id"
-                          style={{
-                            background: "none",
-                            border: "none",
-                            padding: 0,
-                            cursor: "pointer",
-                          }}
-                          onClick={() => openTracker(order)}
-                          title="Quick View Order Progress"
-                        >
-                          {oid}
-                        </button>
-                      </td>
-                      <td>
-                        {order.service?._id ? (
-                          <Link
-                            href={`/services/details/${order.service._id}`}
-                            className="clickable-service"
-                          >
-                            {order.packageName ||
-                              order.service?.title ||
-                              "Service"}
-                          </Link>
-                        ) : (
-                          <span className="clickable-service">
-                            {order.packageName ||
-                              order.service?.title ||
-                              "Service"}
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="clickable-client">
-                          <Image
-                            src={
-                              order.buyer?.avatar || "/default-avatar.png"
-                            }
-                            alt={order.buyer?.name || "Client"}
-                            width={30}
-                            height={30}
-                            className="client-avatar"
-                            unoptimized
-                          />
-                          {order.buyer?.name || "Client"}
-                        </span>
-                      </td>
-                      <td>{formatDate(order.createdAt)}</td>
-                      <td>
-                        <i
-                          className="fas fa-calendar-alt"
-                          style={{ marginRight: 5, color: "#34495e" }}
+            <div className="summary-card card-jobs-completed">
+              <div className="card-value-section">
+                <p className="card-value">{stats.completed}</p>
+              </div>
+              <div className="card-label-section">
+                <i className="fas fa-briefcase" /> Jobs Completed
+              </div>
+            </div>
+            <div className="summary-card card-total-earned">
+              <div className="card-value-section">
+                <p className="card-value">{formatMoney(stats.totalEarned)}</p>
+              </div>
+              <div className="card-label-section">
+                <i className="fas fa-dollar-sign" /> Total Earned
+              </div>
+            </div>
+            <div className="summary-card card-average-rating">
+              <div className="card-value-section">
+                <p className="card-value">{stats.rating}</p>
+              </div>
+              <div className="card-label-section">
+                <i className="fas fa-star" /> Average Rating
+              </div>
+            </div>
+            <div className="summary-card card-pending-payouts">
+              <div className="card-value-section">
+                <p className="card-value">
+                  {formatMoney(stats.pendingPayouts)}
+                </p>
+              </div>
+              <div className="card-label-section">
+                <i className="fas fa-hourglass-half" /> Pending Payouts
+              </div>
+            </div>
+
+            {/* Earnings chart */}
+            {earningsByMonth.length > 0 && (
+              <div className="oh-earnings-chart" style={{ width: "100%" }}>
+                <h3 className="oh-chart-title">
+                  <i className="fas fa-chart-bar" /> Earnings (last months)
+                </h3>
+                <div className="oh-chart-bars">
+                  {earningsByMonth.map((m) => (
+                    <div key={m.key} className="oh-chart-col" title={formatMoney(m.value)}>
+                      <div className="oh-chart-bar-wrap">
+                        <div
+                          className="oh-chart-bar"
+                          style={{ height: `${Math.max(6, m.pct)}%` }}
                         />
-                        {formatDate(order.dueAt)}
-                      </td>
-                      <td
-                        style={{
-                          fontWeight: "bold",
-                          color: "var(--success-color)",
-                        }}
-                      >
-                        {formatMoney(order.amount)}
-                      </td>
-                      <td>
-                        <span className={`status-badge status-${ui}`}>
-                          {ui.replace("-", " ").toUpperCase()}
-                        </span>
-                      </td>
-                      <td>
-                        {act.manage ? (
-                          <Link
-                            href={`/orders/${order._id}`}
-                            className="btn-action btn-dark-gray btn-track-details"
-                            style={{ textDecoration: "none" }}
-                          >
-                            <i className={act.icon} /> {act.text}
-                          </Link>
+                      </div>
+                      <span className="oh-chart-label">{m.label}</span>
+                      <span className="oh-chart-val">{formatMoney(m.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ width: "100%" }}>
+              <h2 className="latest-orders-header">
+                <i className="fas fa-clipboard-list" /> Latest Orders
+              </h2>
+            </div>
+          </div>
+
+          <hr />
+
+          <div className="order-controls">
+            <input
+              type="text"
+              id="order-search"
+              className="order-input-filter"
+              placeholder="Search by Order ID, Client, or Service..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <select
+              id="status-filter"
+              className="order-select-filter"
+              title="Filter by Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="in-progress">In Progress</option>
+              <option value="delivered">Delivered</option>
+              <option value="completed">Completed</option>
+              <option value="canceled">Canceled</option>
+              <option value="disputed">Disputed</option>
+            </select>
+            <select
+              className="order-select-filter"
+              title="Filter by Service"
+              value={serviceFilter}
+              onChange={(e) => setServiceFilter(e.target.value)}
+            >
+              <option value="all">All Services</option>
+              {serviceOptions.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="order-select-filter"
+              title="Date range"
+              value={datePreset}
+              onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+            >
+              <option value="all">All time</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="year">Last 12 months</option>
+              <option value="custom">Custom range</option>
+            </select>
+            <select
+              id="sort-by"
+              className="order-select-filter"
+              title="Sort Order"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="date-desc">Date Placed (Newest)</option>
+              <option value="payout-desc">Payout (High to Low)</option>
+              <option value="date-asc">Date Placed (Oldest)</option>
+              <option value="payout-asc">Payout (Low to High)</option>
+            </select>
+            <button
+              type="button"
+              className="btn-action btn-secondary"
+              onClick={clearFilters}
+              title="Clear saved filters"
+            >
+              <i className="fas fa-undo" /> Reset
+            </button>
+          </div>
+
+          {datePreset === "custom" && (
+            <div className="oh-custom-dates">
+              <label>
+                From{" "}
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                />
+              </label>
+              <label>
+                To{" "}
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                />
+              </label>
+            </div>
+          )}
+
+          <div className="order-list-wrapper">
+            <table className="order-table">
+              <thead>
+                <tr>
+                  <th />
+                  <th>Order ID</th>
+                  <th>Service Name</th>
+                  <th>Client</th>
+                  <th>Date Placed</th>
+                  <th>Due Date</th>
+                  <th>Payout</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="freelancer-order-table-body">
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: "center", padding: 30 }}>
+                      Loading history…
+                    </td>
+                  </tr>
+                ) : pageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="empty-state oh-empty">
+                      <p>
+                        {orders.length === 0
+                          ? "No orders yet. When buyers purchase your services, they will appear here."
+                          : "No orders match your current filters."}
+                      </p>
+                      <div className="oh-empty-actions">
+                        {orders.length === 0 ? (
+                          <>
+                            <Link
+                              href="/service-management"
+                              className="btn-action btn-oh-primary"
+                            >
+                              Manage services
+                            </Link>
+                            <Link
+                              href="/freelancer-orders"
+                              className="btn-action btn-dark-gray"
+                            >
+                              Active queue
+                            </Link>
+                          </>
                         ) : (
                           <button
                             type="button"
-                            className="btn-action btn-dark-gray btn-track-details"
-                            onClick={() => openTracker(order)}
+                            className="btn-action btn-secondary"
+                            onClick={clearFilters}
                           >
-                            <i className={act.icon} /> {act.text}
+                            Clear filters
                           </button>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  pageRows.map((order) => {
+                    const ui = mapStatus(order.status);
+                    const oid =
+                      order.orderNumber || `#${String(order._id).slice(-6)}`;
+                    const act = actionLabel(ui);
+                    const overdue = isOverdue(order);
+                    const isRepeat =
+                      order.buyer?._id &&
+                      repeatBuyerIds.has(String(order.buyer._id));
+                    const open = expandedId === order._id;
+                    return (
+                      <React.Fragment key={order._id}>
+                        <tr
+                          data-order-id={order._id}
+                          className={overdue ? "oh-row-overdue" : undefined}
+                        >
+                          <td>
+                            <button
+                              type="button"
+                              className="oh-expand-btn"
+                              title="Quick actions"
+                              onClick={() =>
+                                setExpandedId(open ? null : order._id)
+                              }
+                            >
+                              <i
+                                className={`fas fa-chevron-${open ? "up" : "down"}`}
+                              />
+                            </button>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="clickable-id"
+                              onClick={() => openTracker(order)}
+                              title="Quick View Order Progress"
+                            >
+                              {oid}
+                            </button>
+                          </td>
+                          <td>
+                            {order.service?._id ? (
+                              <Link
+                                href={`/services/details/${order.service._id}`}
+                                className="clickable-service"
+                              >
+                                {order.packageName ||
+                                  order.service?.title ||
+                                  "Service"}
+                              </Link>
+                            ) : (
+                              <span className="clickable-service">
+                                {order.packageName ||
+                                  order.service?.title ||
+                                  "Service"}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <span className="clickable-client">
+                              <Image
+                                src={
+                                  order.buyer?.avatar || "/default-avatar.png"
+                                }
+                                alt={order.buyer?.name || "Client"}
+                                width={30}
+                                height={30}
+                                className="client-avatar"
+                                unoptimized
+                              />
+                              {order.buyer?.name || "Client"}
+                              {isRepeat ? (
+                                <span
+                                  className="oh-repeat-badge"
+                                  title="Repeat client"
+                                >
+                                  Repeat
+                                </span>
+                              ) : null}
+                            </span>
+                          </td>
+                          <td>{formatDate(order.createdAt)}</td>
+                          <td className={overdue ? "oh-due-overdue" : undefined}>
+                            <i
+                              className={
+                                overdue
+                                  ? "fas fa-exclamation-triangle"
+                                  : "fas fa-calendar-alt"
+                              }
+                              style={{
+                                marginRight: 5,
+                                color: overdue ? "#c0392b" : "#34495e",
+                              }}
+                            />
+                            {formatDate(order.dueAt)}
+                            {overdue ? (
+                              <span className="oh-overdue-tag"> Overdue</span>
+                            ) : null}
+                          </td>
+                          <td
+                            style={{
+                              fontWeight: "bold",
+                              color: "var(--oh-success, #27ae60)",
+                            }}
+                          >
+                            {formatMoney(order.amount)}
+                          </td>
+                          <td>
+                            <span className={`status-badge status-${ui}`}>
+                              {ui.replace("-", " ").toUpperCase()}
+                            </span>
+                          </td>
+                          <td>
+                            {act.manage ? (
+                              <Link
+                                href={`/orders/${order._id}`}
+                                className="btn-action btn-dark-gray btn-track-details"
+                              >
+                                <i className={act.icon} /> {act.text}
+                              </Link>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn-action btn-dark-gray btn-track-details"
+                                onClick={() => openTracker(order)}
+                              >
+                                <i className={act.icon} /> {act.text}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr className="oh-expand-row">
+                            <td colSpan={9}>
+                              <div className="oh-quick-actions">
+                                <button
+                                  type="button"
+                                  className="btn-action btn-oh-primary"
+                                  onClick={() => contactClient(order)}
+                                >
+                                  <i className="fas fa-comment-dots" /> Contact
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-action btn-secondary"
+                                  onClick={() => openTracker(order)}
+                                >
+                                  <i className="fas fa-compass" /> Tracker
+                                </button>
+                                <Link
+                                  href={`/orders/${order._id}`}
+                                  className="btn-action btn-dark-gray"
+                                >
+                                  <i className="fas fa-external-link-alt" />{" "}
+                                  Full details
+                                </Link>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="pagination-controls">
-          <button
-            id="prev-page"
-            className="btn-action btn-secondary"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            <i className="fas fa-chevron-left" /> Previous
-          </button>
-          <span id="page-info">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            id="next-page"
-            className="btn-action btn-secondary"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Next <i className="fas fa-chevron-right" />
-          </button>
+          <div className="pagination-controls">
+            <button
+              id="prev-page"
+              className="btn-action btn-secondary"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <i className="fas fa-chevron-left" /> Previous
+            </button>
+            <span id="page-info">
+              Page {page} of {totalPages} · {filtered.length} order
+              {filtered.length === 1 ? "" : "s"}
+            </span>
+            <button
+              id="next-page"
+              className="btn-action btn-secondary"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next <i className="fas fa-chevron-right" />
+            </button>
+          </div>
         </div>
-      </div>
       </div>
 
       {/* Order tracker modal */}
@@ -648,7 +1084,6 @@ export default function FreelancerOrdersHistoryClient() {
                       className={`tracker-tab-btn${
                         trackerTab === key ? " active" : ""
                       }`}
-                      data-tab={key}
                       onClick={() => setTrackerTab(key)}
                     >
                       <i className={`fas ${icon}`} /> {label}
@@ -848,7 +1283,6 @@ export default function FreelancerOrdersHistoryClient() {
               <button
                 type="button"
                 className="btn-action btn-oh-primary btn-contact"
-                id="tracker-contact-client"
                 onClick={() => contactClient(trackerOrder)}
               >
                 <i className="fas fa-comment-dots" /> Contact Client

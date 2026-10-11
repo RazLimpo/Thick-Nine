@@ -1,6 +1,7 @@
 // routes/adminRoutes
 
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 
@@ -328,6 +329,7 @@ router.get(
       const counts = {
         messages: 0,
         orders: 0,
+        disputes: 0,
         withdrawals: 0,
         clients: 0,
       };
@@ -338,8 +340,9 @@ router.get(
 
       if (adminCan(req, 'orders:read')) {
         counts.orders = await Order.countDocuments({
-          status: { $in: ['pending', 'in_escrow'] },
+          status: { $in: ['pending', 'in_escrow', 'disputed', 'revision_requested'] },
         });
+        counts.disputes = await Order.countDocuments({ status: 'disputed' });
       }
 
       if (adminCan(req, 'payouts:read')) {
@@ -388,26 +391,28 @@ router.get(
 
       if (adminCan(req, 'orders:read')) {
         const orders = await Order.find({
-          status: { $in: ['pending', 'in_escrow'] },
+          status: { $in: ['pending', 'in_escrow', 'disputed', 'revision_requested'] },
         })
-          .sort({ createdAt: -1 })
+          .sort({ updatedAt: -1 })
           .limit(15)
-          .select('_id status grandTotal createdAt')
+          .select('_id status grandTotal createdAt updatedAt disputedAt')
           .lean();
 
         for (const o of orders) {
+          let title = 'Order update';
+          if (o.status === 'disputed') title = 'Order disputed';
+          else if (o.status === 'in_escrow') title = 'Order in escrow';
+          else if (o.status === 'revision_requested') title = 'Revision requested';
+          else title = 'New pending order';
           items.push({
             id: String(o._id),
-            type: 'order',
-            title:
-              o.status === 'in_escrow'
-                ? 'Order in escrow'
-                : 'New pending order',
+            type: o.status === 'disputed' ? 'dispute' : 'order',
+            title,
             subtitle: `Order #${String(o._id).slice(-6)} · $${Number(
               o.grandTotal || 0
             ).toFixed(2)}`,
-            href: '/admin/orders',
-            createdAt: o.createdAt,
+            href: o.status === 'disputed' ? '/admin/orders?status=disputed' : '/admin/orders',
+            createdAt: o.disputedAt || o.updatedAt || o.createdAt,
           });
         }
       }
@@ -485,6 +490,7 @@ const ALLOWED_PERMISSIONS = new Set([
   'services:moderate',
 
   'orders:read',
+  'orders:write',
 
   'reviews:manage',
 ]);
@@ -1188,6 +1194,462 @@ router.get(
       return res.status(500).json({
         success: false,
         message: 'Failed to retrieve audit logs.',
+      });
+    }
+  }
+);
+
+
+
+
+// ==================================================================
+// ORDERS & DISPUTES
+// ==================================================================
+
+// GET /api/admin/orders?status=&q=
+router.get(
+  '/orders',
+  auth,
+  adminContext,
+  requirePermission('orders:read'),
+  async (req, res) => {
+    try {
+      const filter = {};
+      const status = String(req.query.status || '').trim();
+      if (status && status !== 'all') {
+        filter.status = status;
+      }
+      const q = String(req.query.q || '').trim();
+      if (q && mongoose.Types.ObjectId.isValid(q)) {
+        filter._id = q;
+      }
+
+      const orders = await Order.find(filter)
+        .sort({ updatedAt: -1 })
+        .limit(100)
+        .populate('clientId', 'fullName displayName email avatar')
+        .populate('sellerId', 'fullName displayName email avatar')
+        .populate('serviceId', 'title')
+        .lean();
+
+      let totalVolume = 0;
+      let grossAdminProfit = 0;
+      let inEscrow = 0;
+      let disputedCount = 0;
+
+      for (const o of orders) {
+        totalVolume += Number(o.grandTotal) || 0;
+        grossAdminProfit +=
+          (Number(o.buyerServiceFee) || 0) + (Number(o.sellerPlatformFee) || 0);
+        if (['pending', 'in_escrow', 'revision_requested'].includes(o.status)) {
+          inEscrow += Number(o.grandTotal) || 0;
+        }
+        if (o.status === 'disputed') disputedCount += 1;
+      }
+
+      // If filtered list is partial, still compute platform-wide disputed for summary
+      const disputedTotal =
+        status === 'disputed'
+          ? orders.length
+          : await Order.countDocuments({ status: 'disputed' });
+
+      return res.status(200).json({
+        success: true,
+        orders,
+        summary: {
+          totalOrders: orders.length,
+          totalVolume,
+          grossAdminProfit,
+          inEscrow,
+          disputedCount: disputedTotal,
+        },
+      });
+    } catch (err) {
+      console.error('GET /api/admin/orders error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to load orders.',
+      });
+    }
+  }
+);
+
+// POST /api/admin/orders/:id/resolve-dispute
+// Body: { resolution: 'refund_buyer'|'pay_seller'|'partial'|'withdrawn', note?: string, partialAmount?: number }
+router.post(
+  '/orders/:id/resolve-dispute',
+  auth,
+  adminContext,
+  requirePermission('orders:read'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const resolution = String(req.body?.resolution || '').trim();
+      const note = String(req.body?.note || '').trim().slice(0, 2000);
+      const partialAmount = Number(req.body?.partialAmount);
+
+      const allowed = ['refund_buyer', 'pay_seller', 'partial', 'withdrawn'];
+      if (!allowed.includes(resolution)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            'resolution must be refund_buyer, pay_seller, partial, or withdrawn.',
+        });
+      }
+      if (resolution === 'partial' && (!Number.isFinite(partialAmount) || partialAmount < 0)) {
+        return res.status(400).json({
+          success: false,
+          message: 'partialAmount is required for partial resolution.',
+        });
+      }
+
+      const order = await Order.findById(id);
+      if (!order) {
+        return res.status(404).json({ success: false, message: 'Order not found.' });
+      }
+      if (order.status !== 'disputed') {
+        return res.status(400).json({
+          success: false,
+          message: `Order is not disputed (status: ${order.status}).`,
+        });
+      }
+
+      order.disputeResolution = resolution;
+      order.disputeResolvedAt = new Date();
+      if (note) {
+        order.disputeReason = `${order.disputeReason || ''}\n\n[Admin resolution] ${note}`.slice(0, 2000);
+      }
+
+      // Outcome mapping (ledger/payout automation can hook here later)
+      if (resolution === 'refund_buyer' || resolution === 'withdrawn') {
+        order.status = 'cancelled';
+      } else if (resolution === 'pay_seller') {
+        order.status = 'completed';
+        if (!order.escrowReleaseDate) {
+          const release = new Date();
+          release.setDate(release.getDate() + 14);
+          order.escrowReleaseDate = release;
+        }
+      } else if (resolution === 'partial') {
+        // Keep completed for seller portion; note amount for finance
+        order.status = 'completed';
+        order.deliveryNote = `${order.deliveryNote || ''}\nPartial resolve amount: $${partialAmount}`.slice(0, 2000);
+        if (!order.escrowReleaseDate) {
+          const release = new Date();
+          release.setDate(release.getDate() + 14);
+          order.escrowReleaseDate = release;
+        }
+      }
+
+      await order.save();
+
+      try {
+        const Notification = require('../models/Notification');
+        const short = String(order._id).slice(-6).toUpperCase();
+        const msg = `Dispute on order #${short} resolved: ${resolution.replace(/_/g, ' ')}.`;
+        await Notification.create({
+          userId: order.clientId,
+          type: 'dispute_resolved',
+          title: 'Dispute resolved',
+          message: msg,
+          link: `/orders/${order._id}`,
+          orderId: order._id,
+          read: false,
+        });
+        await Notification.create({
+          userId: order.sellerId,
+          type: 'dispute_resolved',
+          title: 'Dispute resolved',
+          message: msg,
+          link: `/orders/${order._id}`,
+          orderId: order._id,
+          read: false,
+        });
+      } catch (_) {}
+
+      try {
+        await AuditLog.create({
+          actor: {
+            id: req.admin.id,
+            name: req.admin.name,
+            email: req.admin.email,
+            role: req.admin.role,
+          },
+          target: {
+            id: order._id,
+            name: `Order #${String(order._id).slice(-6)}`,
+            email: '',
+            role: resolution,
+          },
+          action: 'dispute_resolved',
+          oldPermissions: [],
+          newPermissions: [],
+          details: `Resolved dispute as ${resolution}. ${note || ''}`.trim(),
+        });
+      } catch (_) {}
+
+      return res.status(200).json({
+        success: true,
+        message: 'Dispute resolved.',
+        order: {
+          _id: order._id,
+          status: order.status,
+          disputeResolution: order.disputeResolution,
+          disputeResolvedAt: order.disputeResolvedAt,
+        },
+      });
+    } catch (err) {
+      console.error('resolve-dispute error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to resolve dispute.',
+      });
+    }
+  }
+);
+
+
+// ==================================================================
+// CLIENT MODERATION
+// ==================================================================
+
+// PATCH /api/admin/clients/:id/status
+// Body: { status: 'active'|'suspended'|'pending', warn?: boolean, warnMessage?: string }
+router.patch(
+  '/clients/:id/status',
+  auth,
+  adminContext,
+  requirePermission('users:write'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const status = String(req.body?.status || '').trim();
+      const allowed = ['active', 'suspended', 'pending'];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'status must be active, suspended, or pending.',
+        });
+      }
+
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+      if (user.role === 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Use administrator management for staff accounts.',
+        });
+      }
+
+      const prev = user.status || user.accountStatus || 'active';
+      // Support either status or accountStatus field names
+      if (user.schema.path('status')) {
+        user.status = status;
+      }
+      if (user.schema.path('accountStatus')) {
+        user.accountStatus = status;
+      }
+      // Common flags
+      if (typeof user.isSuspended === 'boolean' || 'isSuspended' in user) {
+        user.isSuspended = status === 'suspended';
+      }
+      await user.save();
+
+      if (req.body?.warn) {
+        const warnMessage = String(
+          req.body?.warnMessage ||
+            'Your account is under review due to suspicious activity. Contact support if you have questions.'
+        ).slice(0, 500);
+        try {
+          const Notification = require('../models/Notification');
+          await Notification.create({
+            userId: user._id,
+            type: 'account_warning',
+            title: 'Account warning',
+            message: warnMessage,
+            link: '/messages',
+            read: false,
+          });
+        } catch (_) {}
+      }
+
+      try {
+        await AuditLog.create({
+          actor: {
+            id: req.admin.id,
+            name: req.admin.name,
+            email: req.admin.email,
+            role: req.admin.role,
+          },
+          target: {
+            id: user._id,
+            name: user.fullName || user.displayName || '',
+            email: user.email || '',
+            role: user.role || 'user',
+          },
+          action: 'user_status_changed',
+          oldPermissions: [],
+          newPermissions: [],
+          details: `Status ${prev} → ${status}${req.body?.warn ? ' (+ warning)' : ''}`,
+        });
+      } catch (_) {}
+
+      return res.status(200).json({
+        success: true,
+        message: `User status set to ${status}.`,
+        client: {
+          _id: user._id,
+          status,
+        },
+      });
+    } catch (err) {
+      console.error('PATCH client status error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update user status.',
+      });
+    }
+  }
+);
+
+// POST /api/admin/clients/:id/warn
+router.post(
+  '/clients/:id/warn',
+  auth,
+  adminContext,
+  requirePermission('users:write'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const message = String(
+        req.body?.message ||
+          'Warning: activity on your account was flagged as suspicious. Further issues may result in suspension.'
+      ).slice(0, 500);
+
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+
+      try {
+        const Notification = require('../models/Notification');
+        await Notification.create({
+          userId: user._id,
+          type: 'account_warning',
+          title: 'Account warning',
+          message,
+          link: '/messages',
+          read: false,
+        });
+      } catch (e) {
+        return res.status(500).json({
+          success: false,
+          message: 'Notification model unavailable; could not send warning.',
+        });
+      }
+
+      try {
+        await AuditLog.create({
+          actor: {
+            id: req.admin.id,
+            name: req.admin.name,
+            email: req.admin.email,
+            role: req.admin.role,
+          },
+          target: {
+            id: user._id,
+            name: user.fullName || '',
+            email: user.email || '',
+            role: user.role || 'user',
+          },
+          action: 'user_warned',
+          oldPermissions: [],
+          newPermissions: [],
+          details: message,
+        });
+      } catch (_) {}
+
+      return res.status(200).json({
+        success: true,
+        message: 'Warning sent to user.',
+      });
+    } catch (err) {
+      console.error('POST client warn error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to warn user.',
+      });
+    }
+  }
+);
+
+// DELETE /api/admin/clients/:id — soft-delete preferred (suspend + anonymize flag)
+router.delete(
+  '/clients/:id',
+  auth,
+  adminContext,
+  requirePermission('users:write'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const hard = String(req.query.hard || '') === '1';
+
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+      if (user.role === 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Cannot delete administrator accounts here.',
+        });
+      }
+
+      if (hard) {
+        await User.findByIdAndDelete(id);
+      } else {
+        // Soft delete
+        if (user.schema.path('status')) user.status = 'suspended';
+        if (user.schema.path('accountStatus')) user.accountStatus = 'suspended';
+        user.isSuspended = true;
+        user.email = `deleted_${Date.now()}_${user.email || id}`;
+        if (user.fullName) user.fullName = 'Deleted User';
+        if (user.displayName) user.displayName = 'Deleted User';
+        await user.save();
+      }
+
+      try {
+        await AuditLog.create({
+          actor: {
+            id: req.admin.id,
+            name: req.admin.name,
+            email: req.admin.email,
+            role: req.admin.role,
+          },
+          target: {
+            id: user._id,
+            name: user.fullName || '',
+            email: user.email || '',
+            role: user.role || 'user',
+          },
+          action: hard ? 'user_hard_deleted' : 'user_soft_deleted',
+          oldPermissions: [],
+          newPermissions: [],
+          details: hard ? 'Hard deleted' : 'Soft deleted / suspended',
+        });
+      } catch (_) {}
+
+      return res.status(200).json({
+        success: true,
+        message: hard ? 'User permanently deleted.' : 'User soft-deleted and suspended.',
+      });
+    } catch (err) {
+      console.error('DELETE client error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete user.',
       });
     }
   }
