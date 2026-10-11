@@ -117,6 +117,41 @@ function assertCanPostServices(user) {
   return null;
 }
 
+
+
+function getEffectiveMediaPlan(user, requestedPlan = "free") {
+  const validPlans = ["free", "silver", "gold"];
+
+  // Free services use Free-plan limits.
+  if (requestedPlan === "free") {
+    return "free";
+  }
+
+  // Paid-plan media limits must not be granted merely because
+  // a draft requests a paid plan.
+  const subscription = user?.subscription;
+  const hasActiveSubscription =
+    subscription &&
+    subscription.currentPlan === requestedPlan &&
+    (!subscription.expiresAt ||
+      new Date(subscription.expiresAt) > new Date());
+
+  if (
+    validPlans.includes(requestedPlan) &&
+    hasActiveSubscription
+  ) {
+    return requestedPlan;
+  }
+
+  // Without a matching active paid subscription, use the
+  // account's stored plan rather than trusting the draft.
+  return validPlans.includes(user?.planType)
+    ? user.planType
+    : "free";
+}
+
+
+
 function validateDraftCore(payload) {
   if (!payload.title || payload.title.length < 3) {
     return "Service title is required (min 3 characters).";

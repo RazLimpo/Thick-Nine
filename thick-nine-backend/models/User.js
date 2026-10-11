@@ -708,36 +708,36 @@ UserSchema.index({ createdAt: -1 });
    =========================================================== */
 
 UserSchema.methods.canUploadMedia = function (
-    mediaType,
-    currentCount
+  mediaType,
+  currentCount,
+  planOverride
 ) {
+  const planLimits = {
+    free: { images: 3, videos: 1, audio: 1 },
+    silver: { images: 5, videos: 2, audio: 2 },
+    gold: { images: 8, videos: 4, audio: 4 }
+  };
 
-    const planLimits = {
+  const validPlans = ["free", "silver", "gold"];
+  const validMediaTypes = ["images", "videos", "audio"];
 
-        free: {
-            images: 3,
-            videos: 1,
-            audio: 1
-        },
+  if (!validMediaTypes.includes(mediaType)) {
+    return false;
+  }
 
-        silver: {
-            images: 6,
-            videos: 3,
-            audio: 3
-        },
+  const count = Number(currentCount);
 
-        gold: {
-            images: 12,
-            videos: 6,
-            audio: 6
-        }
+  if (!Number.isInteger(count) || count < 0) {
+    return false;
+  }
 
-    };
+  const effectivePlan = validPlans.includes(planOverride)
+    ? planOverride
+    : this.planType;
 
-    const plan = planLimits[this.planType] || planLimits.free;
+  const plan = planLimits[effectivePlan] || planLimits.free;
 
-    return currentCount < (plan[mediaType] || 0);
-
+  return count <= plan[mediaType];
 };
 
 
