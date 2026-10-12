@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation'; // Moved here!
 import { BRAND, API_BASE_URL } from '@/lib/constants';       // Consolidated here!
 import '@/styles/pages/verify-email.css';
@@ -39,7 +40,7 @@ interface SuccessCardProps {
 
 const SuccessCard: React.FC<SuccessCardProps> = ({ userName, onDashboardClick }) => (
   <div id="card-success" className="verify-card show">
-    <img src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" />
+    <Image src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" width={160} height={48} priority style={{ width: 'auto', height: 'auto' }} />
     
   <div className="icon-circle">
   <i className="fa-solid fa-circle-check success-icon"></i>
@@ -69,7 +70,7 @@ const ExpiredCard: React.FC<ExpiredCardProps> = ({
   onResendClick 
 }) => (
   <div id="card-expired" className="verify-card show">
-    <img src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" />
+    <Image src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" width={160} height={48} priority style={{ width: 'auto', height: 'auto' }} />
     
    <div className="icon-circle">
   <i className="fa-solid fa-triangle-exclamation expired-icon"></i>
@@ -127,7 +128,7 @@ const ExpiredCard: React.FC<ExpiredCardProps> = ({
 
 const PendingCard: React.FC<PendingCardProps> = ({ onResendClick, isLoading, isCooldown, timerSeconds }) => (
   <div id="card-pending" className="verify-card show">
-    <img src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" />
+    <Image src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" width={160} height={48} priority style={{ width: 'auto', height: 'auto' }} />
     <div className="icon-circle">
       <i className="fa-solid fa-envelope-open-text" style={{ color: '#d96464', fontSize: '3rem' }}></i>
     </div>
@@ -411,7 +412,7 @@ const VerifyEmailClient: React.FC = () => {
     <div className="verify-container">
       {state.isLoading ? (
         <div className="verify-card show" style={{ textAlign: 'center', padding: '50px 20px' }}>
-          <img src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" style={{ marginBottom: '20px' }} />
+          <Image src="/logo-header.png" alt="Thick 9 Logo" className="card-logo-img" width={160} height={48} priority style={{ width: 'auto', height: 'auto', marginBottom: '20px' }} />
           <div style={{ border: '4px solid #f3f3f3', borderTop: '4px solid #d96464', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: '0 auto 20px auto' }}></div>
           <p style={{ fontWeight: '500', color: '#333' }}>Validating registration security token...</p>
           <style jsx>{`

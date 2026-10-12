@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import '@/styles/pages/header.css';
@@ -297,7 +298,7 @@ if (!isSafePage) {
     router.push('/mandatory');
   }
 }
-  }, [currentPath, router, openAuthModal]);
+  }, [currentPath, router]);
     
   // Primary mount synchronization hook (Defeats Next.js server pre-render hydration mismatches)
   useEffect(() => {
@@ -775,10 +776,14 @@ try {
         {/* Platform Brand Identity / Logo */}
         <div className="logo-container">
           <Link href="/" className="logo" onClick={closeAllUI}>
-            <img 
-              src="/images/logos/logo-header.png" 
-              alt={`${BRAND.pretty} Logo`} 
-              className="header-logo-img" 
+            <Image
+              src="/images/logos/logo-header.png"
+              alt={`${BRAND.pretty} Logo`}
+              className="header-logo-img"
+              width={140}
+              height={40}
+              priority
+              style={{ width: 'auto', height: 'auto' }}
             />
           </Link>
         </div>
@@ -978,7 +983,15 @@ try {
               aria-haspopup="true"
             >
               {isLoggedIn && userProfilePic ? (
-                <img src={userProfilePic} alt="Profile" className="user-profile-pic" />
+                <Image
+                  src={userProfilePic}
+                  alt="Profile"
+                  className="user-profile-pic"
+                  width={36}
+                  height={36}
+                  unoptimized
+                  style={{ borderRadius: '50%', objectFit: 'cover' }}
+                />
               ) : (
                 <i className={`fas ${isLoggedIn ? 'fa-user-circle' : 'fa-user-plus'}`}></i>
               )}
@@ -991,7 +1004,15 @@ try {
 
           <button className="icon-btn menu-toggle" onClick={toggleMobileMenu} aria-label="Open Menu">
             {isLoggedIn && userProfilePic ? (
-              <img src={userProfilePic} alt="Profile" className="user-profile-pic" />
+              <Image
+                  src={userProfilePic}
+                  alt="Profile"
+                  className="user-profile-pic"
+                  width={36}
+                  height={36}
+                  unoptimized
+                  style={{ borderRadius: '50%', objectFit: 'cover' }}
+                />
             ) : (
               <i className={`fas ${isLoggedIn ? 'fa-user-circle' : 'fa-bars'}`}></i>
             )}

@@ -1,8 +1,9 @@
-//app/affiliate-dashboard.tsx
+//app/affiliate-dashboard/client.tsx
 
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import "@/styles/pages/affiliate-dashboard.css";
 
@@ -1580,7 +1581,14 @@ export default function AffiliateDashboardClient() {
                   className="search-result-item"
                   onClick={() => handleAddHandpickedService(service)}
                 >
-                  <img src={service.img} alt="thumb" />
+                  <Image
+                    src={service.img || '/default-service.png'}
+                    alt={service.title || 'Service thumbnail'}
+                    width={40}
+                    height={40}
+                    unoptimized
+                    style={{ borderRadius: '6px', objectFit: 'cover' }}
+                  />
                   <div className="result-info">
                     <strong>{service.title}</strong>
                     <span>{service.category} • ${service.price}</span>
@@ -1618,7 +1626,14 @@ export default function AffiliateDashboardClient() {
               onDragEnd={() => setDragSourceIndex(null)}
               style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', marginBottom: '8px' }}
             >
-              <img src={service.img} alt="Service" style={{ width: '40px', borderRadius: '6px' }} />
+              <Image
+                src={service.img || '/default-service.png'}
+                alt={service.title || 'Service'}
+                width={40}
+                height={40}
+                unoptimized
+                style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover' }}
+              />
               <div className="service-meta" style={{ flexGrow: 1 }}>
                 <strong>{service.title}</strong>
                 <div style={{ fontSize: '0.75rem', color: '#718096' }}>ID: #{service.id || service._id} • {service.category}</div>
@@ -2423,7 +2438,14 @@ export default function AffiliateDashboardClient() {
       <div className="gallery-grid">
         <div className="gallery-item">
           <div className="item-preview">
-            <img src="https://via.placeholder.com/300x200" alt="Hero Banner Dark Preview" />
+            <Image
+              src="https://via.placeholder.com/300x200"
+              alt="Hero Banner Dark Preview"
+              width={300}
+              height={200}
+              unoptimized
+              style={{ width: '100%', height: 'auto' }}
+            />
           </div>
           <div className="item-info">
             <strong>Hero Banner (Dark)</strong>
@@ -2436,7 +2458,14 @@ export default function AffiliateDashboardClient() {
 
         <div className="gallery-item">
           <div className="item-preview">
-            <img src="https://via.placeholder.com/300x200" alt="Primary Logo Transparent Preview" />
+            <Image
+              src="https://via.placeholder.com/300x200"
+              alt="Primary Logo Transparent Preview"
+              width={300}
+              height={200}
+              unoptimized
+              style={{ width: '100%', height: 'auto' }}
+            />
           </div>
           <div className="item-info">
             <strong>Primary Logo</strong>

@@ -156,43 +156,8 @@ export default function FreelancerSettingsClient() {
     }
   }, []);
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/users/profile", {
-        credentials: "include",
-        headers: getAuthHeaders(),
-        cache: "no-store",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        router.replace("/?auth=login");
-        return;
-      }
-      if (!res.ok) {
-        // Fallback: try /api/users/me
-        const res2 = await fetch("/api/users/me", {
-          credentials: "include",
-          headers: getAuthHeaders(),
-          cache: "no-store",
-        });
-        const data2 = await res2.json().catch(() => ({}));
-        if (!res2.ok) {
-          showToast(data.message || "Could not load profile", "removed");
-          return;
-        }
-        applyProfile((data2.user || data2.profile || data2) as ProfileData);
-        return;
-      }
-      applyProfile((data.user || data.profile || data) as ProfileData);
-    } catch {
-      showToast("Network error loading profile", "removed");
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
-
-  function applyProfile(p: any) {
+  
+    const applyProfile = useCallback((p: any) => {
     setFullName(p.fullName || p.displayName || "");
     setTagline(p.professionalTitle || p.tagline || "");
     setBio(p.bio || "");
@@ -255,8 +220,45 @@ export default function FreelancerSettingsClient() {
         : []
     );
     setTwoFactorEnabled(Boolean(p.twoFactorEnabled));
-  }
+  }, []);
 
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/users/profile", {
+        credentials: "include",
+        headers: getAuthHeaders(),
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        router.replace("/?auth=login");
+        return;
+      }
+      if (!res.ok) {
+        // Fallback: try /api/users/me
+        const res2 = await fetch("/api/users/me", {
+          credentials: "include",
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        });
+        const data2 = await res2.json().catch(() => ({}));
+        if (!res2.ok) {
+          showToast(data.message || "Could not load profile", "removed");
+          return;
+        }
+        applyProfile((data2.user || data2.profile || data2) as ProfileData);
+        return;
+      }
+      applyProfile((data.user || data.profile || data) as ProfileData);
+    } catch {
+      showToast("Network error loading profile", "removed");
+    } finally {
+      setLoading(false);
+    }
+  }, [router, applyProfile]);
+    
+    
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);

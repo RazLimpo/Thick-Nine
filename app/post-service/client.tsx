@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { MARKETPLACE_FEE_PERCENTAGE } from "@/lib/constants";
@@ -103,6 +104,90 @@ interface ServiceDraftResponse {
   existingAudio?: string[];
 }
 
+
+// ---- Shared API safety helpers (module scope — stable, no React deps) ----
+const REQUEST_TIMEOUT_MS = 60_000;
+
+/** Auth token used by checkout/plan (localStorage key: "token"). */
+const getAuthToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem("token");
+  } catch {
+    return null;
+  }
+};
+
+/** Read CSRF token from meta tag or common cookie names (cookie-session apps). */
+const getCsrfToken = (): string | null => {
+  if (typeof document === "undefined") return null;
+  const meta = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute("content");
+  if (meta) return meta;
+  const match = document.cookie.match(
+    /(?:^|;\s*)(?:XSRF-TOKEN|csrfToken|csrf_token)=([^;]+)/
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+/** Attach Bearer token + CSRF headers for draft/publish (matches checkout/plan). */
+const applyCsrfHeaders = (headers: Record<string, string> = {}): Record<string, string> => {
+  const token = getAuthToken();
+  if (token && !headers.Authorization && !headers.authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const csrf = getCsrfToken();
+  if (csrf) {
+    headers["X-CSRF-Token"] = csrf;
+    headers["X-XSRF-TOKEN"] = csrf;
+  }
+  return headers;
+};
+
+/** Prefer backend message/error; never surface raw HTML to the user. */
+const extractApiErrorMessage = (data: unknown, fallback: string): string => {
+  if (data == null) return fallback;
+  if (typeof data === "string") {
+    const t = data.trim();
+    if (!t || t.startsWith("<")) return fallback;
+    return t.slice(0, 300);
+  }
+  if (typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    const msg = obj.message ?? obj.error ?? obj.msg;
+    if (typeof msg === "string" && msg.trim() && !msg.trim().startsWith("<")) {
+      return msg.trim().slice(0, 300);
+    }
+    if (Array.isArray(obj.errors) && obj.errors.length > 0) {
+      const first = obj.errors[0];
+      if (typeof first === "string") return first.slice(0, 300);
+      if (first && typeof first === "object" && typeof (first as { message?: unknown }).message === "string") {
+        return String((first as { message: string }).message).slice(0, 300);
+      }
+    }
+  }
+  return fallback;
+};
+
+const safeParseResponseText = (text: string, status: number, contentType: string | null): unknown => {
+  if (!text) return {};
+  const ct = contentType || "";
+  const looksHtml = text.trim().startsWith("<") || ct.includes("text/html");
+  if (looksHtml) {
+    return { message: `Server returned an unexpected response (${status}).` };
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      message:
+        text.trim().length > 0 && text.trim().length < 200
+          ? text.trim()
+          : `Invalid server response (${status}).`,
+    };
+  }
+};
 
 // Component Definition 
 export default function PostServiceClient() {
@@ -431,90 +516,6 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 // Minimal upload UX: overall progress while FormData (incl. media) is sent to the API / Cloudinary
 const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 const [uploadLabel, setUploadLabel] = useState<string>("");
-
-// ---- Shared API safety helpers (timeout, CSRF, error parsing) ----
-const REQUEST_TIMEOUT_MS = 60_000;
-
-/** Auth token used by checkout/plan (localStorage key: "token"). */
-const getAuthToken = (): string | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    return localStorage.getItem("token");
-  } catch {
-    return null;
-  }
-};
-
-/** Read CSRF token from meta tag or common cookie names (cookie-session apps). */
-const getCsrfToken = (): string | null => {
-  if (typeof document === "undefined") return null;
-  const meta = document
-    .querySelector('meta[name="csrf-token"]')
-    ?.getAttribute("content");
-  if (meta) return meta;
-  const match = document.cookie.match(
-    /(?:^|;\s*)(?:XSRF-TOKEN|csrfToken|csrf_token)=([^;]+)/
-  );
-  return match ? decodeURIComponent(match[1]) : null;
-};
-
-/** Attach Bearer token + CSRF headers for draft/publish (matches checkout/plan). */
-const applyCsrfHeaders = (headers: Record<string, string> = {}): Record<string, string> => {
-  const token = getAuthToken();
-  if (token && !headers.Authorization && !headers.authorization) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  const csrf = getCsrfToken();
-  if (csrf) {
-    headers["X-CSRF-Token"] = csrf;
-    headers["X-XSRF-TOKEN"] = csrf;
-  }
-  return headers;
-};
-
-/** Prefer backend message/error; never surface raw HTML to the user. */
-const extractApiErrorMessage = (data: unknown, fallback: string): string => {
-  if (data == null) return fallback;
-  if (typeof data === "string") {
-    const t = data.trim();
-    if (!t || t.startsWith("<")) return fallback;
-    return t.slice(0, 300);
-  }
-  if (typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    const msg = obj.message ?? obj.error ?? obj.msg;
-    if (typeof msg === "string" && msg.trim() && !msg.trim().startsWith("<")) {
-      return msg.trim().slice(0, 300);
-    }
-    if (Array.isArray(obj.errors) && obj.errors.length > 0) {
-      const first = obj.errors[0];
-      if (typeof first === "string") return first.slice(0, 300);
-      if (first && typeof first === "object" && typeof (first as any).message === "string") {
-        return String((first as any).message).slice(0, 300);
-      }
-    }
-  }
-  return fallback;
-};
-
-const safeParseResponseText = (text: string, status: number, contentType: string | null): unknown => {
-  if (!text) return {};
-  const ct = contentType || "";
-  const looksHtml = text.trim().startsWith("<") || ct.includes("text/html");
-  if (looksHtml) {
-    return { message: `Server returned an unexpected response (${status}).` };
-  }
-  try {
-    return JSON.parse(text);
-  } catch {
-    return {
-      message:
-        text.trim().length > 0 && text.trim().length < 200
-          ? text.trim()
-          : `Invalid server response (${status}).`,
-    };
-  }
-};
 
 /** fetch JSON with timeout, credentials, and CSRF header when available. */
 const fetchJsonWithTimeout = async (
@@ -2303,7 +2304,14 @@ const categoryText =
               {/* Existing remote images (edit mode) */}
               {existingImages.map((url, index) => (
                 <div key={`existing-img-${index}`} className="preview-item">
-                  <img src={url} alt={`Existing service image ${index + 1}`} />
+                  <Image
+                    src={url}
+                    alt={`Existing service image ${index + 1}`}
+                    width={120}
+                    height={90}
+                    unoptimized
+                    style={{ width: "100%", height: "auto", objectFit: "cover", borderRadius: 8 }}
+                  />
                   <button
                     type="button"
                     className="remove-btn"
@@ -2900,7 +2908,14 @@ function ImagePreviewItem({
 
   return (
     <div className="preview-item">
-      <img src={objectUrl} alt={accessibleName} />
+      <Image
+        src={objectUrl}
+        alt={accessibleName}
+        width={200}
+        height={150}
+        unoptimized
+        style={{ width: "100%", height: "auto", objectFit: "cover" }}
+      />
       <button
         type="button"
         className="remove-btn"
@@ -2990,28 +3005,28 @@ function PreviewMediaGallery({
     <div className="preview-media-container">
       {/* Main Image View */}
       <div className="main-image-wrapper" style={{ position: "relative" }}>
-        <img
-          src={
-            allImageUrls.length > 0
-              ? allImageUrls[activeIndex]
-              : undefined
-          }
-          className="main-image featured-preview"
-          alt={
-            allImageUrls.length > 0
-              ? `Service media ${activeIndex + 1} of ${allImageUrls.length}`
-              : "No service media uploaded"
-          }
-          style={
-            allImageUrls.length === 0
-              ? {
-                  background: "linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)",
-                  minHeight: 280,
-                  objectFit: "cover",
-                }
-              : undefined
-          }
-        />
+        {allImageUrls.length > 0 ? (
+          <Image
+            src={allImageUrls[activeIndex]}
+            className="main-image featured-preview"
+            alt={`Service media ${activeIndex + 1} of ${allImageUrls.length}`}
+            width={800}
+            height={450}
+            unoptimized
+            style={{ width: "100%", height: "auto", objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            className="main-image featured-preview"
+            style={{
+              background: "linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)",
+              minHeight: 280,
+              width: "100%",
+            }}
+            role="img"
+            aria-label="No service media uploaded"
+          />
+        )}
         {allImageUrls.length === 0 && (
           <div
             className="media-placeholder"
@@ -3040,7 +3055,14 @@ function PreviewMediaGallery({
               className={`thumb-item ${idx === activeIndex ? "active" : ""}`}
               onClick={() => setActiveIndex(idx)}
             >
-              <img src={url} alt={`Service media thumbnail ${idx + 1}`} />
+              <Image
+                src={url}
+                alt={`Service media thumbnail ${idx + 1}`}
+                width={80}
+                height={60}
+                unoptimized
+                style={{ width: "100%", height: "auto", objectFit: "cover" }}
+              />
             </div>
           ))}
         </div>

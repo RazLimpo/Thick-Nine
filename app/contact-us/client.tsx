@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import '@/styles/pages/contact-us.css';
 
 const WHATSAPP_NUMBER = '971544480976';
@@ -224,11 +225,13 @@ export default function ContactUsClient() {
               <div className="side-panel">
                 {/* Side Image Card */}
                 <div className="side-image-wrapper glass-card">
-                  <img
-                    src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=800&q=80"
-                    alt="Diverse professional team ready to provide customer support"
-                    loading="lazy"
-                  />
+                 <Image
+  src="/images/contact-us/contact-us.avif"
+  alt="Diverse professional team ready to provide customer support"
+  width={800}
+  height={500}
+  style={{ width: '100%', height: 'auto' }}
+/>
                   <div className="side-caption">
                     <h3>Real people. Real support.</h3>
                     <p>Our team is passionate about helping you succeed. No bots, just genuine conversations.</p>

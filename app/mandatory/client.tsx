@@ -6,6 +6,7 @@
 // ============ SECTION 1 - IMPORTS ============
 import React, {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -318,50 +319,51 @@ export default function MandatoryClientPage() {
   return () => document.removeEventListener('mousedown', handleClickOutside);
 }, []);
     
-  // Filter countries based on name or code or aliases (e.g. USA -> United States)
-  const filteredCountries = ALL_COUNTRIES.filter((country) => {
-    const query = ui.countrySearch.toLowerCase().trim();
-    if (!query) return true;
-    
-    const nameMatch = country.name.toLowerCase().includes(query);
-    const codeMatch = country.code.toLowerCase().includes(query);
-    const aliasMatch = country.aliases?.some((alias) =>
-      alias.toLowerCase().includes(query)
-    );
+ // Filter countries based on name or code or aliases (e.g. USA -> United States)
+  const filteredCountries = useMemo(() => {
+    return ALL_COUNTRIES.filter((country) => {
+      const query = ui.countrySearch.toLowerCase().trim();
+      if (!query) return true;
 
-    return nameMatch || codeMatch || aliasMatch;
-  });
+      const nameMatch = country.name.toLowerCase().includes(query);
+      const codeMatch = country.code.toLowerCase().includes(query);
+      const aliasMatch = country.aliases?.some((alias) =>
+        alias.toLowerCase().includes(query)
+      );
+
+      return nameMatch || codeMatch || aliasMatch;
+    });
+  }, [ui.countrySearch]);
 
   const selectedCountryObj = ALL_COUNTRIES.find(
     (c) => c.code === formData.country
   );
-    
-    
-    // Keep highlightedIndex valid whenever the visible list changes
-useEffect(() => {
-  if (!ui.isCountryOpen) return;
 
-  const list = ui.countrySearch
-    ? filteredCountries
-    : [...POPULAR_COUNTRIES, ...filteredCountries];
+  // Keep highlightedIndex valid whenever the visible list changes
+  useEffect(() => {
+    if (!ui.isCountryOpen) return;
 
-  setUi((prev) => {
-    if (list.length === 0) {
-      return prev.highlightedIndex === -1
+    const list = ui.countrySearch
+      ? filteredCountries
+      : [...POPULAR_COUNTRIES, ...filteredCountries];
+
+    setUi((prev) => {
+      if (list.length === 0) {
+        return prev.highlightedIndex === -1
+          ? prev
+          : { ...prev, highlightedIndex: -1 };
+      }
+
+      const next = Math.min(
+        Math.max(prev.highlightedIndex, 0),
+        list.length - 1
+      );
+
+      return next === prev.highlightedIndex
         ? prev
-        : { ...prev, highlightedIndex: -1 };
-    }
-
-    const next = Math.min(
-      Math.max(prev.highlightedIndex, 0),
-      list.length - 1
-    );
-
-    return next === prev.highlightedIndex
-      ? prev
-      : { ...prev, highlightedIndex: next };
-  });
-}, [ui.countrySearch, ui.isCountryOpen]); // removed filteredCountries    
+        : { ...prev, highlightedIndex: next };
+    });
+  }, [ui.countrySearch, ui.isCountryOpen, filteredCountries]);
     
 
 // ---------- Keyboard navigation helpers ----------
