@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Forward to Express backend
-    const backendUrl = process.env.BACKEND_API_URL || "https://your-decoupled-backend.com";
+    const backendUrl = process.env.BACKEND_API_URL || "//thick-nine-backend.onrender.com";
 
     const backendResponse = await fetch(`${backendUrl}/api/services/publish`, {
       method: "POST",

@@ -5,9 +5,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateAddonList } from "@/lib/addon-limits";
 
 const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.BACKEND_API_URL ||
-  "http://localhost:5000";
+  process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+
+if (!BACKEND_URL) {
+  console.error("BACKEND_API_URL is not set");
+  return NextResponse.json(
+    { message: "Server misconfiguration: backend URL missing." },
+    { status: 500 }
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
