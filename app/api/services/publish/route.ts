@@ -3,7 +3,18 @@
 import { NextResponse } from "next/server";
 import { validateAddonList } from "@/lib/addon-limits";
 
+const BACKEND_URL =
+  process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+
 export async function POST(req: Request) {
+  if (!BACKEND_URL) {
+    console.error("BACKEND_API_URL is not set");
+    return NextResponse.json(
+      { message: "Server misconfiguration: backend URL missing." },
+      { status: 500 }
+    );
+  }
+
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
@@ -15,7 +26,6 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    // 1. Validate add-ons array before proxying
     if (body.addons) {
       const addonError = validateAddonList(body.addons);
       if (addonError) {
@@ -23,10 +33,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. Forward to Express backend
-    const backendUrl = process.env.BACKEND_API_URL || "//thick-nine-backend.onrender.com";
-
-    const backendResponse = await fetch(`${backendUrl}/api/services/publish`, {
+    const backendResponse = await fetch(`${BACKEND_URL}/api/services/publish`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -35,18 +42,17 @@ export async function POST(req: Request) {
       body: JSON.stringify(body),
     });
 
-    const data = await backendResponse.json();
+    const data = await backendResponse.json().catch(() => ({}));
 
     if (!backendResponse.ok) {
       return NextResponse.json(data, { status: backendResponse.status });
     }
 
     return NextResponse.json(data, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Publish proxy error:", error);
-    return NextResponse.json(
-      { message: error.message || "Internal server error." },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Internal server error.";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }

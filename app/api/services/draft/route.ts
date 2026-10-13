@@ -7,15 +7,15 @@ import { validateAddonList } from "@/lib/addon-limits";
 const BACKEND_URL =
   process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
 
-if (!BACKEND_URL) {
-  console.error("BACKEND_API_URL is not set");
-  return NextResponse.json(
-    { message: "Server misconfiguration: backend URL missing." },
-    { status: 500 }
-  );
-}
-
 export async function POST(request: NextRequest) {
+  if (!BACKEND_URL) {
+    console.error("BACKEND_API_URL is not set");
+    return NextResponse.json(
+      { message: "Server misconfiguration: backend URL missing." },
+      { status: 500 }
+    );
+  }
+
   try {
     const formData = await request.formData();
 
@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
         const parsedAddons = JSON.parse(addonsRaw);
         const addonError = validateAddonList(parsedAddons);
         if (addonError) {
-          return NextResponse.json({ success: false, error: addonError }, { status: 400 });
+          return NextResponse.json(
+            { success: false, error: addonError },
+            { status: 400 }
+          );
         }
       } catch {
         return NextResponse.json(
@@ -54,7 +57,10 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { success: false, error: data.message || data.error || "Failed to save draft." },
+        {
+          success: false,
+          error: data.message || data.error || "Failed to save draft.",
+        },
         { status: response.status }
       );
     }
@@ -62,7 +68,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status: 201 });
   } catch (error: unknown) {
     console.error("POST draft proxy error:", error);
-    const message = error instanceof Error ? error.message : "Internal server error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
   }
 }
