@@ -20,11 +20,18 @@
 }
 
 /* Ensure the logo fits in the slimmer bar */
-.header-logo-img { 
-  height: 32px; /* Reduced from 40px to fit 60px header */ 
-  width: auto; 
-  display: block; 
-  transition: transform 0.3s ease; 
+/* Logo image — sizes controlled only by CSS */
+.header-logo-img {
+height: 40px !important;
+width: auto !important;
+max-height: 40px;
+display: block;
+object-fit: contain;
+transition: transform 0.3s ease;
+}
+
+.header-logo-img:hover {
+transform: scale(1.05);
 }
 
 
@@ -472,9 +479,10 @@ border-radius: 999px;
       gap: 10px;
   }
   
-  .header-logo-img { 
-      height: 35px; /* Even smaller logo for mobile screens */ 
-  } 
+.header-logo-img {
+  height: 35px !important;
+  max-height: 35px;
+}
   
   
   /* Hide the desktop navigation */
@@ -769,7 +777,8 @@ justify-content: center;
   }
 
   .header-logo-img {
-      height: 35px;
+      height: 35px !important;
+      max-height: 35px;
       width: auto;
       display: block;
       transition: transform 0.3s ease;
@@ -778,6 +787,8 @@ justify-content: center;
   .header-logo-img:hover {
       transform: scale(1.05);
   }
+  
+  
 
   .menu-toggle { 
       display: block !important; 
@@ -857,7 +868,7 @@ justify-content: center;
 /* Container to ensure the logo stays aligned within the flex header */
 .logo-container {
   display: flex;
-  align-items: center;
+  align-items: left;
   flex-shrink: 0;
 }
 

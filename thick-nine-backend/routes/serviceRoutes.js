@@ -1,5 +1,5 @@
 // routes/serviceRoutes.js
-// FULL file — safer route order + fixes
+// FULL file — safer route order + production hardening
 
 const express = require("express");
 const router = express.Router();
@@ -8,6 +8,12 @@ const Service = require("../models/Service");
 const User = require("../models/User");
 const authMiddleware = require("../middleware/auth");
 const uploadMedia = require("../middleware/upload");
+
+// ---------- constants ----------
+
+const PLACEHOLDER_IMAGES = new Set(["/default-service.png"]);
+const VALID_PLANS = ["free", "silver", "gold"];
+const VALID_STATUSES = ["active", "paused", "draft"];
 
 // ---------- helpers ----------
 
@@ -31,7 +37,39 @@ function isValidObjectId(id) {
   return id && mongoose.Types.ObjectId.isValid(id);
 }
 
-function buildServicePayloadFromForm(req, { isUpdate = false } = {}) {
+/** Count only real media (exclude known placeholders). */
+function countRealMedia(urls = []) {
+  return (Array.isArray(urls) ? urls : []).filter(
+    (u) => typeof u === "string" && u.length > 0 && !PLACEHOLDER_IMAGES.has(u)
+  ).length;
+}
+
+/**
+ * Merge media safely:
+ * - Only keep client "existing" URLs that already belong to the service in DB
+ * - Drop deleted keys
+ * - Append newly uploaded Cloudinary URLs
+ */
+function mergeMediaSafe(dbExisting, clientExisting, incoming, deleted) {
+  const allowed = new Set(
+    (Array.isArray(dbExisting) ? dbExisting : []).filter(Boolean)
+  );
+  const deletedSet = new Set(
+    (Array.isArray(deleted) ? deleted : []).filter(Boolean)
+  );
+
+  const kept = (Array.isArray(clientExisting) ? clientExisting : []).filter(
+    (url) => allowed.has(url) && !deletedSet.has(url)
+  );
+
+  const newOnes = (Array.isArray(incoming) ? incoming : []).filter(Boolean);
+  return [...kept, ...newOnes];
+}
+
+function buildServicePayloadFromForm(
+  req,
+  { isUpdate = false, dbImages = [], dbVideos = [], dbAudio = [] } = {}
+) {
   const body = req.body || {};
 
   const packages = parseJsonField(body.packages, {});
@@ -49,16 +87,17 @@ function buildServicePayloadFromForm(req, { isUpdate = false } = {}) {
   const newVideos = cloudinaryUrls(req.files?.videos || []);
   const newAudio = cloudinaryUrls(req.files?.audio || []);
 
-  const mergeMedia = (existing, incoming, deleted) => {
-    const kept = (Array.isArray(existing) ? existing : []).filter(
-      (url) => !deleted.includes(url)
-    );
-    return [...kept, ...incoming];
-  };
-
-  const images = mergeMedia(existingImages, newImages, deletedMediaKeys);
-  const videos = mergeMedia(existingVideos, newVideos, deletedMediaKeys);
-  const audio = mergeMedia(existingAudio, newAudio, deletedMediaKeys);
+  // On create there is no DB media yet — only incoming uploads count as images.
+  // On update, only trust URLs already stored on the service.
+  const images = isUpdate
+    ? mergeMediaSafe(dbImages, existingImages, newImages, deletedMediaKeys)
+    : [...newImages];
+  const videos = isUpdate
+    ? mergeMediaSafe(dbVideos, existingVideos, newVideos, deletedMediaKeys)
+    : [...newVideos];
+  const audio = isUpdate
+    ? mergeMediaSafe(dbAudio, existingAudio, newAudio, deletedMediaKeys)
+    : [...newAudio];
 
   const basicPrice = packages?.basic?.price;
   const numericPrice =
@@ -80,14 +119,16 @@ function buildServicePayloadFromForm(req, { isUpdate = false } = {}) {
     faqs: Array.isArray(faqs) ? faqs : [],
     requirements: Array.isArray(requirements) ? requirements : [],
     attributes: Array.isArray(attributes) ? attributes : [],
-    selectedPlan: ["free", "silver", "gold"].includes(body.selectedPlan)
+    selectedPlan: VALID_PLANS.includes(body.selectedPlan)
       ? body.selectedPlan
       : "free",
     images: images.length ? images : undefined,
     videos,
     audio,
     status:
-      body.status === "active" || body.status === "paused" ? body.status : "draft",
+      body.status === "active" || body.status === "paused"
+        ? body.status
+        : "draft",
   };
 
   if (numericPrice !== undefined && !Number.isNaN(numericPrice)) {
@@ -122,30 +163,36 @@ function assertCanPostServices(user) {
   return null;
 }
 
+/**
+ * Effective media plan for limit checks.
+ * Paid limits require a matching, unexpired subscription.
+ * Never trusts stale user.planType for paid tiers.
+ */
 function getEffectiveMediaPlan(user, requestedPlan = "free") {
-  const validPlans = ["free", "silver", "gold"];
-
-  // Free services use Free-plan limits.
+  if (!VALID_PLANS.includes(requestedPlan)) {
+    return "free";
+  }
   if (requestedPlan === "free") {
     return "free";
   }
 
-  // Paid-plan media limits must not be granted merely because
-  // a draft requests a paid plan.
   const subscription = user?.subscription;
   const hasActiveSubscription =
-    subscription &&
-    subscription.currentPlan === requestedPlan &&
+    subscription?.currentPlan === requestedPlan &&
     (!subscription.expiresAt ||
-      new Date(subscription.expiresAt) > new Date());
+      new Date(subscription.expiresAt).getTime() > Date.now());
 
-  if (validPlans.includes(requestedPlan) && hasActiveSubscription) {
-    return requestedPlan;
-  }
+  return hasActiveSubscription ? requestedPlan : "free";
+}
 
-  // Without a matching active paid subscription, use the
-  // account's stored plan rather than trusting the draft.
-  return validPlans.includes(user?.planType) ? user.planType : "free";
+function hasActivePlanSubscription(user, plan) {
+  if (!plan || plan === "free") return true;
+  const subscription = user?.subscription;
+  return (
+    subscription?.currentPlan === plan &&
+    (!subscription.expiresAt ||
+      new Date(subscription.expiresAt).getTime() > Date.now())
+  );
 }
 
 function validateDraftCore(payload) {
@@ -158,9 +205,13 @@ function validateDraftCore(payload) {
   return null;
 }
 
+/**
+ * Fail closed if canUploadMedia is missing.
+ * Counts exclude placeholder images.
+ */
 function checkMediaLimits(user, imageCount, videoCount, audioCount, effectivePlan) {
   if (typeof user.canUploadMedia !== "function") {
-    return null; // no limit method → allow
+    return "Media limits unavailable. Please try again later.";
   }
 
   if (!user.canUploadMedia("images", imageCount, effectivePlan)) {
@@ -296,7 +347,7 @@ router.get("/my-services", authMiddleware, async (req, res) => {
     const { status } = req.query;
 
     const filter = { sellerId: userId };
-    if (status && ["active", "draft", "paused"].includes(String(status))) {
+    if (status && VALID_STATUSES.includes(String(status))) {
       filter.status = status;
     }
 
@@ -407,9 +458,9 @@ router.post("/draft", authMiddleware, uploadMedia, async (req, res) => {
     }
 
     const effectivePlan = getEffectiveMediaPlan(user, payload.selectedPlan);
-    const imageCount = payload.images?.length || 0;
-    const videoCount = payload.videos?.length || 0;
-    const audioCount = payload.audio?.length || 0;
+    const imageCount = countRealMedia(payload.images);
+    const videoCount = countRealMedia(payload.videos);
+    const audioCount = countRealMedia(payload.audio);
 
     const mediaError = checkMediaLimits(
       user,
@@ -467,6 +518,8 @@ router.put("/draft/update", authMiddleware, uploadMedia, async (req, res) => {
       return res.status(404).json({ message: "Service draft not found." });
     }
 
+    // Prefer client-provided existing* when present; otherwise seed from DB
+    // so merge can still run. Actual trust boundary is mergeMediaSafe vs DB.
     if (!req.body.existingImages) {
       req.body.existingImages = JSON.stringify(existing.images || []);
     }
@@ -477,7 +530,12 @@ router.put("/draft/update", authMiddleware, uploadMedia, async (req, res) => {
       req.body.existingAudio = JSON.stringify(existing.audio || []);
     }
 
-    const payload = buildServicePayloadFromForm(req, { isUpdate: true });
+    const payload = buildServicePayloadFromForm(req, {
+      isUpdate: true,
+      dbImages: existing.images || [],
+      dbVideos: existing.videos || [],
+      dbAudio: existing.audio || [],
+    });
     const validationError = validateDraftCore(payload);
     if (validationError) {
       return res.status(400).json({ message: validationError });
@@ -494,9 +552,9 @@ router.put("/draft/update", authMiddleware, uploadMedia, async (req, res) => {
     }
 
     const effectivePlan = getEffectiveMediaPlan(user, payload.selectedPlan);
-    const imageCount = payload.images?.length || 0;
-    const videoCount = payload.videos?.length || 0;
-    const audioCount = payload.audio?.length || 0;
+    const imageCount = countRealMedia(payload.images);
+    const videoCount = countRealMedia(payload.videos);
+    const audioCount = countRealMedia(payload.audio);
 
     const mediaError = checkMediaLimits(
       user,
@@ -566,32 +624,26 @@ router.post("/publish", authMiddleware, async (req, res) => {
 
     const requestedPlan = draft.selectedPlan || "free";
 
-    const hasActiveSubscription =
-      user.subscription &&
-      user.subscription.currentPlan === requestedPlan &&
-      (!user.subscription.expiresAt ||
-        new Date(user.subscription.expiresAt) > new Date());
-
-    if (requestedPlan !== "free" && !hasActiveSubscription) {
+    if (requestedPlan !== "free" && !hasActivePlanSubscription(user, requestedPlan)) {
       return res.status(402).json({
         message: `You do not have an active ${requestedPlan.toUpperCase()} subscription. Please complete checkout to upgrade.`,
         requiresCheckout: true,
-        redirectUrl: `/checkout/plan?plan=\( {requestedPlan}&draftId= \){draftId}`,
+        redirectUrl: `/checkout/plan?plan=${requestedPlan}&draftId=${draftId}`,
       });
     }
 
-    // Use the same effective-plan logic as draft create/update
     const effectivePlan = getEffectiveMediaPlan(user, requestedPlan);
     const mediaError = checkMediaLimits(
       user,
-      draft.images?.length || 0,
-      draft.videos?.length || 0,
-      draft.audio?.length || 0,
+      countRealMedia(draft.images),
+      countRealMedia(draft.videos),
+      countRealMedia(draft.audio),
       effectivePlan
     );
     if (mediaError) {
       return res.status(422).json({
-        message: `Your draft exceeds the allowed media uploads for your current plan.`,
+        message:
+          "Your draft exceeds the allowed media uploads for your current plan.",
       });
     }
 
@@ -618,18 +670,31 @@ router.post("/:id/view", async (req, res) => {
     const ServiceView = require("../models/ServiceView");
 
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid service ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid service ID." });
     }
 
-    // Only count views for active services
-    const service = await Service.findOne({ _id: id, status: "active" }).select("_id");
+    const service = await Service.findOne({ _id: id, status: "active" }).select(
+      "_id"
+    );
     if (!service) {
-      return res.status(404).json({ success: false, message: "Service not found or not active." });
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or not active.",
+      });
     }
 
-    const { source = "unknown", device = "unknown", referrer = "" } = req.body || {};
+    const { source = "unknown", device = "unknown", referrer = "" } =
+      req.body || {};
 
-    const allowedSources = ["direct", "social", "external", "search", "unknown"];
+    const allowedSources = [
+      "direct",
+      "social",
+      "external",
+      "search",
+      "unknown",
+    ];
     const allowedDevices = ["desktop", "mobile", "tablet", "unknown"];
 
     await ServiceView.create({
@@ -639,13 +704,14 @@ router.post("/:id/view", async (req, res) => {
       referrer: String(referrer || "").slice(0, 500),
     });
 
-    // Keep existing aggregate counter in sync
     await Service.updateOne({ _id: id }, { $inc: { views: 1 } });
 
     return res.status(201).json({ success: true });
   } catch (error) {
     console.error("POST /api/services/:id/view error:", error);
-    return res.status(500).json({ success: false, message: "Failed to record view." });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to record view." });
   }
 });
 
@@ -663,7 +729,9 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
     const { status } = req.body; // "active" | "paused"
 
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid service ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid service ID." });
     }
 
     if (!["active", "paused"].includes(status)) {
@@ -686,6 +754,47 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
         success: false,
         message: "Publish the service before pausing or resuming it.",
       });
+    }
+
+    // Re-check eligibility when resuming to active
+    if (status === "active") {
+      const user = await User.findById(userId);
+      if (!user) {
+        return res
+          .status(401)
+          .json({ success: false, message: "User not found." });
+      }
+
+      const postGate = assertCanPostServices(user);
+      if (postGate) {
+        return res
+          .status(postGate.status)
+          .json({ success: false, message: postGate.message });
+      }
+
+      const plan = service.selectedPlan || "free";
+      if (plan !== "free" && !hasActivePlanSubscription(user, plan)) {
+        return res.status(402).json({
+          success: false,
+          message: `Your ${plan.toUpperCase()} subscription is not active. Renew to resume this service.`,
+          requiresCheckout: true,
+          redirectUrl: `/checkout/plan?plan=${plan}&serviceId=${id}`,
+        });
+      }
+
+      const mediaError = checkMediaLimits(
+        user,
+        countRealMedia(service.images),
+        countRealMedia(service.videos),
+        countRealMedia(service.audio),
+        getEffectiveMediaPlan(user, plan)
+      );
+      if (mediaError) {
+        return res.status(422).json({
+          success: false,
+          message: mediaError,
+        });
+      }
     }
 
     service.status = status;
@@ -720,7 +829,9 @@ router.get("/:id/manage", authMiddleware, async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid service ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid service ID." });
     }
 
     const service = await Service.findOne({ _id: id, sellerId: userId }).lean();
@@ -733,7 +844,9 @@ router.get("/:id/manage", authMiddleware, async (req, res) => {
     return res.status(200).json({ success: true, service });
   } catch (error) {
     console.error("GET manage error:", error);
-    return res.status(500).json({ success: false, message: "Failed to load service." });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to load service." });
   }
 });
 
@@ -750,10 +863,11 @@ router.get("/:id/analytics", authMiddleware, async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid service ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid service ID." });
     }
 
-    // Must own the service
     const service = await Service.findOne({ _id: id, sellerId: userId })
       .select("_id views")
       .lean();
@@ -765,7 +879,6 @@ router.get("/:id/analytics", authMiddleware, async (req, res) => {
       });
     }
 
-    // Optional range: ?days=7 | 30 | 90 (default 30)
     const days = Math.min(
       Math.max(parseInt(String(req.query.days || "30"), 10) || 30, 1),
       365
@@ -782,7 +895,6 @@ router.get("/:id/analytics", authMiddleware, async (req, res) => {
 
     const total = views.length;
 
-    // Traffic sources
     const sourceCounts = {
       direct: 0,
       social: 0,
@@ -815,7 +927,6 @@ router.get("/:id/analytics", authMiddleware, async (req, res) => {
       }))
       .sort((a, b) => b.count - a.count);
 
-    // Device usage
     const deviceCounts = {
       desktop: 0,
       mobile: 0,
@@ -831,19 +942,24 @@ router.get("/:id/analytics", authMiddleware, async (req, res) => {
     const devices = {
       desktop: {
         count: deviceCounts.desktop,
-        percent: total ? Math.round((deviceCounts.desktop / total) * 100) : 0,
+        percent: total
+          ? Math.round((deviceCounts.desktop / total) * 100)
+          : 0,
       },
       mobile: {
         count: deviceCounts.mobile,
-        percent: total ? Math.round((deviceCounts.mobile / total) * 100) : 0,
+        percent: total
+          ? Math.round((deviceCounts.mobile / total) * 100)
+          : 0,
       },
       tablet: {
         count: deviceCounts.tablet,
-        percent: total ? Math.round((deviceCounts.tablet / total) * 100) : 0,
+        percent: total
+          ? Math.round((deviceCounts.tablet / total) * 100)
+          : 0,
       },
     };
 
-    // Simple daily series for chart
     const dayMap = {};
     views.forEach((v) => {
       const day = new Date(v.createdAt).toISOString().slice(0, 10);
@@ -890,10 +1006,11 @@ router.get("/:id/orders", authMiddleware, async (req, res) => {
     }
 
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid service ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid service ID." });
     }
 
-    // Confirm ownership
     const service = await Service.findOne({ _id: id, sellerId: userId })
       .select("_id title")
       .lean();
@@ -922,10 +1039,7 @@ router.get("/:id/orders", authMiddleware, async (req, res) => {
     const mapped = orders.map((o) => {
       const buyer = o.clientId || o.buyerId || {};
       const buyerName =
-        buyer.displayName ||
-        buyer.fullName ||
-        o.buyerName ||
-        "Client";
+        buyer.displayName || buyer.fullName || o.buyerName || "Client";
 
       return {
         _id: o._id,
@@ -961,6 +1075,7 @@ router.get("/:id/orders", authMiddleware, async (req, res) => {
 
 // =====================================================
 // 13. PATCH /api/services/:id — owner partial update
+// Media fields are NOT allowed here (use draft update flow).
 // =====================================================
 router.patch("/:id", authMiddleware, async (req, res) => {
   try {
@@ -971,7 +1086,9 @@ router.patch("/:id", authMiddleware, async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid service ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid service ID." });
     }
 
     const service = await Service.findOne({ _id: id, sellerId: userId });
@@ -982,7 +1099,7 @@ router.patch("/:id", authMiddleware, async (req, res) => {
       });
     }
 
-    // Only allow known fields (never status/sellerId via this route)
+    // Non-media fields only — prevents plan-limit bypass
     const allowed = [
       "title",
       "description",
@@ -995,13 +1112,24 @@ router.patch("/:id", authMiddleware, async (req, res) => {
       "faqs",
       "requirements",
       "attributes",
-      "images",
-      "videos",
-      "audio",
       "deliveryTime",
     ];
 
     const body = req.body || {};
+
+    // Explicitly reject media mutation via this endpoint
+    if (
+      body.images !== undefined ||
+      body.videos !== undefined ||
+      body.audio !== undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Media cannot be updated via this endpoint. Use the draft update flow.",
+      });
+    }
+
     allowed.forEach((key) => {
       if (body[key] !== undefined) {
         service[key] = body[key];
@@ -1033,12 +1161,18 @@ router.post("/:id/click", async (req, res) => {
     const ServiceClick = require("../models/ServiceClick");
 
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid service ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid service ID." });
     }
 
-    const service = await Service.findOne({ _id: id, status: "active" }).select("_id");
+    const service = await Service.findOne({ _id: id, status: "active" }).select(
+      "_id"
+    );
     if (!service) {
-      return res.status(404).json({ success: false, message: "Service not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Service not found." });
     }
 
     const type = ["continue", "package", "other"].includes(req.body?.type)
@@ -1047,13 +1181,16 @@ router.post("/:id/click", async (req, res) => {
 
     await ServiceClick.create({ serviceId: id, type });
 
-    // optional aggregate field on Service
-    await Service.updateOne({ _id: id }, { $inc: { clicks: 1 } }).catch(() => {});
+    await Service.updateOne({ _id: id }, { $inc: { clicks: 1 } }).catch(
+      () => {}
+    );
 
     return res.status(201).json({ success: true });
   } catch (error) {
     console.error("POST click error:", error);
-    return res.status(500).json({ success: false, message: "Failed to record click." });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to record click." });
   }
 });
 
@@ -1066,7 +1203,9 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     const { id } = req.params;
 
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid service ID." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid service ID." });
     }
 
     const service = await Service.findOne({ _id: id, sellerId: userId });
@@ -1077,7 +1216,6 @@ router.delete("/:id", authMiddleware, async (req, res) => {
       });
     }
 
-    // Optional safety: block if active orders exist
     const Order = require("../models/Order");
     const open = await Order.countDocuments({
       serviceId: id,
@@ -1086,15 +1224,20 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     if (open > 0) {
       return res.status(400).json({
         success: false,
-        message: "Cannot delete while this service has open orders. Pause it instead.",
+        message:
+          "Cannot delete while this service has open orders. Pause it instead.",
       });
     }
 
     await Service.deleteOne({ _id: id });
-    return res.status(200).json({ success: true, message: "Service deleted." });
+    return res
+      .status(200)
+      .json({ success: true, message: "Service deleted." });
   } catch (error) {
     console.error("DELETE /api/services/:id error:", error);
-    return res.status(500).json({ success: false, message: "Failed to delete service." });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to delete service." });
   }
 });
 

@@ -783,7 +783,6 @@ try {
               width={140}
               height={40}
               priority
-              style={{ width: 'auto', height: 'auto' }}
             />
           </Link>
         </div>
