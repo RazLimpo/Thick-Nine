@@ -51,8 +51,7 @@ if (morgan) app.use(morgan("dev"));
 const allowedOriginsRegExp = [
   /^http:\/\/localhost(:\d+)?$/,
   /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,
-  /^https:\/\/[a-zA-Z0-9-]+\.webcontainer\.io$/,
-  /^https:\/\/[a-zA-Z0-9-]+--\d+--[a-zA-Z0-9-]+\.local-credentialless\.webcontainer\.io$/,
+  /^https:\/\/.*\.webcontainer\.io$/, // Broad wildcard for all WebContainer subdomains
   /^https:\/\/[a-zA-Z0-9-]+\.stackblitz\.io$/,
   /^https:\/\/[a-zA-Z0-9-]+\.[a-z-]+\.staticblitz\.com$/,
   /^https:\/\/osindoworks\.com$/,
@@ -62,6 +61,9 @@ app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
+      
+      // Log incoming origin for debugging
+      console.log("Incoming request origin:", origin);
 
       const isAllowed = allowedOriginsRegExp.some((regex) => regex.test(origin));
 
@@ -76,12 +78,10 @@ app.use(
       }
     },
     credentials: true,
-    // PATCH required for coupons, service status, conversation actions, etc.
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
 app.use(express.json({ limit: "10mb" }));
 
 // ====================== ADAPTIVE DATABASE CONNECTION POOL ======================
