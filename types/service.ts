@@ -11,6 +11,7 @@ export interface BackendSeller {
   level: string;
   professionalTitle?: string;
   onlineStatus?: "online" | "away" | "offline" | string;
+  lastSeen?: string | Date | null;
   isVerified?: boolean;
   planType?: string;
   location?: {
