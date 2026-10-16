@@ -35,13 +35,14 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const couponRoutes = require("./routes/couponRoutes");
 const offerRoutes = require("./routes/offerRoutes");
+const presenceRoutes = require("./routes/presenceRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ====================== CENTRALIZED PROJECTION STRINGS ======================
 const SELLER_POPULATE_FIELDS =
-  "fullName displayName username avatar profilePicture level professionalTitle onlineStatus isVerified location metrics memberSince";
+  "fullName displayName username avatar profilePicture level professionalTitle onlineStatus lastSeen isVerified location metrics memberSince";
 
 // ====================== SECURITY & LOGGING MIDDLEWARE ======================
 if (helmet) app.use(helmet());
@@ -142,6 +143,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/offers", offerRoutes);
+app.use("/api/presence", presenceRoutes);
 
 app.get("/", (req, res) => {
   res.send(

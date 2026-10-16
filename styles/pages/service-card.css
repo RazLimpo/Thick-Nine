@@ -1,12 +1,12 @@
 /* --- Thick 9 Service Card --- */
 
 .mjob-container {
-  display: flex; 
-  gap: 25px; 
-  padding: 10px; 
-  justify-content: flex-start; 
-  flex-wrap: wrap; 
-  max-width: 1300px; /* Adjust based on your design */ 
+  display: flex;
+  gap: 25px;
+  padding: 10px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  max-width: 1300px;
   margin: 0 auto;
   background-color: #fcfcfc;
 }
@@ -14,52 +14,65 @@
 .mjob-card {
   background: #fff;
   width: 100%;
-  max-width: 350px; 
+  max-width: 350px;
   border-radius: 16px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   position: relative;
-  border: 1px solid rgba(0,0,0,0.03);
+  border: 1px solid rgba(0, 0, 0, 0.03);
   transition: transform 0.3s ease;
 }
 
-.mjob-card:hover { transform: translateY(-5px); }
-
-/* 1. Visual Header & Manual Hover Slider */
-.mjob-visual-header { 
-  height: 180px; 
-  position: relative; 
-  overflow: hidden; 
+.mjob-card:hover {
+  transform: translateY(-5px);
 }
 
+/* ------------------------------------------------------------------ */
+/* 1. Visual header + JS-controlled image slider (matches ServiceCard) */
+/* ------------------------------------------------------------------ */
+
+.mjob-visual-header {
+  height: 190px;
+  position: relative;
+  overflow: hidden;
+  background: #e8eef5;
+}
+
+/* Full-width stage — NOT the old 300% flex carousel */
 .mjob-slider-wrapper {
-  width: 300%; /* Holds 3 images side-by-side */
+  position: relative;
+  width: 100%;
   height: 100%;
-  display: flex;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  display: block;
 }
 
 .mjob-slide {
-  width: 33.33%;
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  background-size: cover;
-  background-position: center;
 }
 
-/* User-Triggered Manual Slide Animation on Hover */
+.mjob-slide img,
+.mjob-slider-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Disable legacy hover slide animation */
 .mjob-card:hover .mjob-slider-wrapper {
-  animation: manualSlide 9s infinite alternate; 
+  animation: none;
+  transform: none;
 }
 
-@keyframes manualSlide {
-  0%, 30% { transform: translateX(0); }
-  33%, 63% { transform: translateX(-33.33%); }
-  66%, 100% { transform: translateX(-66.66%); }
-}
+/* ------------------------------------------------------------------ */
+/* 2. Slider dots (React toggles .active)                               */
+/* ------------------------------------------------------------------ */
 
-/* 2. Sliding Dots Indicators */
 .mjob-slider-dots {
   position: absolute;
   bottom: 12px;
@@ -73,161 +86,313 @@
 .mjob-slider-dots .dot {
   width: 6px;
   height: 6px;
-  background: rgba(255, 255, 255, 0.6);
+  padding: 0;
+  border: none;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
   transition: all 0.3s ease;
 }
 
-/* Animate dots to match the image being shown */
-.mjob-card:hover .dot:nth-child(1) { animation: activeDot1 9s infinite alternate; }
-.mjob-card:hover .dot:nth-child(2) { animation: activeDot2 9s infinite alternate; }
-.mjob-card:hover .dot:nth-child(3) { animation: activeDot3 9s infinite alternate; }
+.mjob-slider-dots .dot.active {
+  background: #fff;
+  transform: scale(1.3);
+}
 
-@keyframes activeDot1 { 0%, 30% { background: #fff; transform: scale(1.3); } 33%, 100% { background: rgba(255, 255, 255, 0.6); transform: scale(1); } }
-@keyframes activeDot2 { 0%, 30% { background: rgba(255, 255, 255, 0.6); } 33%, 63% { background: #fff; transform: scale(1.3); } 66%, 100% { background: rgba(255, 255, 255, 0.6); } }
-@keyframes activeDot3 { 0%, 63% { background: rgba(255, 255, 255, 0.6); } 66%, 100% { background: #fff; transform: scale(1.3); } }
+/* ------------------------------------------------------------------ */
+/* 3. Profile box & online status                                      */
+/* ------------------------------------------------------------------ */
 
-/* 3. Profile Box & Status Badge (Maintained 14px size) */
-.mjob-profile-box { 
-  position: absolute; 
-  top: 12px; 
-  left: 12px; 
-  z-index: 10; 
+.mjob-profile-box {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
   width: 48px;
   height: 48px;
 }
 
-.mjob-profile-box img { 
-  width: 48px; 
-  height: 48px; 
-  border-radius: 12px; 
-  border: 2px solid #fff; 
-  object-fit: cover; 
+.mjob-profile-box img,
+.mjob-avatar {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 12px;
+  border: 2px solid #fff;
+  object-fit: cover;
   display: block;
 }
 
 .mjob-status-badge {
-  position: absolute; 
-  bottom: -2px; 
-  right: -2px; 
-  width: 14px; /* Restored to your original size */
-  height: 14px; 
-  border-radius: 50%; 
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
   border: 2px solid #fff;
   z-index: 11;
 }
 
-.status-online .mjob-status-badge { background-color: #28a745; }
-.status-offline .mjob-status-badge { background-color: #ccc; }
+.status-online .mjob-status-badge {
+  background-color: #28a745;
+}
 
-/* Maintained your exact category tag style */
+.status-offline .mjob-status-badge {
+  background-color: #ccc;
+}
 
+/* ------------------------------------------------------------------ */
+/* Category tag                                                        */
+/* ------------------------------------------------------------------ */
 
 .mjob-category-tag {
-  position: absolute; top: 12px; right: 12px;
-  background: var(--primary-color); color: #fff; 
-  padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--primary-color, #6366f1);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  z-index: 12;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 4. Content Area */
-.mjob-content-area { padding-top: 15px; display: flex; flex-direction: column; flex-grow: 1; }
-.mjob-stats-row, .mjob-title, .mjob-user-meta { padding-left: 15px; padding-right: 15px; }
+/* ------------------------------------------------------------------ */
+/* 4. Content area                                                     */
+/* ------------------------------------------------------------------ */
+
+.mjob-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.mjob-content-area {
+  padding-top: 15px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.mjob-stats-row,
+.mjob-title,
+.mjob-user-meta {
+  padding-left: 15px;
+  padding-right: 15px;
+}
 
 .mjob-stats-row {
-  display: flex; justify-content: space-between;
-  padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.stat-item { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #444; }
-.stat-item i.fa-star { color: #ffc107; }
-
-/* Delivery and Award icons set to #aaa */
-.stat-item i.icon-muted { color: #aaa; }
-
-.mjob-title { 
-  font-size: 14px; font-weight: 600; color: #222; 
-  line-height: 1.5; height: 42px; margin-bottom: 12px; 
-  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #444;
 }
 
-/* 5. Gender Icons & User Meta */
-.mjob-user-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-.mjob-username { display: flex; align-items: center; font-weight: 700; font-size: 12px; color: #aaa; }
-.mjob-username i { margin-right: 8px; font-size: 14px; }
+.stat-item i.fa-star {
+  color: #ffc107;
+}
 
-.m-icon { color: #007bff; }
-.f-icon { color: #e83e8c; } /* Preferred pink icon */
+.stat-item i.icon-muted {
+  color: #aaa;
+}
 
-.mjob-location { font-size: 11px; color: #aaa; }
-.mjob-location i { color: var(--primary-color); margin-right: 4px; }
+.mjob-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #222;
+  line-height: 1.5;
+  height: 42px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
 
-/* 6. AliceBlue Full-Width Footer */
+/* ------------------------------------------------------------------ */
+/* 5. User meta                                                        */
+/* ------------------------------------------------------------------ */
+
+.mjob-user-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 8px;
+}
+
+.mjob-username {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: #aaa;
+  min-width: 0;
+}
+
+.mjob-username i {
+  margin-right: 8px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.m-icon {
+  color: #007bff;
+}
+
+.f-icon {
+  color: #e83e8c;
+}
+
+.mjob-location {
+  font-size: 11px;
+  color: #aaa;
+  text-align: right;
+  min-width: 0;
+}
+
+.mjob-location i {
+  color: var(--primary-color, #6366f1);
+  margin-right: 4px;
+}
+
+/* ------------------------------------------------------------------ */
+/* 6. Footer                                                           */
+/* ------------------------------------------------------------------ */
+
 .mjob-footer-price {
   background-color: aliceblue;
   padding: 12px 15px;
-  display: flex; justify-content: space-between; align-items: center;
-  margin-top: auto; border-top: 1px solid #e0eaf3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  border-top: 1px solid #e0eaf3;
 }
 
-.mjob-level { font-size: 10px; color: #7a8a99; text-transform: uppercase; font-weight: 800; }
-.mjob-level.accent { color: var(--primary-color); }
-.mjob-price { font-size: 1.4rem; font-weight: 900; color: var(--primary-color); }
+.mjob-level {
+  font-size: 10px;
+  color: #7a8a99;
+  text-transform: uppercase;
+  font-weight: 800;
+}
 
+.mjob-level.accent {
+  color: var(--primary-color, #6366f1);
+}
 
+.mjob-price {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--primary-color, #6366f1);
+}
 
+/* ------------------------------------------------------------------ */
+/* Favorite + status icon stack                                        */
+/* ------------------------------------------------------------------ */
 
-/* --- Vertical Icon Stack (Favorite at bottom, Status on top) --- */
-
-/* 1. The Favorite Button (Your Original Positioning) */
-.mjob-favorite { 
-  position: absolute; 
-  bottom: 12px; 
-  right: 12px; 
-  background: rgba(255,255,255,0.9); 
-  border: none; 
-  width: 32px; 
-  height: 32px; 
-  border-radius: 50%; 
-  color: #888; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
+.mjob-favorite {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   z-index: 20;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  border: 1px solid rgba(0,0,0,0.03);
-} 
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
 
-/* 2. The Status Circles (Featured and Sponsored) */
-.m-status-circle {
+.mjob-favorite:hover {
+  color: #e11d48;
+}
+
+.mjob-favorite .fas.fa-heart {
+  color: #e11d48;
+}
+
+/* Status circles — visible when rendered by React (no data-* required) */
+.mjob-status-icons {
   position: absolute;
-  right: 12px; /* Aligned with Favorite */
+  right: 12px;
+  bottom: 50px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+  z-index: 20;
+}
+
+.m-status-circle {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.9);
-  display: none; /* Hidden unless data attribute is true */
+  display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  z-index: 20;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
-/* Stacking Logic: Placing icons ABOVE the favorite button */
-.featured-icon { bottom: 88px; color: #ffc107; }  /* 12px + 32px + 6px gap */
-.sponsored-icon { bottom: 50px; color: #6495ED; } /* 50px + 32px + 6px gap */
+.verified-icon {
+  color: #2563eb;
+}
 
+.pro-icon {
+  color: #7c3aed;
+}
 
+.featured-icon {
+  color: #ffc107;
+}
 
-/* --- Tooltip Logic for ALL circular buttons --- */
-[data-tooltip] { position: absolute; }
+.sponsored-icon {
+  color: #6495ed;
+}
+
+/* Optional data-attribute support (legacy) */
+[data-sponsored="true"] .sponsored-icon,
+[data-featured="true"] .featured-icon {
+  display: flex;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tooltips                                                            */
+/* ------------------------------------------------------------------ */
+
+[data-tooltip] {
+  position: absolute;
+}
 
 [data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  right: 42px; /* Pops out to the left */
+  right: 42px;
   top: 50%;
   transform: translateY(-50%) scale(0.8);
   background: #333;
@@ -248,7 +413,3 @@
   visibility: visible;
   transform: translateY(-50%) scale(1);
 }
-
-/* --- Visibility Logic --- */
-[data-sponsored="true"] .sponsored-icon { display: flex; }
-[data-featured="true"] .featured-icon { display: flex; }

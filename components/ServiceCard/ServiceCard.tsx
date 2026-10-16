@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
 import type { Service } from "@/types/service";
+import { isUserOnline } from "@/lib/presence";
 
 interface ServiceCardProps {
   service: Service;
-  onFavoriteToggle?: (
-    serviceId: string,
-    isFavorited: boolean
-  ) => void;
+  onFavoriteToggle?: (serviceId: string, isFavorited: boolean) => void;
 }
+
+/** Auto-advance interval for the image slider (ms). */
+const SLIDER_INTERVAL_MS = 4000;
 
 export default function ServiceCard({
   service,
@@ -32,53 +33,66 @@ export default function ServiceCard({
 
   const [activeImage, setActiveImage] = useState(0);
 
- // ---------- Seller Info Object ----------
-const seller = service.sellerId;
+  // Auto-rotate when there is more than one image
+  useEffect(() => {
+    if (images.length <= 1) return;
 
-const sellerInfo = {
-  name:
-    service.sellerName ??
-    seller?.displayName ??
-    seller?.fullName ??
-    "Freelancer",
+    const id = setInterval(() => {
+      setActiveImage((prev) => (prev + 1) % images.length);
+    }, SLIDER_INTERVAL_MS);
 
-  avatar:
-    service.sellerAvatar ??
-    seller?.avatar ??
-    "/default-avatar.png",
+    return () => clearInterval(id);
+  }, [images.length]);
 
-  level:
-    service.level ??
-    seller?.level ??
-    "Level 1 Seller",
+  // ---------- Seller Info Object ----------
+  const seller = service.sellerId;
 
-  verified: seller?.isVerified ?? false,
+  const sellerInfo = {
+    name:
+      service.sellerName ??
+      seller?.displayName ??
+      seller?.fullName ??
+      "Freelancer",
 
-  online:
-    service.isOnline ??
-    (seller?.onlineStatus === "online"),
+    avatar:
+      service.sellerAvatar ?? seller?.avatar ?? "/default-avatar.png",
 
-  pro:
-    seller?.planType === "gold" ||
-    seller?.planType === "silver",
+    level: service.level ?? seller?.level ?? "Level 1 Seller",
 
-  city: seller?.location?.city,
+    verified: seller?.isVerified ?? false,
 
-  country: seller?.location?.country,
-};
-  
+    online: isUserOnline({
+      isOnline: service.isOnline,
+      onlineStatus: seller?.onlineStatus,
+      lastSeen: seller?.lastSeen,
+    }),
+
+    pro: seller?.planType === "gold" || seller?.planType === "silver",
+
+    city: seller?.location?.city,
+
+    country: seller?.location?.country,
+  };
+
   // ---------- Location String ----------
   const location =
     sellerInfo.city && sellerInfo.country
       ? `${sellerInfo.city}, ${sellerInfo.country}`
       : sellerInfo.city || sellerInfo.country || "Remote";
 
- // ---------- Pricing ----------
-const formattedPrice = `$${Number(service.price).toLocaleString()}`;
+  // ---------- Pricing ----------
+  const formattedPrice = `$${Number(service.price ?? 0).toLocaleString()}`;
 
   // ---------- Ratings & Delivery ----------
-  const rating = service.rating ?? 5;
-  const reviewsCount = service.reviewsCount ?? 0;
+  // Prefer real numbers; do not fake a perfect 5.0 for new services
+  const reviewsCount =
+    typeof service.reviewsCount === "number" ? service.reviewsCount : 0;
+  const hasReviews = reviewsCount > 0;
+  const rating =
+    typeof service.rating === "number" && !Number.isNaN(service.rating)
+      ? service.rating
+      : 0;
+
   const delivery = `${service.deliveryTime ?? 3} Days`;
 
   // ---------- Category & Service Badges ----------
@@ -87,13 +101,9 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
   const isFeatured = service.isFeatured ?? false;
 
   // ---------- Favorite State ----------
-  const [favorite, setFavorite] = useState(
-    service.isFavorited ?? false
-  );
+  const [favorite, setFavorite] = useState(service.isFavorited ?? false);
 
-  const handleFavoriteClick = (
-    e: React.MouseEvent<HTMLButtonElement>
-  ) => {
+  const handleFavoriteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -110,12 +120,14 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
     e.stopPropagation();
     setActiveImage(index);
   };
-      
-      return (
+
+  return (
     <article
       className={`mjob-card ${
         sellerInfo.online ? "status-online" : "status-offline"
       }`}
+      data-featured={isFeatured ? "true" : "false"}
+      data-sponsored={isSponsored ? "true" : "false"}
     >
       {/* ==========================================================
           VISUAL HEADER (SLIDER, BADGES, FAVORITE)
@@ -147,6 +159,10 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
                 priority={index === 0}
                 sizes="(max-width: 768px) 100vw, 350px"
                 style={{ objectFit: "cover" }}
+                unoptimized={
+                  typeof image === "string" &&
+                  (image.startsWith("blob:") || image.startsWith("data:"))
+                }
               />
             </div>
           ))}
@@ -167,7 +183,7 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
           </div>
         )}
 
-        {/* ---------- Seller Avatar ---------- */}
+        {/* ---------- Seller Avatar + online/offline badge ---------- */}
         <div className="mjob-profile-box">
           <Image
             src={sellerInfo.avatar}
@@ -177,12 +193,12 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
             className="mjob-avatar"
           />
 
-          {sellerInfo.online && (
-            <span
-              className="mjob-status-badge"
-              title="Online"
-            />
-          )}
+          {/* Always show status pip: green = online, grey = offline */}
+          <span
+            className="mjob-status-badge"
+            title={sellerInfo.online ? "Online" : "Offline"}
+            aria-label={sellerInfo.online ? "Online" : "Offline"}
+          />
         </div>
 
         {/* ---------- Marketplace Badges ---------- */}
@@ -197,10 +213,7 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
           )}
 
           {sellerInfo.pro && (
-            <span
-              className="m-status-circle pro-icon"
-              title="Pro Seller"
-            >
+            <span className="m-status-circle pro-icon" title="Pro Seller">
               <i className="fas fa-award" />
             </span>
           )}
@@ -230,24 +243,14 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
           className="mjob-favorite"
           onClick={handleFavoriteClick}
           aria-label={
-            favorite
-              ? "Remove from favourites"
-              : "Add to favourites"
+            favorite ? "Remove from favourites" : "Add to favourites"
           }
         >
-          <i
-            className={
-              favorite
-                ? "fas fa-heart"
-                : "far fa-heart"
-            }
-          />
+          <i className={favorite ? "fas fa-heart" : "far fa-heart"} />
         </button>
 
         {/* ---------- Category Tag ---------- */}
-        <span className="mjob-category-tag">
-          {category}
-        </span>
+        <span className="mjob-category-tag">{category}</span>
       </div>
 
       {/* ==========================================================
@@ -261,67 +264,48 @@ const formattedPrice = `$${Number(service.price).toLocaleString()}`;
           {/* ---------- Stats Row ---------- */}
           <div className="mjob-stats-row">
             <div className="stat-item">
-              <i
-                className="fas fa-star"
-                aria-hidden="true"
-              />
-              <span>{rating.toFixed(1)}</span>
-
-              {reviewsCount > 0 && (
-                <small>({reviewsCount})</small>
+              <i className="fas fa-star" aria-hidden="true" />
+              {hasReviews ? (
+                <>
+                  <span>{rating.toFixed(1)}</span>
+                  <small>({reviewsCount})</small>
+                </>
+              ) : (
+                <span title="No reviews yet">New</span>
               )}
             </div>
 
             <div className="stat-item">
-              <i
-                className="fas fa-clock icon-muted"
-                aria-hidden="true"
-              />
+              <i className="fas fa-clock icon-muted" aria-hidden="true" />
               <span>{delivery}</span>
             </div>
 
             <div className="stat-item">
-              <i
-                className="fas fa-award icon-muted"
-                aria-hidden="true"
-              />
+              <i className="fas fa-award icon-muted" aria-hidden="true" />
               <span>{sellerInfo.level}</span>
             </div>
           </div>
 
           {/* ---------- Title ---------- */}
-          <h3 className="mjob-title">
-            {service.title}
-          </h3>
+          <h3 className="mjob-title">{service.title}</h3>
 
           {/* ---------- Seller Meta ---------- */}
           <div className="mjob-user-meta">
             <span className="mjob-username">
-              <i
-                className="fas fa-user m-icon"
-                aria-hidden="true"
-              />
+              <i className="fas fa-user m-icon" aria-hidden="true" />
               {sellerInfo.name}
             </span>
 
             <span className="mjob-location">
-              <i
-                className="fas fa-map-marker-alt"
-                aria-hidden="true"
-              />
+              <i className="fas fa-map-marker-alt" aria-hidden="true" />
               {location}
             </span>
           </div>
 
           {/* ---------- Footer Price ---------- */}
           <div className="mjob-footer-price">
-            <span className="mjob-level">
-              {sellerInfo.level}
-            </span>
-
-            <span className="mjob-price">
-              {formattedPrice}
-            </span>
+            <span className="mjob-level">{sellerInfo.level}</span>
+            <span className="mjob-price">{formattedPrice}</span>
           </div>
         </div>
       </Link>
