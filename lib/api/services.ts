@@ -44,7 +44,7 @@ export async function getServices(): Promise<any[]> {
 export async function getServiceById(id: string): Promise<Service | null> {
   if (!id) return null;
 
-  const response = await fetch(`\( {API_BASE_URL}/api/services/ \){id}`, {
+  const response = await fetch(`${API_BASE_URL}/api/services/${id}`, {
     method: "GET",
     headers: { Accept: "application/json" },
     cache: "no-store",
@@ -88,6 +88,10 @@ function normalizeService(raw: Record<string, unknown>): Service {
           typeof seller.onlineStatus === "string"
             ? seller.onlineStatus
             : undefined,
+        lastSeen:
+          seller.lastSeen != null
+            ? (seller.lastSeen as string | Date)
+            : null,
         isVerified: Boolean(seller.isVerified),
         planType:
           typeof seller.planType === "string" ? seller.planType : undefined,

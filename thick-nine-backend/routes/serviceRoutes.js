@@ -311,9 +311,9 @@ router.get("/", async (req, res) => {
         .skip(skip)
         .limit(lim)
         .populate(
-          "sellerId",
-          "fullName displayName avatar averageRating location"
-        )
+  "sellerId",
+  "fullName displayName avatar averageRating location onlineStatus lastSeen isVerified planType level professionalTitle"
+)
         .lean(),
       Service.countDocuments(filter),
     ]);
@@ -1257,9 +1257,9 @@ router.get("/:id", async (req, res) => {
 
     const service = await Service.findOne({ _id: id, status: "active" })
       .populate(
-        "sellerId",
-        "fullName displayName avatar averageRating location onlineStatus isVerified planType level professionalTitle metrics memberSince"
-      )
+  "sellerId",
+  "fullName displayName avatar averageRating location onlineStatus lastSeen isVerified planType level professionalTitle metrics memberSince"
+)
       .lean();
 
     if (!service) {

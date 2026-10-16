@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { Service } from "@/types/service";
+import { isUserOnline } from "@/lib/presence";
 
 export interface FilterState {
   searchTerm: string;
@@ -33,7 +34,10 @@ const DEFAULT_FILTERS: FilterState = {
   currentPage: 1,
 };
 
-export function useSearchFilters(initialServices: Service[] = [], itemsPerPage = 20) {
+export function useSearchFilters(
+  initialServices: Service[] = [],
+  itemsPerPage = 20
+) {
   const [searchTerm, setSearchTerm] = useState<string>(DEFAULT_FILTERS.searchTerm);
   const [categories, setCategories] = useState<string[]>(DEFAULT_FILTERS.categories);
   const [minPrice, setMinPrice] = useState<number>(DEFAULT_FILTERS.minPrice);
@@ -46,31 +50,49 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
   const [isProOnly, setIsProOnly] = useState<boolean>(DEFAULT_FILTERS.isProOnly);
   const [sortBy, setSortBy] = useState<string>(DEFAULT_FILTERS.sortBy);
   const [currentPage, setCurrentPage] = useState<number>(DEFAULT_FILTERS.currentPage);
-    
-    
-    // Main Filter Logic (including search)
+
+  // Main Filter Logic (including search)
   const filteredServices = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
 
     return initialServices.filter((service) => {
-      const svcAny = service as any;
+      const svcAny = service as Service & {
+        location?: string | { city?: string; country?: string };
+        sellerName?: string;
+        seller?: { fullName?: string; isPro?: boolean };
+        featured?: boolean;
+        isFavorite?: boolean;
+        isPro?: boolean;
+        sellerLevel?: string;
+        createdAt?: string;
+      };
 
       // 1. Search Term (Title, Seller, Description, Category, Location)
       if (term) {
-        const locCity = typeof svcAny.location === "object" ? svcAny.location?.city : null;
-        const locCountry = typeof svcAny.location === "object" ? svcAny.location?.country : null;
-        const locString = typeof svcAny.location === "string" ? svcAny.location : null;
+        const locCity =
+          typeof svcAny.location === "object" ? svcAny.location?.city : null;
+        const locCountry =
+          typeof svcAny.location === "object" ? svcAny.location?.country : null;
+        const locString =
+          typeof svcAny.location === "string" ? svcAny.location : null;
 
+        const seller = service.sellerId;
         const searchableText = [
           service.title,
-          svcAny.sellerName,
-          svcAny.seller?.fullName,
+          service.sellerName,
+          seller?.fullName,
+          seller?.displayName,
           service.category,
           service.description,
           locString,
           locCity,
           locCountry,
-        ].filter(Boolean).join(" ").toLowerCase();
+          seller?.location?.city,
+          seller?.location?.country,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
         if (!searchableText.includes(term)) {
           return false;
@@ -84,35 +106,59 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
       }
 
       // 3. Categories Filter
-      if (categories.length > 0 && !categories.includes(service.category || "")) {
+      if (
+        categories.length > 0 &&
+        !categories.includes(service.category || "")
+      ) {
         return false;
       }
 
-      // 4. Quick Toggles
-      if (isOnlineOnly && !svcAny.isOnline) return false;
-      
-      const isFeatured = Boolean(svcAny.isFeatured || svcAny.featured);
+      // 4. Quick Toggles — online uses shared presence helper
+      if (
+        isOnlineOnly &&
+        !isUserOnline({
+          isOnline: service.isOnline,
+          onlineStatus: service.sellerId?.onlineStatus,
+          lastSeen: service.sellerId?.lastSeen,
+        })
+      ) {
+        return false;
+      }
+
+      const isFeatured = Boolean(service.isFeatured || svcAny.featured);
       if (isFeaturedOnly && !isFeatured) return false;
 
-      const isFavorited = Boolean(svcAny.isFavorited || svcAny.isFavorite);
+      const isFavorited = Boolean(service.isFavorited || svcAny.isFavorite);
       if (isFavoriteOnly && !isFavorited) return false;
 
+      // Pro: plan-based (matches ServiceCard)
       const isProSeller = Boolean(
-        svcAny.isPro || 
-        svcAny.seller?.isPro || 
-        svcAny.sellerLevel === "Pro" || 
-        svcAny.sellerId?.level === "Top Rated Seller" ||
-        svcAny.sellerId?.level === "Level 2 Seller"
+        service.sellerId?.planType === "gold" ||
+          service.sellerId?.planType === "silver" ||
+          svcAny.isPro ||
+          svcAny.seller?.isPro
       );
       if (isProOnly && !isProSeller) return false;
 
       // 5. Location Filter
       if (!locations.includes("Any") && locations.length > 0) {
-        const locCity = typeof svcAny.location === "object" ? svcAny.location?.city : null;
-        const locCountry = typeof svcAny.location === "object" ? svcAny.location?.country : null;
-        const locString = typeof svcAny.location === "string" ? svcAny.location : null;
+        const locCity =
+          typeof svcAny.location === "object" ? svcAny.location?.city : null;
+        const locCountry =
+          typeof svcAny.location === "object" ? svcAny.location?.country : null;
+        const locString =
+          typeof svcAny.location === "string" ? svcAny.location : null;
+        const sellerLoc = service.sellerId?.location;
 
-        const serviceLoc = [locCity, locCountry, locString].filter(Boolean).join(", ");
+        const serviceLoc = [
+          locCity,
+          locCountry,
+          locString,
+          sellerLoc?.city,
+          sellerLoc?.country,
+        ]
+          .filter(Boolean)
+          .join(", ");
 
         if (!locations.some((loc) => serviceLoc.includes(loc))) {
           return false;
@@ -122,8 +168,12 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
       // 6. Delivery Filter
       if (delivery !== "Any") {
         const maxDays = parseInt(delivery, 10);
-        const serviceDays = Number(svcAny.deliveryTime);
-        if (!isNaN(maxDays) && !isNaN(serviceDays) && serviceDays > maxDays) {
+        const serviceDays = Number(service.deliveryTime);
+        if (
+          !isNaN(maxDays) &&
+          !isNaN(serviceDays) &&
+          serviceDays > maxDays
+        ) {
           return false;
         }
       }
@@ -143,20 +193,25 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
     isFavoriteOnly,
     isProOnly,
   ]);
-    
-    
-    // Sorting
+
+  // Sorting
   const sortedServices = useMemo(() => {
     const list = [...filteredServices];
 
     if (sortBy === "Popular") {
-      return list.sort((a, b) => ((b as any).rating ?? 0) - ((a as any).rating ?? 0));
+      return list.sort(
+        (a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0)
+      );
     }
 
     if (sortBy === "Newest") {
       return list.sort((a, b) => {
-        const dateA = new Date((a as any).createdAt || 0).getTime();
-        const dateB = new Date((b as any).createdAt || 0).getTime();
+        const dateA = new Date(
+          (a as Service & { createdAt?: string }).createdAt || 0
+        ).getTime();
+        const dateB = new Date(
+          (b as Service & { createdAt?: string }).createdAt || 0
+        ).getTime();
         return dateB - dateA;
       });
     }
@@ -189,7 +244,6 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
   };
 
   return {
-    // State
     searchTerm,
     categories,
     minPrice,
@@ -204,11 +258,7 @@ export function useSearchFilters(initialServices: Service[] = [], itemsPerPage =
     currentPage,
     totalPages,
     totalMatches,
-
-    // Computed
     paginatedServices,
-
-    // Actions
     setSearchTerm,
     setCategories,
     setMinPrice,

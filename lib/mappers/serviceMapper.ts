@@ -3,6 +3,7 @@
 // ==========================================
 
 import type { Service, BackendServiceResponse } from "@/types/service";
+import { isUserOnline } from "@/lib/presence";
 
 /**
  * Maps and sanitizes raw backend service documents into the
@@ -26,6 +27,18 @@ export function mapService(rawService: BackendServiceResponse): Service {
     typeof rawService.deliveryTime === "number"
       ? rawService.deliveryTime
       : Number(rawService.deliveryTime) || 3;
+
+  const raw = rawService as BackendServiceResponse & {
+    rating?: number;
+    reviewsCount?: number;
+  };
+
+  const rating =
+    typeof raw.rating === "number" && !Number.isNaN(raw.rating) ? raw.rating : 0;
+  const reviewsCount =
+    typeof raw.reviewsCount === "number" && !Number.isNaN(raw.reviewsCount)
+      ? raw.reviewsCount
+      : 0;
 
   // ==========================================
   // 3. Return Clean Service Object
@@ -54,33 +67,29 @@ export function mapService(rawService: BackendServiceResponse): Service {
 
     // ----------------------------------------
     // Marketplace Statistics
-    // (Backend currently doesn't provide these)
     // ----------------------------------------
-    rating: 5,
-    reviewsCount: 0,
+    rating,
+    reviewsCount,
 
     // ----------------------------------------
     // Seller Information
     // ----------------------------------------
     sellerName:
-      seller?.displayName ||
-      seller?.fullName ||
-      "Unknown Seller",
+      seller?.displayName || seller?.fullName || "Unknown Seller",
 
-    sellerAvatar:
-      seller?.avatar ||
-      "/default-avatar.png",
+    sellerAvatar: seller?.avatar || "/default-avatar.png",
 
     sellerGender: seller?.gender,
 
+    // Pass full seller object (includes onlineStatus + lastSeen when API populates them)
     sellerId: seller,
 
-    level:
-      seller?.level ||
-      "Level 1 Seller",
+    level: seller?.level || "Level 1 Seller",
 
-    isOnline:
-      seller?.onlineStatus === "online",
+    isOnline: isUserOnline({
+      onlineStatus: seller?.onlineStatus,
+      lastSeen: seller?.lastSeen,
+    }),
 
     // ----------------------------------------
     // Marketplace Flags
