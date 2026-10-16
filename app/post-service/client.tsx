@@ -1345,13 +1345,13 @@ for (let i = 0; i < addons.length; i++) {
 };
   
   
-// Local staged files + FAQs: remove immediately (no modal) to avoid overlay freezes
-// Remote/existing media: still confirm via modal
+// Local staged files + existing remote media: remove immediately (no modal).
+// Existing URLs are tracked in deletedMediaKeys so Save Draft / publish can merge on the backend.
 const requestRemoveItem = (
   type: "images" | "videos" | "audio" | "faq" | "existing-images" | "existing-videos" | "existing-audio",
   index: number
 ) => {
-  // Immediate path for local / FAQ
+  // New local files — immediate
   if (type === "images") {
     setSelectedImages((prev) => prev.filter((_, i) => i !== index));
     showToast("Image removed", "warning");
@@ -1372,9 +1372,46 @@ const requestRemoveItem = (
     return;
   }
 
-  // Existing remote media → confirm first
-  setPendingRemove({ type, index });
-  setShowConfirmModal(true);
+  // Existing remote media — immediate by URL; persist via Save Draft
+  if (type === "existing-images") {
+    const key = existingImages[index];
+    if (!key) return;
+    setExistingImages((prev) => prev.filter((u) => u !== key));
+    setDeletedMediaKeys((prev) =>
+      prev.includes(key) ? prev : [...prev, key]
+    );
+    showToast(
+      "Image removed. Click Save Draft to keep this change.",
+      "warning"
+    );
+    return;
+  }
+  if (type === "existing-videos") {
+    const key = existingVideos[index];
+    if (!key) return;
+    setExistingVideos((prev) => prev.filter((u) => u !== key));
+    setDeletedMediaKeys((prev) =>
+      prev.includes(key) ? prev : [...prev, key]
+    );
+    showToast(
+      "Video removed. Click Save Draft to keep this change.",
+      "warning"
+    );
+    return;
+  }
+  if (type === "existing-audio") {
+    const key = existingAudios[index];
+    if (!key) return;
+    setExistingAudios((prev) => prev.filter((u) => u !== key));
+    setDeletedMediaKeys((prev) =>
+      prev.includes(key) ? prev : [...prev, key]
+    );
+    showToast(
+      "Audio removed. Click Save Draft to keep this change.",
+      "warning"
+    );
+    return;
+  }
 };
 
 const confirmRemove = () => {
