@@ -15,7 +15,7 @@ function getToken(): string | null {
 
 /**
  * Keeps the logged-in user marked online while this component is mounted
- * (put once in root layout or Header).
+ * (put once in root layout via PresenceProvider).
  * Sends offline on tab close / unmount when possible.
  */
 export function usePresenceHeartbeat(enabled = true) {
@@ -33,19 +33,8 @@ export function usePresenceHeartbeat(enabled = true) {
         "Content-Type": "application/json",
       };
 
-      // Prefer same-origin Next proxy
+      // Same-origin Next.js API proxy → Express
       const url = `/api/presence/${path}`;
-
-      if (path === "offline" && typeof navigator !== "undefined" && navigator.sendBeacon) {
-        try {
-          const blob = new Blob([JSON.stringify(body || {})], {
-            type: "application/json",
-          });
-          // sendBeacon cannot set Authorization easily — fall through to fetch keepalive
-        } catch {
-          /* ignore */
-        }
-      }
 
       fetch(url, {
         method: "POST",
