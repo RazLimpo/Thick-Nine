@@ -67,7 +67,7 @@ export function useSearchFilters(
         createdAt?: string;
       };
 
-      // 1. Search Term (Title, Seller, Description, Category, Location)
+      // 1. Search Term (Title, Seller, Description, Category, Tags, Location)
       if (term) {
         const locCity =
           typeof svcAny.location === "object" ? svcAny.location?.city : null;
@@ -77,13 +77,19 @@ export function useSearchFilters(
           typeof svcAny.location === "string" ? svcAny.location : null;
 
         const seller = service.sellerId;
+        const tagText = Array.isArray(service.tags)
+          ? service.tags.join(" ")
+          : "";
+
         const searchableText = [
           service.title,
           service.sellerName,
           seller?.fullName,
           seller?.displayName,
           service.category,
+          service.subCategory,
           service.description,
+          tagText,
           locString,
           locCity,
           locCountry,
@@ -94,7 +100,12 @@ export function useSearchFilters(
           .join(" ")
           .toLowerCase();
 
-        if (!searchableText.includes(term)) {
+        // Match whole term or any whitespace-separated token (multi-word queries)
+        const tokens = term.split(/\s+/).filter(Boolean);
+        const matchesAllTokens = tokens.every((t) =>
+          searchableText.includes(t)
+        );
+        if (!matchesAllTokens) {
           return false;
         }
       }

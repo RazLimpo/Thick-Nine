@@ -31,6 +31,9 @@ export function mapService(rawService: BackendServiceResponse): Service {
   const raw = rawService as BackendServiceResponse & {
     rating?: number;
     reviewsCount?: number;
+    tags?: string[];
+    featured?: boolean;
+    sponsored?: boolean;
   };
 
   const rating =
@@ -39,6 +42,10 @@ export function mapService(rawService: BackendServiceResponse): Service {
     typeof raw.reviewsCount === "number" && !Number.isNaN(raw.reviewsCount)
       ? raw.reviewsCount
       : 0;
+
+  const tags = Array.isArray(raw.tags)
+    ? raw.tags.filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+    : [];
 
   // ==========================================
   // 3. Return Clean Service Object
@@ -64,6 +71,9 @@ export function mapService(rawService: BackendServiceResponse): Service {
       Array.isArray(rawService.images) && rawService.images.length > 0
         ? rawService.images
         : ["/default-service.png"],
+
+    // Search keywords from post-service Step 1
+    tags,
 
     // ----------------------------------------
     // Marketplace Statistics
@@ -94,9 +104,9 @@ export function mapService(rawService: BackendServiceResponse): Service {
     // ----------------------------------------
     // Marketplace Flags
     // ----------------------------------------
-    isFeatured: Boolean(rawService.featured),
+    isFeatured: Boolean(raw.featured),
 
-    isSponsored: Boolean(rawService.sponsored),
+    isSponsored: Boolean(raw.sponsored),
 
     isFavorited: false,
   };

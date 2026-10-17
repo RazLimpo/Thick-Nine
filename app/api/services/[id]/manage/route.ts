@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const BACKEND_URL =
   process.env.BACKEND_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -13,6 +15,14 @@ export async function GET(
 ) {
   try {
     const { id } = await Promise.resolve(context.params);
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Service id is required." },
+        { status: 400 }
+      );
+    }
+
     const authHeader = request.headers.get("authorization");
     const cookie = request.headers.get("cookie");
 
@@ -20,22 +30,31 @@ export async function GET(
     if (authHeader) headers.Authorization = authHeader;
     if (cookie) headers.Cookie = cookie;
 
-    const response = await fetch(`\( {BACKEND_URL}/api/services/ \){id}/manage`, {
-      method: "GET",
-      headers,
-      cache: "no-store",
-    });
+    const response = await fetch(
+      `\( {BACKEND_URL}/api/services/ \){id}/manage`,
+      {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      }
+    );
 
     const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
       return NextResponse.json(
-        { success: false, message: data.message || "Failed to load service." },
+        {
+          success: false,
+          message: data.message || "Failed to load service.",
+        },
         { status: response.status }
       );
     }
+
     return NextResponse.json(data, { status: 200 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Internal server error";
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }
