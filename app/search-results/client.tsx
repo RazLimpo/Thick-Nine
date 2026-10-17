@@ -1,8 +1,7 @@
-// app/search-results/client.tsx
-
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import SearchSidebar, {
   type FilterState as SidebarFilterState,
@@ -25,6 +24,9 @@ import "@/styles/pages/search-results.css";
 import "@/styles/pages/service-card.css";
 
 export default function SearchResultsClient() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   // ==================================================
   // 1. Fetch Marketplace Services
   // ==================================================
@@ -47,6 +49,7 @@ export default function SearchResultsClient() {
     totalPages,
     totalMatches,
     paginatedServices,
+    setSearchTerm,
     setCategories,
     setMinPrice,
     setMaxPrice,
@@ -58,6 +61,15 @@ export default function SearchResultsClient() {
     setCurrentPage,
     clearAllFilters,
   } = useSearchFilters(services, 12);
+
+  // Apply ?q= from the header search bar into the filter
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q != null && q.trim() !== "") {
+      setSearchTerm(q.trim());
+      setCurrentPage(1);
+    }
+  }, [searchParams, setSearchTerm, setCurrentPage]);
 
   // ==================================================
   // 3. Sidebar Filter State
@@ -79,9 +91,12 @@ export default function SearchResultsClient() {
     setMaxPrice(updated.maxPrice);
     setLocations(updated.locations);
     setDelivery(updated.deliveryTime);
-
-    // Always reset pagination after filters change
     setCurrentPage(1);
+  };
+
+  const handleClearAll = () => {
+    clearAllFilters();
+    router.replace("/search-results");
   };
 
   // ==================================================
@@ -89,11 +104,9 @@ export default function SearchResultsClient() {
   // ==================================================
   const selectedPills = useMemo(() => {
     const pills: string[] = [];
-
     if (isOnlineOnly) pills.push("online");
     if (isFeaturedOnly) pills.push("top_rated");
     if (isProOnly) pills.push("pro");
-
     return pills;
   }, [isOnlineOnly, isFeaturedOnly, isProOnly]);
 
@@ -102,19 +115,15 @@ export default function SearchResultsClient() {
       case "online":
         setIsOnlineOnly(!isOnlineOnly);
         break;
-
       case "top_rated":
         setIsFeaturedOnly(!isFeaturedOnly);
         break;
-
       case "pro":
         setIsProOnly(!isProOnly);
         break;
-
       default:
         break;
     }
-
     setCurrentPage(1);
   };
 
@@ -131,7 +140,7 @@ export default function SearchResultsClient() {
         username: service.sellerName ?? "Freelancer",
         gender: service.sellerGender,
         imageUrl: service.images?.[0] ?? "/default-service.png",
-        linkUrl: `/services/${service.id ?? service._id}`,
+        linkUrl: `/services/details/${service.id ?? service._id}`,
       }));
   }, [services]);
 
@@ -140,27 +149,23 @@ export default function SearchResultsClient() {
   // ==================================================
   return (
     <main className="search-page-container">
-      {/* Sidebar */}
       <SearchSidebar
         filters={sidebarFilters}
         onFilterChange={handleSidebarFilterChange}
-        onClearAll={clearAllFilters}
+        onClearAll={handleClearAll}
       />
 
       <section className="search-main-content">
-        {/* Error */}
         {error && (
           <div className="search-error-banner" role="alert">
             <p>{error}</p>
           </div>
         )}
 
-        {/* Sponsored Carousel */}
         <SponsoredCarousel
           ads={sponsoredAds.length > 0 ? sponsoredAds : undefined}
         />
 
-        {/* Controls */}
         <ResultsControls
           totalResults={totalMatches}
           searchQuery={searchTerm}
@@ -168,13 +173,8 @@ export default function SearchResultsClient() {
           onTogglePill={handleTogglePill}
         />
 
-        {/* Results */}
-        <ResultsGrid
-          services={paginatedServices}
-          isLoading={loading}
-        />
+        <ResultsGrid services={paginatedServices} isLoading={loading} />
 
-        {/* Pagination */}
         {!loading && totalMatches > 0 && (
           <Pagination
             currentPage={currentPage}
