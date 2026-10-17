@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const ids = request.nextUrl.searchParams.get("ids") || "";
     const res = await fetch(
-      `\( {BACKEND_URL}/api/presence?ids= \){encodeURIComponent(ids)}`,
+      `${BACKEND_URL}/api/presence?ids=${encodeURIComponent(ids)}`,
       {
         method: "GET",
         headers: { Accept: "application/json" },

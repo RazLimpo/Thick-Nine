@@ -16,7 +16,7 @@ export async function GET(
 
   try {
     const userId = context.params.userId;
-    const res = await fetch(`\( {BACKEND_URL}/api/presence/ \){userId}`, {
+    const res = await fetch(`${BACKEND_URL}/api/presence/${userId}`, {
       method: "GET",
       headers: { Accept: "application/json" },
       cache: "no-store",
