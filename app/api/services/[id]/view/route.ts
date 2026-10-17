@@ -15,14 +15,14 @@ export async function POST(
     const { id } = await Promise.resolve(context.params);
     const body = await request.json().catch(() => ({}));
 
-    const response = await fetch(`\( {BACKEND_URL}/api/services/ \){id}/view`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    const response = await fetch(`${BACKEND_URL}/api/services/${id}/view`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
+  body: JSON.stringify(body),
+});
 
     const data = await response.json().catch(() => ({}));
 

@@ -33,7 +33,7 @@ export async function PATCH(
     if (authHeader) headers.Authorization = authHeader;
     if (cookie) headers.Cookie = cookie;
 
-    const response = await fetch(`\( {BACKEND_URL}/api/services/ \){id}/status`, {
+    const response = await fetch(`${BACKEND_URL}/api/services/${id}/status`, {
       method: "PATCH",
       headers,
       body: JSON.stringify(body),

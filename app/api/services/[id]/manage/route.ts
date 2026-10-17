@@ -31,7 +31,7 @@ export async function GET(
     if (cookie) headers.Cookie = cookie;
 
     const response = await fetch(
-      `\( {BACKEND_URL}/api/services/ \){id}/manage`,
+      `${BACKEND_URL}/api/services/${id}/manage`,
       {
         method: "GET",
         headers,

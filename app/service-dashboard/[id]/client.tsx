@@ -230,8 +230,6 @@ export default function ServiceDashboardClient({
     return headers;
   };
 
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
-
   /* ---------- load service (owner) ---------- */
   const loadService = useCallback(async () => {
     setLoading(true);

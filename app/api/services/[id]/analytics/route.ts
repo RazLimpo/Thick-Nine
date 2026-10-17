@@ -25,7 +25,7 @@ export async function GET(
     if (authHeader) headers.Authorization = authHeader;
     if (cookie) headers.Cookie = cookie;
 
-    const url = `\( {BACKEND_URL}/api/services/ \){id}/analytics?days=${encodeURIComponent(days)}`;
+    const url = `${BACKEND_URL}/api/services/${id}/analytics?days=${encodeURIComponent(days)}`;
 
     const response = await fetch(url, {
       method: "GET",

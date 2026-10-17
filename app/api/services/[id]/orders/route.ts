@@ -35,7 +35,7 @@ export async function GET(
     if (cookie) headers.Cookie = cookie;
 
     const response = await fetch(
-      `\( {BACKEND_URL}/api/services/ \){id}/orders?limit=${encodeURIComponent(limit)}`,
+      `${BACKEND_URL}/api/services/${id}/orders?limit=${encodeURIComponent(limit)}`,
       {
         method: "GET",
         headers,
