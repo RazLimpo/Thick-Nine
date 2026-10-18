@@ -47,6 +47,31 @@ function cleanText(value?: string | null, max = 0): string {
   return s;
 }
 
+function showToast(message: string, type: "info" | "success" | "error" = "info") {
+  if (typeof document === "undefined") return;
+  let root = document.getElementById("toast-container");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "toast-container";
+    document.body.appendChild(root);
+  }
+  const el = document.createElement("div");
+  el.className = `toast${type === "error" ? " removed" : ""}`;
+  const icon =
+    type === "success"
+      ? "fa-check-circle"
+      : type === "error"
+        ? "fa-exclamation-triangle"
+        : "fa-info-circle";
+  el.innerHTML = `<i class="fas ${icon}"></i><span></span>`;
+  const span = el.querySelector("span");
+  if (span) span.textContent = message;
+  root.appendChild(el);
+  window.setTimeout(() => {
+    el.remove();
+  }, 3200);
+}
+
 export default function ServiceDetailsClient({
   service,
 }: ServiceDetailsClientProps) {
@@ -220,12 +245,13 @@ export default function ServiceDetailsClient({
 
   const contactSeller = async () => {
     if (!sellerId) {
-      alert("Seller profile is unavailable.");
+      showToast("Seller profile is unavailable.", "error");
       return;
     }
     const token =
       typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
+      showToast("Please log in to message the freelancer.", "info");
       router.push("/?auth=login");
       return;
     }
@@ -246,17 +272,18 @@ export default function ServiceDetailsClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        alert(data.message || "Could not start a conversation.");
+        showToast(data.message || "Could not start a conversation.", "error");
         return;
       }
       const cid = data.conversationId || data.conversation?._id;
+      showToast("Opening chat…", "success");
       if (cid) {
         router.push(`/messages?c=${cid}`);
       } else {
         router.push("/messages");
       }
     } catch {
-      alert("Network error. Please try again.");
+      showToast("Network error. Please try again.", "error");
     } finally {
       setMessaging(false);
     }
@@ -342,7 +369,8 @@ export default function ServiceDetailsClient({
               <Link
                 href={sellerProfileHref}
                 className="seller-avatar-wrapper seller-profile-link"
-                title={`View ${sellerName}'s profile`}
+                title="View profile"
+                aria-label="View profile"
               >
                 <Image
                   src={sellerAvatar}
@@ -359,7 +387,11 @@ export default function ServiceDetailsClient({
               </Link>
               <div className="seller-info">
                 <div className="seller-name">
-                  <Link href={sellerProfileHref} className="seller-name-link">
+                  <Link
+                    href={sellerProfileHref}
+                    className="seller-name-link"
+                    title="View profile"
+                  >
                     {sellerName}
                   </Link>{" "}
                   {isVerified && (
@@ -391,26 +423,6 @@ export default function ServiceDetailsClient({
                   )}
                 </div>
                 <span className="seller-level">{sellerLevel}</span>
-                <span className={`seller-presence ${presenceClass}`}>
-                  <i className="fas fa-circle" /> {presenceLabel}
-                </span>
-                <div className="seller-actions">
-                  <button
-                    type="button"
-                    className="btn-contact-seller"
-                    onClick={contactSeller}
-                    disabled={messaging || !sellerId}
-                  >
-                    <i className="fas fa-envelope" />{" "}
-                    {messaging ? "Opening…" : "Contact me"}
-                  </button>
-                  <Link
-                    href={sellerProfileHref}
-                    className="btn-view-profile"
-                  >
-                    View profile
-                  </Link>
-                </div>
               </div>
             </div>
           </div>
@@ -744,9 +756,11 @@ export default function ServiceDetailsClient({
                 className="btn-contact-seller btn-contact-seller--block"
                 onClick={contactSeller}
                 disabled={messaging || !sellerId}
+                title="Contact me"
+                aria-label="Contact me"
               >
                 <i className="fas fa-comment-dots" />{" "}
-                {messaging ? "Opening chat…" : "Message seller"}
+                {messaging ? "Opening…" : "Contact me"}
               </button>
 
               <button
@@ -776,6 +790,7 @@ export default function ServiceDetailsClient({
           Continue <i className="fas fa-arrow-right" />
         </button>
       </div>
+      <div id="toast-container" />
     </main>
   );
 }

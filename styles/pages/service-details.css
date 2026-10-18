@@ -983,3 +983,97 @@ color: #64748b;
 .btn-view-profile:hover {
 color: var(--primary, #d96464);
 }
+
+
+/* ---- Seller avatar + online status (header only) ---- */
+.seller-avatar-wrapper {
+position: relative;
+display: inline-block;
+flex-shrink: 0;
+line-height: 0;
+border-radius: 50%;
+}
+.seller-profile-link:hover .seller-avatar {
+box-shadow: 0 0 0 3px rgba(217, 100, 100, 0.35);
+}
+.seller-status-dot {
+position: absolute;
+right: 2px;
+bottom: 2px;
+width: 12px;
+height: 12px;
+border-radius: 50%;
+border: 2px solid #fff;
+background: #94a3b8;
+box-sizing: border-box;
+}
+.seller-status-dot.online { background: #22c55e; }
+.seller-status-dot.away { background: #f59e0b; }
+.seller-status-dot.offline { background: #94a3b8; }
+
+.seller-name-link {
+color: inherit;
+text-decoration: none;
+}
+.seller-name-link:hover {
+color: var(--primary, #d96464);
+text-decoration: underline;
+}
+
+/* Contact me — order card only */
+.btn-contact-seller {
+width: 100%;
+margin-bottom: 10px;
+padding: 12px 14px;
+border-radius: 8px;
+border: 1.5px solid #e2e8f0;
+background: #fff;
+color: #334155;
+font-weight: 700;
+font-size: 0.95rem;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 8px;
+transition: all 0.2s ease;
+}
+.btn-contact-seller:hover:not(:disabled) {
+border-color: var(--primary, #d96464);
+color: var(--primary, #d96464);
+background: #fff8f8;
+}
+.btn-contact-seller:disabled {
+opacity: 0.65;
+cursor: wait;
+}
+
+/* Mobile: prevent right-side cut-off after global overflow:visible
+ without re-breaking desktop sticky (clip on this page only) */
+.service-details-main {
+max-width: 100%;
+overflow-x: clip;
+}
+.service-details-main .container {
+width: 100%;
+max-width: 1280px;
+margin: 0 auto;
+padding-left: max(16px, env(safe-area-inset-left));
+padding-right: max(16px, env(safe-area-inset-right));
+box-sizing: border-box;
+}
+@media (max-width: 1024px) {
+.service-details-main .content-grid,
+.service-details-main .packages-grid,
+.service-details-main .order-card,
+.service-details-main .main-column {
+  max-width: 100%;
+  min-width: 0;
+}
+.service-title {
+  word-break: break-word;
+}
+.breadcrumb-current {
+  max-width: 100%;
+}
+}
