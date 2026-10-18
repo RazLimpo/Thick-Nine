@@ -77,6 +77,8 @@ export default function ServiceDetailsClient({
 }: ServiceDetailsClientProps) {
   const router = useRouter();
   const [messaging, setMessaging] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favBusy, setFavBusy] = useState(false);
 
   const packages = service.packages || {};
   const availableKeys = (
@@ -168,6 +170,46 @@ export default function ServiceDetailsClient({
     140
   );
 
+
+  /* ---------- favourite hydrate (Bookmark API) ---------- */
+  useEffect(() => {
+    if (!serviceId || typeof window === "undefined") return;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setIsFavorited(
+        Boolean((service as { isFavorited?: boolean }).isFavorited)
+      );
+      return;
+    }
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/bookmarks/check?itemType=Service&itemId=${encodeURIComponent(serviceId)}`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
+          }
+        );
+        const json = await res.json().catch(() => ({}));
+        if (!mounted) return;
+        if (res.ok && typeof json.favorited !== "undefined") {
+          setIsFavorited(Boolean(json.favorited));
+        }
+      } catch {
+        /* leave current state */
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [serviceId, service]);
+
   /* ---------- auto-rotate gallery every 6s ---------- */
   useEffect(() => {
     if (images.length < 2 || galleryPaused) return;
@@ -255,6 +297,20 @@ export default function ServiceDetailsClient({
       router.push("/?auth=login");
       return;
     }
+    // Cannot start a DM with yourself (own service)
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) {
+        const u = JSON.parse(raw);
+        const myId = String(u.id || u._id || "").trim();
+        if (myId && myId === String(sellerId)) {
+          showToast("You can't message yourself on your own service.", "info");
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
     setMessaging(true);
     try {
       const res = await fetch("/api/messages/conversations", {
@@ -286,6 +342,92 @@ export default function ServiceDetailsClient({
       showToast("Network error. Please try again.", "error");
     } finally {
       setMessaging(false);
+    }
+  };
+
+
+  const toggleFavorite = async () => {
+    if (!serviceId) {
+      showToast("Service unavailable.", "error");
+      return;
+    }
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      showToast("Please log in to save favourites.", "info");
+      router.push("/?auth=login");
+      return;
+    }
+    const next = !isFavorited;
+    setIsFavorited(next);
+    setFavBusy(true);
+    try {
+      if (next) {
+        const res = await fetch("/api/bookmarks", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ itemType: "Service", itemId: serviceId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok && res.status !== 409) {
+          setIsFavorited(false);
+          showToast(json.message || "Could not save favourite.", "error");
+          return;
+        }
+        showToast("Saved to favourites.", "success");
+      } else {
+        const res = await fetch("/api/bookmarks", {
+          method: "DELETE",
+          credentials: "include",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ itemType: "Service", itemId: serviceId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setIsFavorited(true);
+          showToast(json.message || "Could not remove favourite.", "error");
+          return;
+        }
+        showToast("Removed from favourites.", "success");
+      }
+    } catch {
+      setIsFavorited((prev) => !prev);
+      showToast("Network error. Please try again.", "error");
+    } finally {
+      setFavBusy(false);
+    }
+  };
+
+  const shareService = async () => {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/services/details/${serviceId}`;
+    const title = service.title || "Service on Thick 9";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url, text: title });
+        showToast("Thanks for sharing!", "success");
+        return;
+      }
+    } catch (err: unknown) {
+      // user cancelled share sheet
+      if (err && typeof err === "object" && "name" in err && (err as { name: string }).name === "AbortError") {
+        return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied to clipboard.", "success");
+    } catch {
+      // fallback prompt
+      window.prompt("Copy this link:", url);
+      showToast("Copy the link to share.", "info");
     }
   };
 
@@ -512,6 +654,30 @@ export default function ServiceDetailsClient({
                 </div>
               )}
             </section>
+
+            {/* Favourite + Share (under gallery) */}
+            <div className="service-quick-actions" role="group" aria-label="Service actions">
+              <button
+                type="button"
+                className={`quick-action-btn${isFavorited ? " is-active" : ""}`}
+                onClick={toggleFavorite}
+                disabled={favBusy}
+                title={isFavorited ? "Remove from favourites" : "Add to favourites"}
+                aria-label={isFavorited ? "Remove from favourites" : "Add to favourites"}
+                aria-pressed={isFavorited}
+              >
+                <i className={isFavorited ? "fas fa-heart" : "far fa-heart"} />
+              </button>
+              <button
+                type="button"
+                className="quick-action-btn"
+                onClick={shareService}
+                title="Share"
+                aria-label="Share"
+              >
+                <i className="fas fa-share-nodes" />
+              </button>
+            </div>
 
             <section className="description-section">
               <h2>About This Service</h2>
@@ -759,7 +925,7 @@ export default function ServiceDetailsClient({
                 title="Contact me"
                 aria-label="Contact me"
               >
-                <i className="fas fa-comment-dots" />{" "}
+                <i className="fas fa-envelope" />{" "}
                 {messaging ? "Opening…" : "Contact me"}
               </button>
 

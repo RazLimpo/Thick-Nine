@@ -36,6 +36,7 @@ const messageRoutes = require("./routes/messageRoutes");
 const couponRoutes = require("./routes/couponRoutes");
 const offerRoutes = require("./routes/offerRoutes");
 const presenceRoutes = require("./routes/presenceRoutes");
+const bookmarkRoutes = require("./routes/bookmarkRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -144,6 +145,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/offers", offerRoutes);
 app.use("/api/presence", presenceRoutes);
+app.use("/api/bookmarks", bookmarkRoutes);
 
 app.get("/", (req, res) => {
   res.send(
