@@ -283,13 +283,18 @@ a:hover {
     }
 }
 
+
 .main-content-wrapper {
   /* This pushes the entire page content down */
   padding-top: var(--header-height); 
   display: flex;
   flex-direction: column;
   min-height: 100vh; /* Keeps footer at bottom even on short pages */
-    overflow-x: hidden;
+  overflow: visible; /* was overflow-x: hidden */
+}
+
+html {
+  overflow-x: clip; /* optional safety net */
 }
 
 main {
