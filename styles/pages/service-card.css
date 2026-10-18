@@ -168,7 +168,7 @@
 
 .mjob-card-link {
   text-decoration: none;
-  color: inherit;
+  background-color: aliceblue;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
@@ -278,7 +278,7 @@
 /* ------------------------------------------------------------------ */
 
 .mjob-footer-price {
-  background-color: aliceblue;
+  background-color: #d0e1f9;
   padding: 12px 15px;
   display: flex;
   justify-content: space-between;

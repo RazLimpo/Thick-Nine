@@ -438,8 +438,8 @@
   border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 24px;
-  position: sticky;
-  top: 88px;
+  position: relative;
+  top: auto;
   z-index: 5;
   box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
@@ -775,4 +775,50 @@
 .package-badge .popular {
   margin-left: 6px;
   vertical-align: middle;
+}
+
+
+/* =========================================================
+ DESKTOP: pin order card while page scrolls
+ Sticky is on the SIDEBAR (not only the card). Parents must
+ not use overflow:hidden or the pin will fail.
+ ========================================================= */
+.service-details-main,
+.service-details-main .container,
+.content-grid,
+.main-column {
+overflow: visible !important;
+}
+
+.content-grid {
+display: grid;
+grid-template-columns: 2.6fr 1fr;
+gap: 50px;
+align-items: start; /* required for sticky children */
+}
+
+.service-sidebar {
+position: sticky;
+top: 96px;          /* below fixed site header */
+align-self: start;
+z-index: 20;
+max-height: calc(100vh - 112px);
+overflow-y: auto;   /* if card is very tall, scroll inside sidebar only */
+}
+
+.service-sidebar .order-card {
+position: relative;
+top: auto;
+}
+
+@media (max-width: 1024px) {
+.content-grid {
+  grid-template-columns: 1fr;
+}
+.service-sidebar {
+  position: static;
+  top: auto;
+  max-height: none;
+  overflow: visible;
+}
 }
