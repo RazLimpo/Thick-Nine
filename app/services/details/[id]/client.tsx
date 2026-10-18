@@ -29,16 +29,34 @@ function getAddonPrice(addon: ServiceAddon): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export default function ServiceDetailsClient({ service }: ServiceDetailsClientProps) {
-  const packages = service.packages || {};
-  const availableKeys = (["basic", "standard", "premium"] as PackageKey[]).filter(
-    (k) => packages[k] && (packages[k]?.title || packages[k]?.price)
-  );
+/** Badge always shows the tier (BASIC / STANDARD / PREMIUM), not free-form title */
+function tierLabel(key: PackageKey | string): string {
+  return String(key || "").toUpperCase();
+}
 
-  const defaultKey: PackageKey =
-    availableKeys.includes("standard")
-      ? "standard"
-      : availableKeys[0] || "basic";
+function cleanText(value?: string | null, max = 0): string {
+  if (!value) return "";
+  let s = String(value).replace(/\s+/g, " ").trim();
+  // Collapse accidental triple-paste of the same phrase
+  const half = Math.floor(s.length / 2);
+  if (half > 12 && s.slice(0, half) === s.slice(half, half * 2)) {
+    s = s.slice(0, half).trim();
+  }
+  if (max > 0 && s.length > max) s = s.slice(0, max).trim() + "…";
+  return s;
+}
+
+export default function ServiceDetailsClient({
+  service,
+}: ServiceDetailsClientProps) {
+  const packages = service.packages || {};
+  const availableKeys = (
+    ["basic", "standard", "premium"] as PackageKey[]
+  ).filter((k) => packages[k] && (packages[k]?.title || packages[k]?.price));
+
+  const defaultKey: PackageKey = availableKeys.includes("standard")
+    ? "standard"
+    : availableKeys[0] || "basic";
 
   const [selectedKey, setSelectedKey] = useState<PackageKey>(defaultKey);
   const [selectedAddonIndexes, setSelectedAddonIndexes] = useState<Set<number>>(
@@ -46,6 +64,7 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
   );
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [galleryPaused, setGalleryPaused] = useState(false);
 
   const selectedPkg = packages[selectedKey];
   const basePrice = getPackagePrice(selectedPkg);
@@ -57,10 +76,12 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
 
   const selectedAddons = useMemo(
     () =>
-      addons.filter((_, i) => selectedAddonIndexes.has(i)).map((a) => ({
-        title: getAddonLabel(a),
-        price: getAddonPrice(a),
-      })),
+      addons
+        .filter((_, i) => selectedAddonIndexes.has(i))
+        .map((a) => ({
+          title: getAddonLabel(a),
+          price: getAddonPrice(a),
+        })),
     [addons, selectedAddonIndexes]
   );
 
@@ -91,6 +112,65 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
       : String(service.deliveryTime ?? 3);
   const revisions =
     selectedPkg?.revisions != null ? String(selectedPkg.revisions) : "—";
+
+  const packageDesc = cleanText(
+    selectedPkg?.desc || service.description || "",
+    140
+  );
+
+  /* ---------- auto-rotate gallery every 6s ---------- */
+  useEffect(() => {
+    if (images.length < 2 || galleryPaused) return;
+    const timer = window.setInterval(() => {
+      setActiveImageIndex((prev) => (prev + 1) % images.length);
+    }, 6000);
+    return () => window.clearInterval(timer);
+  }, [images.length, galleryPaused]);
+
+  /* ---------- view tracking ---------- */
+  useEffect(() => {
+    if (!service?.id && !service?._id) return;
+
+    const id = service.id || service._id;
+    if (!id) return;
+
+    const ua = navigator.userAgent || "";
+    let device: "desktop" | "mobile" | "tablet" | "unknown" = "desktop";
+    if (/Mobi|Android.*Mobile|iPhone|iPod/i.test(ua)) device = "mobile";
+    else if (/iPad|Android(?!.*Mobile)|Tablet/i.test(ua)) device = "tablet";
+
+    const ref = document.referrer || "";
+    let source: "direct" | "social" | "external" | "search" | "unknown" =
+      "direct";
+    if (!ref) {
+      source = "direct";
+    } else {
+      try {
+        const host = new URL(ref).hostname.toLowerCase();
+        if (/google\.|bing\.|yahoo\.|duckduckgo\.|baidu\./.test(host)) {
+          source = "search";
+        } else if (
+          /facebook\.|instagram\.|twitter\.|x\.com|linkedin\.|tiktok\.|pinterest\./.test(
+            host
+          )
+        ) {
+          source = "social";
+        } else if (host === window.location.hostname) {
+          source = "direct";
+        } else {
+          source = "external";
+        }
+      } catch {
+        source = "unknown";
+      }
+    }
+
+    fetch(`/api/services/${id}/view`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source, device, referrer: ref.slice(0, 500) }),
+    }).catch(() => {});
+  }, [service?.id, service?._id]);
 
   const toggleAddon = (index: number) => {
     setSelectedAddonIndexes((prev) => {
@@ -131,6 +211,7 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
       title: service.title || "Service",
       price: String(basePrice),
       deliveryTime: String(deliveryTimeDays),
+      packageKey: selectedKey,
       addons: JSON.stringify(selectedAddons),
     });
 
@@ -144,76 +225,32 @@ export default function ServiceDetailsClient({ service }: ServiceDetailsClientPr
 
     window.location.href = `/client-checkout?${params.toString()}`;
   };
-    
-    
-    
-    
-
-useEffect(() => {
-  if (!service?.id && !service?._id) return;
-
-  const id = service.id || service._id;
-  if (!id) return;
-
-  // Detect device
-  const ua = navigator.userAgent || "";
-  let device: "desktop" | "mobile" | "tablet" | "unknown" = "desktop";
-  if (/Mobi|Android.*Mobile|iPhone|iPod/i.test(ua)) device = "mobile";
-  else if (/iPad|Android(?!.*Mobile)|Tablet/i.test(ua)) device = "tablet";
-
-  // Detect source from referrer
-  const ref = document.referrer || "";
-  let source: "direct" | "social" | "external" | "search" | "unknown" = "direct";
-  if (!ref) {
-    source = "direct";
-  } else {
-    try {
-      const host = new URL(ref).hostname.toLowerCase();
-      if (
-        /google\.|bing\.|yahoo\.|duckduckgo\.|baidu\./.test(host)
-      ) {
-        source = "search";
-      } else if (
-        /facebook\.|instagram\.|twitter\.|x\.com|linkedin\.|tiktok\.|pinterest\./.test(
-          host
-        )
-      ) {
-        source = "social";
-      } else if (host === window.location.hostname) {
-        source = "direct";
-      } else {
-        source = "external";
-      }
-    } catch {
-      source = "unknown";
-    }
-  }
-
-  // Fire-and-forget (do not block UI)
-  fetch(`/api/services/${id}/view`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source, device, referrer: ref.slice(0, 500) }),
-  }).catch(() => {});
-}, [service?.id, service?._id]);
-    
-    
 
   return (
     <main className="service-details-main">
       <div className="container">
         {/* Breadcrumb */}
-        <nav className="breadcrumb">
-          <Link href="/">Home</Link> &gt;{" "}
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link href="/">Home</Link>
+          <span className="breadcrumb-sep" aria-hidden>
+            /
+          </span>
           {service.category ? (
             <>
-              <Link href={`/services/${encodeURIComponent(service.category)}`}>
+              <Link
+                href={`/services/${encodeURIComponent(service.category)}`}
+                className="breadcrumb-mid"
+              >
                 {service.category}
-              </Link>{" "}
-              &gt;{" "}
+              </Link>
+              <span className="breadcrumb-sep" aria-hidden>
+                /
+              </span>
             </>
           ) : null}
-          <span>{service.title}</span>
+          <span className="breadcrumb-current" title={service.title}>
+            {service.title}
+          </span>
         </nav>
 
         {/* Header */}
@@ -244,16 +281,21 @@ useEffect(() => {
                     {[1, 2, 3, 4, 5].map((s) => (
                       <i
                         key={s}
-                        className={`fas fa-star${s > Math.round(rating) ? " far" : ""}`}
+                        className={`fas fa-star${
+                          s > Math.round(rating) ? " far" : ""
+                        }`}
                         style={{
-                          color: s <= Math.round(rating) ? "#eab308" : "#cbd5e1",
+                          color:
+                            s <= Math.round(rating) ? "#eab308" : "#cbd5e1",
                         }}
                       />
                     ))}
                   </div>
                   <span className="rating-score">{rating.toFixed(1)}</span>
                   {reviewsCount > 0 && (
-                    <span className="review-count">({reviewsCount} reviews)</span>
+                    <span className="review-count">
+                      ({reviewsCount} reviews)
+                    </span>
                   )}
                 </div>
                 <span className="seller-level">{sellerLevel}</span>
@@ -266,7 +308,11 @@ useEffect(() => {
           {/* LEFT COLUMN */}
           <div className="main-column">
             {/* Gallery */}
-            <section className="gallery-section">
+            <section
+              className="gallery-section"
+              onMouseEnter={() => setGalleryPaused(true)}
+              onMouseLeave={() => setGalleryPaused(false)}
+            >
               <div className="main-image-wrapper">
                 <Image
                   id="main-image"
@@ -283,12 +329,18 @@ useEffect(() => {
                 <div className="thumbnail-strip">
                   {images.map((src, idx) => (
                     <button
-  key={`\( {src}- \){idx}`}
-  type="button"
-  className={`thumbnail ${idx === activeImageIndex ? "active" : ""}`}
-  onClick={() => setActiveImageIndex(idx)}
-  style={{ padding: 0, border: "none", background: "none" }}
->
+                      key={`${src}-${idx}`}
+                      type="button"
+                      className={`thumbnail ${
+                        idx === activeImageIndex ? "active" : ""
+                      }`}
+                      onClick={() => setActiveImageIndex(idx)}
+                      style={{
+                        padding: 0,
+                        border: "none",
+                        background: "none",
+                      }}
+                    >
                       <Image
                         src={src}
                         alt={`Preview ${idx + 1}`}
@@ -301,28 +353,35 @@ useEffect(() => {
                 </div>
               )}
 
-              {/* Videos */}
               {service.videos && service.videos.length > 0 && (
                 <div className="video-showcase">
                   <h3 className="media-subheading">
                     <i className="fas fa-play-circle" /> Video
                   </h3>
                   {service.videos.map((url, i) => (
-                    <video key={i} controls width="100%" style={{ marginBottom: 12 }}>
+                    <video
+                      key={`video-${i}`}
+                      controls
+                      width="100%"
+                      style={{ marginBottom: 12 }}
+                    >
                       <source src={url} />
                     </video>
                   ))}
                 </div>
               )}
 
-              {/* Audio */}
               {service.audio && service.audio.length > 0 && (
                 <div className="audio-showcase">
                   <h3 className="media-subheading">
                     <i className="fas fa-headphones" /> Audio sample
                   </h3>
                   {service.audio.map((url, i) => (
-                    <audio key={i} controls style={{ width: "100%", marginBottom: 8 }}>
+                    <audio
+                      key={`audio-${i}`}
+                      controls
+                      style={{ width: "100%", marginBottom: 8 }}
+                    >
                       <source src={url} />
                     </audio>
                   ))}
@@ -330,7 +389,6 @@ useEffect(() => {
               )}
             </section>
 
-            {/* Description */}
             <section className="description-section">
               <h2>About This Service</h2>
               <p style={{ whiteSpace: "pre-wrap" }}>
@@ -338,7 +396,6 @@ useEffect(() => {
               </p>
             </section>
 
-            {/* Tags */}
             {service.tags && service.tags.length > 0 && (
               <div className="tags-row">
                 {service.tags.map((tag) => (
@@ -349,13 +406,12 @@ useEffect(() => {
               </div>
             )}
 
-            {/* Requirements */}
             {service.requirements && service.requirements.length > 0 && (
               <section className="requirements-section">
                 <h2>What I Need From You</h2>
                 <div className="requirements-list">
                   {service.requirements.map((req, i) => (
-                    <div key={i} className="requirement-item">
+                    <div key={`req-${i}`} className="requirement-item">
                       <p>{req}</p>
                     </div>
                   ))}
@@ -363,7 +419,6 @@ useEffect(() => {
               </section>
             )}
 
-            {/* Attributes */}
             {service.attributes && service.attributes.length > 0 && (
               <section className="attributes-section">
                 <h2>Why Clients Choose Me</h2>
@@ -377,7 +432,7 @@ useEffect(() => {
               </section>
             )}
 
-            {/* Packages */}
+            {/* Packages — badge = tier key (BASIC / STANDARD / PREMIUM) */}
             {availableKeys.length > 0 && (
               <section className="packages-section">
                 <h2>Choose Your Package</h2>
@@ -386,6 +441,7 @@ useEffect(() => {
                     const pkg = packages[key]!;
                     const price = getPackagePrice(pkg);
                     const isActive = selectedKey === key;
+                    const isPopular = key === "standard";
                     return (
                       <div
                         key={key}
@@ -394,36 +450,48 @@ useEffect(() => {
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") setSelectedKey(key);
+                          if (e.key === "Enter" || e.key === " ")
+                            setSelectedKey(key);
                         }}
                       >
                         <div className="package-header">
                           <span className={`package-badge ${key}`}>
-                            {pkg.title || key}
+                            {tierLabel(key)}
+                            {isPopular ? (
+                              <span className="popular">Most Popular</span>
+                            ) : null}
                           </span>
                           <div className="package-price">${price}</div>
                         </div>
+                        {pkg.title &&
+                          pkg.title.toLowerCase() !== key &&
+                          pkg.title.toLowerCase() !== tierLabel(key).toLowerCase() && (
+                            <p className="package-custom-title">{pkg.title}</p>
+                          )}
                         {pkg.desc && (
-                          <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: 12 }}>
-                            {pkg.desc}
+                          <p className="package-desc-text">
+                            {cleanText(pkg.desc, 160)}
                           </p>
                         )}
                         <ul className="package-features">
                           {pkg.features
                             ? String(pkg.features)
                                 .split("\n")
+                                .map((f) => f.trim())
                                 .filter(Boolean)
                                 .map((f, i) => (
-                                  <li key={i}>
-                                    <i className="fas fa-check" /> {f.trim()}
+                                  <li key={`${key}-f-${i}`}>
+                                    <i className="fas fa-check" /> {f}
                                   </li>
                                 ))
                             : null}
                           <li>
-                            <i className="fas fa-check" /> {pkg.delivery ?? "—"} days delivery
+                            <i className="fas fa-check" />{" "}
+                            {pkg.delivery ?? "—"} days delivery
                           </li>
                           <li>
-                            <i className="fas fa-check" /> {pkg.revisions ?? "—"} revisions
+                            <i className="fas fa-check" />{" "}
+                            {pkg.revisions ?? "—"} revisions
                           </li>
                         </ul>
                         <button
@@ -434,7 +502,7 @@ useEffect(() => {
                             setSelectedKey(key);
                           }}
                         >
-                          Select {pkg.title || key}
+                          Select {tierLabel(key)}
                         </button>
                       </div>
                     );
@@ -443,7 +511,6 @@ useEffect(() => {
               </section>
             )}
 
-            {/* Add-ons */}
             {addons.length > 0 && (
               <section className="addons-section">
                 <h2>Optional Add-ons</h2>
@@ -451,7 +518,7 @@ useEffect(() => {
                   {addons.map((addon, index) => {
                     const checked = selectedAddonIndexes.has(index);
                     return (
-                      <label key={index} className="addon-item">
+                      <label key={`addon-${index}`} className="addon-item">
                         <input
                           type="checkbox"
                           checked={checked}
@@ -468,20 +535,23 @@ useEffect(() => {
               </section>
             )}
 
-            {/* FAQ */}
             {service.faqs && service.faqs.length > 0 && (
               <section className="faq-section">
                 <h2>Frequently Asked Questions</h2>
                 <div className="faq-accordion">
                   {service.faqs.map((faq, index) => (
                     <div
-                      key={index}
-                      className={`faq-item ${openFaqIndex === index ? "active" : ""}`}
+                      key={`faq-${index}`}
+                      className={`faq-item ${
+                        openFaqIndex === index ? "active" : ""
+                      }`}
                     >
                       <div
                         className="faq-question"
                         onClick={() =>
-                          setOpenFaqIndex(openFaqIndex === index ? null : index)
+                          setOpenFaqIndex(
+                            openFaqIndex === index ? null : index
+                          )
                         }
                         role="button"
                         tabIndex={0}
@@ -489,7 +559,10 @@ useEffect(() => {
                         {faq.question}
                       </div>
                       {openFaqIndex === index && (
-                        <div className="faq-answer" style={{ display: "block" }}>
+                        <div
+                          className="faq-answer"
+                          style={{ display: "block" }}
+                        >
                           {faq.answer}
                         </div>
                       )}
@@ -500,23 +573,28 @@ useEffect(() => {
             )}
           </div>
 
-          {/* RIGHT COLUMN – Order Card */}
-          <div className="service-sidebar">
+          {/* RIGHT COLUMN – sticky order card (desktop) */}
+          <aside className="service-sidebar">
             <div className="order-card">
               <div className="order-header">
-                <span className={`package-badge ${selectedKey}`} id="pkg-name">
-                  {selectedPkg?.title || selectedKey}
-                </span>
-                <a href="#packages-grid" className="select-package-link">
-                  select package
-                </a>
+                <div className="pkg-badge-group">
+                  <span
+                    className={`package-badge ${selectedKey}`}
+                    id="pkg-name"
+                  >
+                    {tierLabel(selectedKey)}
+                  </span>
+                  <a href="#packages-grid" className="select-package-link">
+                    select package
+                  </a>
+                </div>
                 <div className="package-price-large">
                   $<span id="pkg-price">{basePrice}</span>
                 </div>
               </div>
 
               <p className="order-desc" id="pkg-desc">
-                {selectedPkg?.desc || service.description?.slice(0, 120) || ""}
+                {packageDesc}
               </p>
 
               <div className="order-delivery">
@@ -541,7 +619,7 @@ useEffect(() => {
               {selectedAddons.length > 0 && (
                 <div className="mini-addons-list">
                   {selectedAddons.map((a, i) => (
-                    <div key={i} className="mini-addon">
+                    <div key={`mini-addon-${i}`} className="mini-addon">
                       <span>+ {a.title}</span>
                       <span className="addon-price-tag">${a.price}</span>
                     </div>
@@ -558,16 +636,14 @@ useEffect(() => {
                 <i className="fas fa-arrow-right" />
               </button>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
 
       {/* Mobile sticky bar */}
       <div className="mobile-sticky-bar">
         <div className="sticky-bar-info">
-          <span className="sticky-pkg-name">
-            {selectedPkg?.title || selectedKey}
-          </span>
+          <span className="sticky-pkg-name">{tierLabel(selectedKey)}</span>
           <span className="sticky-pkg-price">${total}</span>
         </div>
         <button
