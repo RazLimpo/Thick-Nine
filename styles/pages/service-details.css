@@ -128,10 +128,28 @@
   overflow: hidden;
   box-shadow: 0 20px 40px rgba(0,0,0,0.08);
   margin-bottom: 16px;
+  /* Fixed frame — stops layout jump when rotating images */
+  width: 100%;
+  height: 420px;
+  max-height: 55vh;
+  background: #e2e8f0;
+  position: relative;
 }
 .main-image {
-  width: 100%;
-  display: block;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+.main-image-wrapper > span,
+.main-image-wrapper > img,
+.main-image-wrapper img {
+  width: 100% !important;
+  height: 100% !important;
+}
+@media (max-width: 768px) {
+  .main-image-wrapper {
+      height: 260px;
+      max-height: 40vh;
+  }
 }
 .thumbnail-strip {
   display: flex;
@@ -1079,29 +1097,35 @@ box-sizing: border-box;
 }
 
 
-/* Favourite + Share under gallery */
+/* Favourite + Share — pill buttons under gallery */
 .service-quick-actions {
 display: flex;
 align-items: center;
+flex-wrap: wrap;
 gap: 10px;
 margin: 8px 0 28px;
 }
 .quick-action-btn {
-width: 42px;
-height: 42px;
-border-radius: 50%;
+height: 40px;
+padding: 0 16px;
+border-radius: 9999px;
 border: 1.5px solid #e2e8f0;
 background: #fff;
-color: #64748b;
+color: #475569;
 display: inline-flex;
 align-items: center;
 justify-content: center;
+gap: 8px;
 cursor: pointer;
 transition: all 0.2s ease;
 box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+font-size: 0.9rem;
+font-weight: 600;
+line-height: 1;
+white-space: nowrap;
 }
 .quick-action-btn i {
-font-size: 1.05rem;
+font-size: 0.95rem;
 }
 .quick-action-btn:hover {
 border-color: var(--primary, #d96464);
@@ -1111,6 +1135,9 @@ transform: translateY(-1px);
 .quick-action-btn.is-active {
 border-color: #fecaca;
 background: #fff1f2;
+color: #e11d48;
+}
+.quick-action-btn.is-active i {
 color: #e11d48;
 }
 .quick-action-btn:disabled {

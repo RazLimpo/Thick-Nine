@@ -584,10 +584,9 @@ export default function ServiceDetailsClient({
                   id="main-image"
                   src={images[activeImageIndex]}
                   alt={service.title}
-                  width={900}
-                  height={550}
+                  fill
                   className="main-image"
-                  style={{ width: "100%", height: "auto", objectFit: "cover" }}
+                  sizes="(max-width: 1024px) 100vw, 720px"
                   priority
                 />
               </div>
@@ -655,7 +654,7 @@ export default function ServiceDetailsClient({
               )}
             </section>
 
-            {/* Favourite + Share (under gallery) */}
+            {/* Favourite + Share (under gallery) — pill buttons */}
             <div className="service-quick-actions" role="group" aria-label="Service actions">
               <button
                 type="button"
@@ -667,6 +666,7 @@ export default function ServiceDetailsClient({
                 aria-pressed={isFavorited}
               >
                 <i className={isFavorited ? "fas fa-heart" : "far fa-heart"} />
+                <span>{isFavorited ? "Saved" : "Save"}</span>
               </button>
               <button
                 type="button"
@@ -676,6 +676,7 @@ export default function ServiceDetailsClient({
                 aria-label="Share"
               >
                 <i className="fas fa-share-nodes" />
+                <span>Share</span>
               </button>
             </div>
 
