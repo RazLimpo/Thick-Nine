@@ -5,6 +5,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Service, ServicePackage, ServiceAddon } from "@/types/service";
 import "@/styles/pages/service-details.css";
 
@@ -49,6 +50,9 @@ function cleanText(value?: string | null, max = 0): string {
 export default function ServiceDetailsClient({
   service,
 }: ServiceDetailsClientProps) {
+  const router = useRouter();
+  const [messaging, setMessaging] = useState(false);
+
   const packages = service.packages || {};
   const availableKeys = (
     ["basic", "standard", "premium"] as PackageKey[]
@@ -103,6 +107,27 @@ export default function ServiceDetailsClient({
     service.sellerAvatar || seller?.avatar || "/default-avatar.png";
   const sellerLevel = service.level || seller?.level || "Level 1 Seller";
   const isVerified = seller?.isVerified ?? false;
+  const rawOnline =
+    (seller as { onlineStatus?: string; isOnline?: boolean } | undefined)
+      ?.onlineStatus ||
+    (service as { isOnline?: boolean }).isOnline;
+  const onlineKey = String(
+    typeof rawOnline === "boolean"
+      ? rawOnline
+        ? "online"
+        : "offline"
+      : rawOnline || "offline"
+  ).toLowerCase();
+  const isOnline =
+    onlineKey === "online" || onlineKey === "true" || onlineKey === "1";
+  const isAway = onlineKey === "away";
+  const presenceClass = isOnline ? "online" : isAway ? "away" : "offline";
+  const presenceLabel = isOnline ? "Online" : isAway ? "Away" : "Offline";
+  const sellerId = String(seller?._id || seller?.id || "").trim();
+  const sellerProfileHref = sellerId
+    ? `/freelancer-profile?id=${encodeURIComponent(sellerId)}`
+    : "/freelancer-profile";
+  const serviceId = String(service.id || service._id || "").trim();
   const rating = service.rating ?? 0;
   const reviewsCount = service.reviewsCount ?? 0;
 
@@ -179,6 +204,62 @@ export default function ServiceDetailsClient({
       else next.add(index);
       return next;
     });
+  };
+
+  const getAuthHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    };
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token");
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
+  const contactSeller = async () => {
+    if (!sellerId) {
+      alert("Seller profile is unavailable.");
+      return;
+    }
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      router.push("/?auth=login");
+      return;
+    }
+    setMessaging(true);
+    try {
+      const res = await fetch("/api/messages/conversations", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          recipientId: sellerId,
+          serviceId: serviceId || undefined,
+          initialMessage: `Hi! I'm interested in "${service.title || "your service"}".`,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || "Could not start a conversation.");
+        return;
+      }
+      const cid = data.conversationId || data.conversation?._id;
+      if (cid) {
+        router.push(`/messages?c=${cid}`);
+      } else {
+        router.push("/messages");
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    } finally {
+      setMessaging(false);
+    }
   };
 
   const proceedToCheckout = () => {
@@ -258,7 +339,11 @@ export default function ServiceDetailsClient({
           <div className="service-meta">
             <h1 className="service-title">{service.title}</h1>
             <div className="seller-row">
-              <div className="seller-avatar-wrapper">
+              <Link
+                href={sellerProfileHref}
+                className="seller-avatar-wrapper seller-profile-link"
+                title={`View ${sellerName}'s profile`}
+              >
                 <Image
                   src={sellerAvatar}
                   alt={sellerName}
@@ -266,10 +351,17 @@ export default function ServiceDetailsClient({
                   height={52}
                   className="seller-avatar"
                 />
-              </div>
+                <span
+                  className={`seller-status-dot ${presenceClass}`}
+                  title={presenceLabel}
+                  aria-label={presenceLabel}
+                />
+              </Link>
               <div className="seller-info">
                 <div className="seller-name">
-                  {sellerName}{" "}
+                  <Link href={sellerProfileHref} className="seller-name-link">
+                    {sellerName}
+                  </Link>{" "}
                   {isVerified && (
                     <span className="verified">
                       <i className="fas fa-check-circle" />
@@ -299,6 +391,26 @@ export default function ServiceDetailsClient({
                   )}
                 </div>
                 <span className="seller-level">{sellerLevel}</span>
+                <span className={`seller-presence ${presenceClass}`}>
+                  <i className="fas fa-circle" /> {presenceLabel}
+                </span>
+                <div className="seller-actions">
+                  <button
+                    type="button"
+                    className="btn-contact-seller"
+                    onClick={contactSeller}
+                    disabled={messaging || !sellerId}
+                  >
+                    <i className="fas fa-envelope" />{" "}
+                    {messaging ? "Opening…" : "Contact me"}
+                  </button>
+                  <Link
+                    href={sellerProfileHref}
+                    className="btn-view-profile"
+                  >
+                    View profile
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -626,6 +738,16 @@ export default function ServiceDetailsClient({
                   ))}
                 </div>
               )}
+
+              <button
+                type="button"
+                className="btn-contact-seller btn-contact-seller--block"
+                onClick={contactSeller}
+                disabled={messaging || !sellerId}
+              >
+                <i className="fas fa-comment-dots" />{" "}
+                {messaging ? "Opening chat…" : "Message seller"}
+              </button>
 
               <button
                 type="button"
