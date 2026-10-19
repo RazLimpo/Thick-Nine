@@ -73,11 +73,6 @@ function languagesToString(langs?: string[] | string) {
   return langs || "";
 }
 
-function locationToString(loc?: ProfileData["location"]) {
-  if (!loc) return "";
-  if (typeof loc === "string") return loc;
-  return [loc.city, loc.country].filter(Boolean).join(", ") || loc.country || "";
-}
 
 export default function FreelancerSettingsClient() {
   const router = useRouter();
@@ -90,6 +85,7 @@ export default function FreelancerSettingsClient() {
   const [tagline, setTagline] = useState("");
   const [bio, setBio] = useState("");
   const [skills, setSkills] = useState("");
+  const [city, setCity] = useState("");  
   const [country, setCountry] = useState("");
   const [languages, setLanguages] = useState("");
   const [availability, setAvailability] = useState("Full-Time");
@@ -162,7 +158,21 @@ export default function FreelancerSettingsClient() {
     setTagline(p.professionalTitle || p.tagline || "");
     setBio(p.bio || "");
     setSkills(skillsToString(p.skills));
-    setCountry(locationToString(p.location));
+    
+    // Separately handle city and country from location object
+    const loc = p.location;
+    if (typeof loc === "object" && loc !== null) {
+      setCity(loc.city || "");
+      setCountry(loc.country || "");
+    } else if (typeof loc === "string") {
+      setCountry(loc);
+      setCity("");
+    } else {
+      setCity("");
+      setCountry("");
+    }
+
+    
     setLanguages(languagesToString(p.languages));
     setAvailability(p.availability || "Full-Time");
     // education may be array of { school, degree, year }
@@ -366,7 +376,10 @@ export default function FreelancerSettingsClient() {
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),
-        location: { country: country.trim() },
+        location: { 
+          country: country.trim(), 
+          city: city.trim() 
+        },
         languages: languages
           .split(",")
           .map((s) => s.trim())
@@ -379,6 +392,7 @@ export default function FreelancerSettingsClient() {
         portfolio,
         skillMedia,
       };
+      
       const res = await fetch("/api/users/profile", {
         method: "PUT",
         credentials: "include",
@@ -1043,12 +1057,24 @@ export default function FreelancerSettingsClient() {
                   </div>
 
                   <aside className="profile-edit-sidebar">
-                    <div className="sidebar-card basic-info-card">
+                  <div className="sidebar-card basic-info-card">
                       <h3>
                         <i className="fas fa-globe" /> Location & Languages
                       </h3>
                       <div className="form-group">
+                        <label htmlFor="settings-city">City</label>
                         <input
+                          id="settings-city"
+                          type="text"
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          placeholder="City"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="settings-country">Country</label>
+                        <input
+                          id="settings-country"
                           type="text"
                           value={country}
                           onChange={(e) => setCountry(e.target.value)}
@@ -1056,7 +1082,9 @@ export default function FreelancerSettingsClient() {
                         />
                       </div>
                       <div className="form-group">
+                        <label htmlFor="settings-languages">Languages</label>
                         <input
+                          id="settings-languages"
                           type="text"
                           value={languages}
                           onChange={(e) => setLanguages(e.target.value)}

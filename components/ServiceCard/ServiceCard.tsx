@@ -75,10 +75,17 @@ export default function ServiceCard({
   };
 
   // ---------- Location String ----------
-  const location =
-    sellerInfo.city && sellerInfo.country
-      ? `${sellerInfo.city}, ${sellerInfo.country}`
-      : sellerInfo.city || sellerInfo.country || "Remote";
+  const rawCity = sellerInfo.city?.trim() || "";
+let rawCountry = sellerInfo.country?.trim() || "";
+
+if (rawCity && rawCountry.toLowerCase().startsWith(rawCity.toLowerCase())) {
+  rawCountry = rawCountry.replace(new RegExp(`^${rawCity}[,\\s]*`, "i"), "");
+}
+
+const location =
+  rawCity && rawCountry
+    ? `${rawCity}, ${rawCountry}`
+    : rawCity || rawCountry || "Remote";
 
   // ---------- Pricing ----------
   const formattedPrice = `$${Number(service.price ?? 0).toLocaleString()}`;
