@@ -101,6 +101,28 @@ const UserSchema = new mongoose.Schema(
         default: null
     },
 
+    
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+
+    deactivatedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Client billing placeholders (never store full PAN / CVV)
+    paymentMethods: [
+      {
+        brand: { type: String, default: "Card" },
+        last4: { type: String, default: "" },
+        label: { type: String, default: "" },
+        isDefault: { type: Boolean, default: false },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
 
 
     /* ===========================================================
@@ -127,6 +149,13 @@ const UserSchema = new mongoose.Schema(
         type: String,
         maxlength: 500,
         default: ""
+    },
+    
+    tagline: {
+        type: String,
+        maxlength: 150,
+        default: "",
+        trim: true,
     },
 
     gender: {
@@ -633,7 +662,37 @@ storeConfig: {
     twoFactorEnabled: {
         type: Boolean,
         default: false
-    }
+    },
+    
+    clientPreferences: {
+        preferredSkills: [{ type: String }],
+        projectTypes: [{ type: String }],
+        preferredProjectType: {
+            type: String,
+            default: "fixed",
+            trim: true,
+        },
+        projectScale: {
+            type: String,
+            enum: ["small", "medium", "large", ""],
+            default: "medium",
+        },
+        keyRequirements: { type: String, default: "", trim: true },
+        timezone: { type: String, default: "gmt", trim: true },
+        contactPref: {
+            type: String,
+            enum: ["messaging", "email", "both"],
+            default: "messaging",
+        },
+        minBudget: { type: Number, default: 0, min: 0 },
+        maxBudget: { type: Number, default: 0, min: 0 },
+        escrowPref: {
+            type: String,
+            enum: ["always", "sometimes", "never"],
+            default: "always",
+        },
+        orderVisibility: { type: Boolean, default: true },
+    },
 
 },
 {

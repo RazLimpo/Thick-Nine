@@ -1,5 +1,6 @@
 // controllers/userController.js
 const User = require("../models/User");
+const bcrypt = require("bcryptjs");
 
 /* ===========================================================
    TIER & PRESTIGE GAMIFICATION LOGIC
@@ -35,11 +36,14 @@ const calculateTierProgress = (totalEarnings) => {
 /**
  * COMPATIBILITY HELPER: formatUserPayload
  * Ensures user responses consistently deliver complete metadata required by Next.js.
+ * Includes client-settings flattened fields.
  */
 const formatUserPayload = (user) => {
   const userObj = user.toObject ? user.toObject() : user;
   const userAvatar = userObj.avatar || userObj.profilePicture || "";
   const userProfilePicture = userObj.profilePicture || userObj.avatar || "";
+  const cp = userObj.clientPreferences || {};
+  const settings = userObj.settings || {};
 
   return {
     id: userObj._id?.toString(),
@@ -58,6 +62,7 @@ const formatUserPayload = (user) => {
     profilePicture: userProfilePicture,
     coverImage: userObj.coverImage || "",
     professionalTitle: userObj.professionalTitle || "",
+    tagline: userObj.tagline || "",
     bio: userObj.bio || "",
     skills: userObj.skills || [],
     languages: userObj.languages || [],
@@ -66,7 +71,7 @@ const formatUserPayload = (user) => {
     availability: userObj.availability || "Full-Time",
     location: userObj.location || { country: "", city: "" },
     payoutDetails: userObj.payoutDetails || {},
-    settings: userObj.settings || {},
+    settings,
     legalBusinessName: userObj.legalBusinessName || "",
     taxId: userObj.taxId || "",
     portfolio: userObj.portfolio || [],
@@ -75,6 +80,29 @@ const formatUserPayload = (user) => {
     level: userObj.level,
     memberSince: userObj.memberSince,
     source: userObj.affiliateProfile?.source || "direct",
+
+    // Client-settings (flattened for app/client-settings)
+    clientPreferences: cp,
+    preferredSkills: cp.preferredSkills || [],
+    projectTypes: cp.projectTypes || [],
+    preferredProjectType: cp.preferredProjectType || "fixed",
+    projectScale: cp.projectScale || "medium",
+    keyRequirements: cp.keyRequirements || "",
+    timezone: cp.timezone || "gmt",
+    contactPref: cp.contactPref || "messaging",
+    minBudget: cp.minBudget ?? 0,
+    maxBudget: cp.maxBudget ?? 0,
+    escrowPref: cp.escrowPref || "always",
+    profileVisibility: settings.publicProfile !== false,
+    orderVisibility: cp.orderVisibility !== false,
+    notifications: {
+      emailOrders: settings.emailNotifications !== false,
+      appOrders: settings.smsNotifications !== false,
+      marketing: settings.marketingEmails === true,
+      emailMessages: settings.emailNotifications !== false,
+      orderRequests: settings.smsNotifications !== false,
+      promotional: settings.marketingEmails === true,
+    },
   };
 };
 
@@ -83,12 +111,12 @@ function uid(req) {
 }
 
 /* ===========================================================
-   PROFILE — GET / PUT  (Freelancer Settings + general)
+   PROFILE — GET / PUT  (Freelancer Settings + Client Settings)
    =========================================================== */
 
 /**
  * @route   GET /api/users/profile
- * @desc    Load authenticated user profile for settings page
+ * @desc    Load authenticated user profile for settings pages
  * @access  Private
  */
 exports.getUserProfile = async (req, res) => {
@@ -111,13 +139,15 @@ exports.getUserProfile = async (req, res) => {
     });
   } catch (err) {
     console.error("getUserProfile Error:", err);
-    return res.status(500).json({ message: "Server error while loading profile." });
+    return res
+      .status(500)
+      .json({ message: "Server error while loading profile." });
   }
 };
 
 /**
  * @route   PUT /api/users/profile  (also PATCH)
- * @desc    Update authenticated user profile, payout, settings, legal
+ * @desc    Update authenticated user profile, payout, settings, legal, client prefs
  * @access  Private (Requires JWT auth middleware)
  */
 exports.updateUserProfile = async (req, res) => {
@@ -127,14 +157,19 @@ exports.updateUserProfile = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized." });
     }
 
-    const user = await User.findById(userId);
+    // +password only when changing password
+    const needsPassword = !!(req.body && req.body.newPassword);
+    const user = needsPassword
+      ? await User.findById(userId).select("+password")
+      : await User.findById(userId);
+
     if (!user) {
       return res.status(404).json({ message: "User account not found." });
     }
 
     const body = req.body || {};
 
-    // --- Identity / basic (legacy + settings) ---
+    // --- Identity / basic ---
     if (body.fullName != null) user.fullName = String(body.fullName).trim();
     if (body.displayName != null) {
       user.displayName = String(body.displayName).trim();
@@ -149,13 +184,19 @@ exports.updateUserProfile = async (req, res) => {
     if (body.professionalTitle != null) {
       user.professionalTitle = String(body.professionalTitle).trim();
     }
+    if (body.tagline != null) {
+      user.tagline = String(body.tagline).trim().slice(0, 150);
+    }
     if (body.bio != null) {
       user.bio = String(body.bio).slice(0, 500);
     }
     if (body.avatar != null && !String(body.avatar).startsWith("data:")) {
       user.avatar = body.avatar;
     }
-    if (body.coverImage != null && !String(body.coverImage).startsWith("data:")) {
+    if (
+      body.coverImage != null &&
+      !String(body.coverImage).startsWith("data:")
+    ) {
       user.coverImage = body.coverImage;
     }
     if (body.onlineStatus != null) {
@@ -183,19 +224,81 @@ exports.updateUserProfile = async (req, res) => {
       user.education = body.education;
     }
 
-    // --- Location ---
-    if (body.location && typeof body.location === "object") {
-      user.location = {
-        country:
-          body.location.country != null
-            ? String(body.location.country)
-            : user.location?.country || "",
-        city:
-          body.location.city != null
-            ? String(body.location.city)
-            : user.location?.city || "",
-      };
+    // --- Location: object or "City, Country" string ---
+    if (body.location != null) {
+      if (typeof body.location === "string") {
+        const parts = body.location
+          .split(",")
+          .map((p) => p.trim())
+          .filter(Boolean);
+        user.location = user.location || {};
+        if (parts.length >= 2) {
+          user.location.city = parts[0];
+          user.location.country = parts.slice(1).join(", ");
+        } else if (parts[0]) {
+          user.location.city = parts[0];
+        }
+      } else if (typeof body.location === "object") {
+        user.location = {
+          country:
+            body.location.country != null
+              ? String(body.location.country)
+              : user.location?.country || "",
+          city:
+            body.location.city != null
+              ? String(body.location.city)
+              : user.location?.city || "",
+        };
+      }
     }
+
+    // --- Client preferences (client-settings page) ---
+    if (!user.clientPreferences) user.clientPreferences = {};
+    const cp = user.clientPreferences;
+
+    if (Array.isArray(body.preferredSkills)) {
+      cp.preferredSkills = body.preferredSkills
+        .map((s) => String(s).trim())
+        .filter(Boolean);
+    }
+    if (Array.isArray(body.projectTypes)) {
+      cp.projectTypes = body.projectTypes
+        .map((s) => String(s).trim())
+        .filter(Boolean);
+    }
+    if (body.preferredProjectType != null) {
+      cp.preferredProjectType = String(body.preferredProjectType).trim();
+    }
+    if (body.projectScale != null) {
+      const ps = String(body.projectScale);
+      if (["small", "medium", "large", ""].includes(ps)) cp.projectScale = ps;
+    }
+    if (body.keyRequirements != null) {
+      cp.keyRequirements = String(body.keyRequirements).trim();
+    }
+    if (body.timezone != null) {
+      cp.timezone = String(body.timezone).trim();
+    }
+    if (body.contactPref != null) {
+      const c = String(body.contactPref);
+      if (["messaging", "email", "both"].includes(c)) cp.contactPref = c;
+    }
+    if (body.minBudget != null) {
+      const n = Number(body.minBudget);
+      if (!Number.isNaN(n) && n >= 0) cp.minBudget = n;
+    }
+    if (body.maxBudget != null) {
+      const n = Number(body.maxBudget);
+      if (!Number.isNaN(n) && n >= 0) cp.maxBudget = n;
+    }
+    if (body.escrowPref != null) {
+      const e = String(body.escrowPref);
+      if (["always", "sometimes", "never"].includes(e)) cp.escrowPref = e;
+    }
+    if (body.orderVisibility != null) {
+      cp.orderVisibility = !!body.orderVisibility;
+    }
+    user.clientPreferences = cp;
 
     // --- Legal ---
     if (body.legalBusinessName != null) {
@@ -217,10 +320,11 @@ exports.updateUserProfile = async (req, res) => {
         else if (m === "bank") method = "Bank";
         else if (m === "m-pesa" || m === "mpesa") method = "M-Pesa";
         else if (m === "none") method = "None";
-        // Allow enum values as-is if already correct
         if (["Payoneer", "Bank", "M-Pesa", "None"].includes(method)) {
           user.payoutDetails.method = method;
-        } else if (["Payoneer", "Bank", "M-Pesa", "None"].includes(String(pay.method))) {
+        } else if (
+          ["Payoneer", "Bank", "M-Pesa", "None"].includes(String(pay.method))
+        ) {
           user.payoutDetails.method = String(pay.method);
         }
       }
@@ -250,23 +354,46 @@ exports.updateUserProfile = async (req, res) => {
       }
     }
 
-    // --- Settings / notifications ---
-    const notif = body.settings || body.notifications;
+    // --- Settings / notifications / visibility ---
+    if (!user.settings) user.settings = {};
+
+    if (body.profileVisibility != null) {
+      user.settings.publicProfile = !!body.profileVisibility;
+    }
+
+    const notif = body.notifications || body.settings;
     if (notif && typeof notif === "object") {
-      if (!user.settings) user.settings = {};
-      if (notif.emailNotifications != null || notif.emailMessages != null) {
+      if (
+        notif.emailNotifications != null ||
+        notif.emailMessages != null ||
+        notif.emailOrders != null
+      ) {
         user.settings.emailNotifications = !!(
-          notif.emailNotifications ?? notif.emailMessages
+          notif.emailNotifications ??
+          notif.emailMessages ??
+          notif.emailOrders
         );
       }
-      if (notif.smsNotifications != null || notif.orderRequests != null) {
+      if (
+        notif.smsNotifications != null ||
+        notif.orderRequests != null ||
+        notif.appOrders != null
+      ) {
         user.settings.smsNotifications = !!(
-          notif.smsNotifications ?? notif.orderRequests
+          notif.smsNotifications ??
+          notif.orderRequests ??
+          notif.appOrders
         );
       }
-      if (notif.marketingEmails != null || notif.promotional != null) {
+      if (
+        notif.marketingEmails != null ||
+        notif.promotional != null ||
+        notif.marketing != null
+      ) {
         user.settings.marketingEmails = !!(
-          notif.marketingEmails ?? notif.promotional
+          notif.marketingEmails ??
+          notif.promotional ??
+          notif.marketing
         );
       }
       if (notif.publicProfile != null) {
@@ -308,15 +435,44 @@ exports.updateUserProfile = async (req, res) => {
       user.twoFactorEnabled = body.twoFactorEnabled;
     }
 
+    // --- Password change (client-settings security modal) ---
+    if (body.newPassword) {
+      if (!body.currentPassword) {
+        return res
+          .status(400)
+          .json({ message: "Current password is required." });
+      }
+      if (!user.password) {
+        return res
+          .status(400)
+          .json({ message: "Password change is not available for this account." });
+      }
+      const ok = await bcrypt.compare(
+        String(body.currentPassword),
+        user.password
+      );
+      if (!ok) {
+        return res
+          .status(400)
+          .json({ message: "Current password is incorrect." });
+      }
+      if (String(body.newPassword).length < 8) {
+        return res
+          .status(400)
+          .json({ message: "New password must be at least 8 characters." });
+      }
+      user.password = await bcrypt.hash(String(body.newPassword), 10);
+    }
+
     // Profile complete flag
     if (
       user.bio ||
       user.professionalTitle ||
+      user.displayName ||
       (user.skills && user.skills.length)
     ) {
       user.isProfileComplete = true;
     } else if (body.isProfileComplete === true || body.fullName) {
-      // Legacy mandatory flow often only sent fullName
       user.isProfileComplete = true;
     }
 
@@ -347,8 +503,6 @@ exports.updateUserProfile = async (req, res) => {
 
 /**
  * @route   GET /api/users/affiliate/me
- * @desc    Get current user affiliate profile, ranks, and store settings
- * @access  Private
  */
 exports.getAffiliateProfile = async (req, res) => {
   try {
@@ -390,8 +544,6 @@ exports.getAffiliateProfile = async (req, res) => {
 
 /**
  * @route   GET /api/users/affiliate/stats
- * @desc    Get affiliate metrics, clicks, and conversions
- * @access  Private
  */
 exports.getAffiliateStats = async (req, res) => {
   try {
@@ -415,8 +567,6 @@ exports.getAffiliateStats = async (req, res) => {
 
 /**
  * @route   GET /api/users/affiliate/earnings
- * @desc    Get wallet balances and payout details
- * @access  Private
  */
 exports.getAffiliateEarnings = async (req, res) => {
   try {
@@ -438,8 +588,6 @@ exports.getAffiliateEarnings = async (req, res) => {
 
 /**
  * @route   PUT /api/users/affiliate/store
- * @desc    Update affiliate store settings (video, description, pinned services)
- * @access  Private
  */
 exports.updateAffiliateStore = async (req, res) => {
   try {
@@ -482,8 +630,6 @@ exports.updateAffiliateStore = async (req, res) => {
 
 /**
  * @route   GET /api/users/affiliate/store/:affiliateId
- * @desc    Get public storefront profile & config by Affiliate User ID or Username
- * @access  Public
  */
 exports.getPublicAffiliateStore = async (req, res) => {
   try {
@@ -530,8 +676,6 @@ exports.getPublicAffiliateStore = async (req, res) => {
 
 /**
  * @route   POST /api/users/affiliate/prestige/add-points
- * @desc    Accrue prestige points for affiliate actions and calculate level ups
- * @access  Private
  */
 exports.addPrestigePoints = async (req, res) => {
   try {
@@ -577,7 +721,6 @@ exports.addPrestigePoints = async (req, res) => {
   }
 };
 
-
 /* ===========================================================
    PROFILE MEDIA UPLOAD (Cloudinary)
    =========================================================== */
@@ -606,7 +749,9 @@ function ensureCloudinary() {
 exports.uploadProfileMedia = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ success: false, message: "No file uploaded." });
+      return res
+        .status(400)
+        .json({ success: false, message: "No file uploaded." });
     }
 
     ensureCloudinary();
