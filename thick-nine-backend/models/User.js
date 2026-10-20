@@ -112,6 +112,26 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    
+    // (affiliate / social section)
+
+    socialAccounts: [
+      {
+        platform: {
+          type: String,
+          enum: ["Instagram", "Facebook", "LinkedIn", "X-Twitter"],
+          required: true,
+        },
+        handle: { type: String, default: "", trim: true },
+        profileUrl: { type: String, default: "", trim: true },
+        /** Provider user id when real OAuth is wired */
+        providerUserId: { type: String, default: "" },
+        connectedAt: { type: Date, default: Date.now },
+        /** verified via OAuth vs manual claim */
+        verified: { type: Boolean, default: false },
+      },
+    ],
+
 
     // Client billing placeholders (never store full PAN / CVV)
     paymentMethods: [
