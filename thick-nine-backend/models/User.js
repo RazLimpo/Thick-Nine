@@ -189,6 +189,14 @@ const UserSchema = new mongoose.Schema(
         default: ""
     },
 
+    /** Code or userId of the affiliate who referred this user (set at signup from ?ref=) */
+    referredBy: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
+
 
 
     /* ===========================================================

@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const auth = require("../middleware/auth");
 const User = require("../models/User");
 const AffiliateApiKey = require("../models/AffiliateApiKey");
+const AffiliatePayoutRequest = require("../models/AffiliatePayoutRequest");
 
 function uid(req) {
   return req.user?.id || req.user?._id;
@@ -326,6 +327,292 @@ router.post("/generate-banner", auth, async (req, res) => {
   } catch (e) {
     console.error("generate-banner:", e);
     return res.status(500).json({ success: false, message: "Generation failed." });
+  }
+});
+
+/* ===========================================================
+   OVERVIEW: referral link, earnings, conversions, tracking prefs
+   =========================================================== */
+
+/**
+ * GET /api/affiliate-settings/overview
+ * Referral code, link, wallet snapshot, pending payouts, recent conversions
+ */
+router.get("/overview", auth, async (req, res) => {
+  try {
+    const user = await User.findById(uid(req)).select(
+      "referralCode wallet metrics affiliateProfile payoutDetails"
+    );
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    // Ensure shareable referral code
+    if (!user.referralCode) {
+      const base = (user.username || String(user._id).slice(-6)).toLowerCase().replace(/[^a-z0-9]/g, "");
+      user.referralCode = `${base || "aff"}${String(user._id).slice(-4)}`;
+      await user.save();
+    }
+
+    const frontend =
+      process.env.FRONTEND_URL ||
+      process.env.BASE_URL ||
+      "https://thick-nine.vercel.app";
+    const referralLink = `${frontend.replace(/\/$/, "")}/?ref=${encodeURIComponent(user.referralCode)}`;
+
+    const lifetime =
+      user.wallet?.lifetimeEarnings ?? user.metrics?.totalEarnings ?? 0;
+    const available =
+      user.wallet?.availableBalance ??
+      user.wallet?.balance ??
+      user.wallet?.pendingBalance ??
+      0;
+    const pendingWallet = user.wallet?.pendingBalance ?? 0;
+
+    // This month: if wallet has monthly fields use them; else 0 until ledger exists
+    const thisMonth =
+      user.wallet?.thisMonthEarnings ??
+      user.affiliateProfile?.thisMonthEarnings ??
+      0;
+
+    const pendingRequests = await AffiliatePayoutRequest.countDocuments({
+      user: user._id,
+      status: "pending",
+    });
+
+    // Conversions: users attributed to this affiliate
+    const code = user.referralCode;
+    const conversions = await User.find({
+      $or: [
+        { referredBy: code },
+        { referredBy: String(user._id) },
+        { "affiliateProfile.referredByCode": code },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("fullName displayName email role isEmailVerified createdAt")
+      .lean();
+
+    const threshold =
+      user.affiliateProfile?.autoPayoutThreshold ??
+      user.payoutDetails?.autoThreshold ??
+      50;
+
+    return res.json({
+      success: true,
+      referralCode: user.referralCode,
+      referralLink,
+      earnings: {
+        lifetime: Number(lifetime) || 0,
+        available: Number(available) || 0,
+        pending: Number(pendingWallet) || 0,
+        thisMonth: Number(thisMonth) || 0,
+      },
+      minPayout: Number(threshold) || 50,
+      pendingPayoutRequests: pendingRequests,
+      conversions: conversions.map((c) => ({
+        id: c._id,
+        name: c.displayName || c.fullName || "User",
+        email: c.email,
+        role: c.role,
+        verified: !!c.isEmailVerified,
+        joinedAt: c.createdAt,
+      })),
+      tracking: {
+        cookieDays: user.affiliateProfile?.cookieDays ?? 90,
+        postbackUrl: user.affiliateProfile?.postbackUrl ?? "",
+      },
+      payoutDetails: user.payoutDetails || {},
+    });
+  } catch (e) {
+    console.error("GET overview:", e);
+    return res.status(500).json({ success: false, message: "Failed to load overview." });
+  }
+});
+
+/** PUT /api/affiliate-settings/tracking  body: { cookieDays, postbackUrl } */
+router.put("/tracking", auth, async (req, res) => {
+  try {
+    const user = await User.findById(uid(req));
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+    if (!user.affiliateProfile) user.affiliateProfile = {};
+
+    if (req.body?.cookieDays != null) {
+      const d = Number(req.body.cookieDays);
+      if ([30, 90, 180].includes(d)) user.affiliateProfile.cookieDays = d;
+    }
+    if (req.body?.postbackUrl != null) {
+      user.affiliateProfile.postbackUrl = String(req.body.postbackUrl).trim().slice(0, 500);
+    }
+    if (req.body?.autoPayoutThreshold != null) {
+      const t = Number(req.body.autoPayoutThreshold);
+      if (t >= 50 && t <= 10000) user.affiliateProfile.autoPayoutThreshold = t;
+    }
+
+    await user.save();
+    return res.json({
+      success: true,
+      tracking: {
+        cookieDays: user.affiliateProfile.cookieDays ?? 90,
+        postbackUrl: user.affiliateProfile.postbackUrl ?? "",
+        autoPayoutThreshold: user.affiliateProfile.autoPayoutThreshold ?? 50,
+      },
+    });
+  } catch (e) {
+    console.error("PUT tracking:", e);
+    return res.status(500).json({ success: false, message: "Failed to save tracking." });
+  }
+});
+
+/**
+ * POST /api/affiliate-settings/postback/test
+ * Fires a GET to stored postback URL with sample query params (best-effort).
+ */
+router.post("/postback/test", auth, async (req, res) => {
+  try {
+    const user = await User.findById(uid(req)).select("affiliateProfile referralCode");
+    const url = user?.affiliateProfile?.postbackUrl;
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: "Save a postback URL first.",
+      });
+    }
+    let target;
+    try {
+      target = new URL(url);
+    } catch {
+      return res.status(400).json({ success: false, message: "Invalid postback URL." });
+    }
+    target.searchParams.set("test", "1");
+    target.searchParams.set("ref", user.referralCode || "");
+    target.searchParams.set("event", "test");
+
+    let status = 0;
+    let ok = false;
+    try {
+      const r = await fetch(target.toString(), {
+        method: "GET",
+        signal: AbortSignal.timeout(8000),
+      });
+      status = r.status;
+      ok = r.ok;
+    } catch (err) {
+      return res.json({
+        success: false,
+        message: `Ping failed: ${err.message || "network error"}`,
+        url: target.toString(),
+      });
+    }
+    return res.json({
+      success: ok,
+      httpStatus: status,
+      url: target.toString(),
+      message: ok ? "Postback responded OK." : `Postback returned HTTP ${status}.`,
+    });
+  } catch (e) {
+    console.error("postback test:", e);
+    return res.status(500).json({ success: false, message: "Test failed." });
+  }
+});
+
+/* ===========================================================
+   PAYOUT REQUESTS
+   =========================================================== */
+
+/** GET /api/affiliate-settings/payouts */
+router.get("/payouts", auth, async (req, res) => {
+  try {
+    const rows = await AffiliatePayoutRequest.find({ user: uid(req) })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+    return res.json({ success: true, payouts: rows });
+  } catch (e) {
+    console.error("GET payouts:", e);
+    return res.status(500).json({ success: false, message: "Failed to load payouts." });
+  }
+});
+
+/**
+ * POST /api/affiliate-settings/payouts
+ * body: { amount? } — defaults to full available balance
+ * Requires available balance >= min threshold and no other pending request.
+ */
+router.post("/payouts", auth, async (req, res) => {
+  try {
+    const user = await User.findById(uid(req));
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+
+    const min =
+      user.affiliateProfile?.autoPayoutThreshold ??
+      user.payoutDetails?.autoThreshold ??
+      50;
+    const available =
+      user.wallet?.availableBalance ?? user.wallet?.balance ?? 0;
+
+    const amount =
+      req.body?.amount != null ? Number(req.body.amount) : Number(available);
+
+    if (!amount || amount < min) {
+      return res.status(400).json({
+        success: false,
+        message: `Minimum payout is $${min}. Available: $${Number(available).toFixed(2)}.`,
+        minPayout: min,
+        available,
+      });
+    }
+    if (amount > available) {
+      return res.status(400).json({
+        success: false,
+        message: `Amount exceeds available balance ($${Number(available).toFixed(2)}).`,
+      });
+    }
+
+    const existing = await AffiliatePayoutRequest.findOne({
+      user: user._id,
+      status: "pending",
+    });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending payout request.",
+        requestId: existing._id,
+      });
+    }
+
+    const method = user.payoutDetails?.method || "Payoneer";
+    const doc = await AffiliatePayoutRequest.create({
+      user: user._id,
+      amount,
+      method: ["Payoneer", "Bank", "None"].includes(method) ? method : "Payoneer",
+      destination: {
+        email: user.payoutDetails?.accountEmail || user.payoutDetails?.payoneerEmail || "",
+        accountName: user.payoutDetails?.accountName || "",
+        bankName: user.payoutDetails?.bankName || "",
+      },
+      status: "pending",
+      note: String(req.body?.note || "").slice(0, 500),
+    });
+
+    // Optionally hold funds (pending) — soft hold on available
+    if (user.wallet) {
+      const bal = Number(user.wallet.availableBalance ?? user.wallet.balance ?? 0);
+      user.wallet.availableBalance = Math.max(0, bal - amount);
+      user.wallet.pendingBalance =
+        Number(user.wallet.pendingBalance || 0) + amount;
+      await user.save();
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Payout request submitted. An admin will process it.",
+      payout: doc,
+    });
+  } catch (e) {
+    console.error("POST payouts:", e);
+    return res.status(500).json({ success: false, message: "Failed to request payout." });
   }
 });
 

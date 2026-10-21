@@ -64,6 +64,24 @@ type SocialAccount = {
   connectedAt?: string;
 };
 
+type ConversionRow = {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+  verified?: boolean;
+  joinedAt?: string;
+};
+
+type PayoutRow = {
+  _id: string;
+  amount: number;
+  status: string;
+  method?: string;
+  createdAt?: string;
+  processedAt?: string;
+};
+
 type ApiKeyRow = {
   id: string;
   name: string;
@@ -115,11 +133,24 @@ export default function AffiliateSettingsClient() {
   const [payoneerEmail, setPayoneerEmail] = useState("");
   const [accountName, setAccountName] = useState("");
   const [bankName, setBankName] = useState("");
-  const [threshold, setThreshold] = useState(250);
+  const [threshold, setThreshold] = useState(50);
   const [tierLabel, setTierLabel] = useState("Bronze");
   const [tierProgress, setTierProgress] = useState(10);
   const [earnings, setEarnings] = useState(0);
   const [nextTierGap, setNextTierGap] = useState(0);
+
+  // Overview batch
+  const [referralLink, setReferralLink] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [earnLifetime, setEarnLifetime] = useState(0);
+  const [earnAvailable, setEarnAvailable] = useState(0);
+  const [earnPending, setEarnPending] = useState(0);
+  const [earnMonth, setEarnMonth] = useState(0);
+  const [minPayout, setMinPayout] = useState(50);
+  const [conversions, setConversions] = useState<ConversionRow[]>([]);
+  const [payouts, setPayouts] = useState<PayoutRow[]>([]);
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState("");
 
   // Tracking
   const [taxId, setTaxId] = useState("");
@@ -230,6 +261,59 @@ export default function AffiliateSettingsClient() {
         if (a.referralCode) setReferralCode(a.referralCode);
       }
 
+      // Overview: referral, earnings, conversions
+      try {
+        const [oRes, payRes] = await Promise.all([
+          fetch("/api/affiliate-settings/overview", {
+            credentials: "include",
+            headers: getAuthHeaders(),
+            cache: "no-store",
+          }),
+          fetch("/api/affiliate-settings/payouts", {
+            credentials: "include",
+            headers: getAuthHeaders(),
+            cache: "no-store",
+          }),
+        ]);
+        const oData = await oRes.json().catch(() => ({}));
+        const payData = await payRes.json().catch(() => ({}));
+        if (oRes.ok && oData.success !== false) {
+          if (oData.referralCode) {
+            setReferralCode(oData.referralCode);
+          }
+          if (oData.referralLink) {
+            setReferralLink(oData.referralLink);
+            // QR via public API (no key)
+            setQrDataUrl(
+              `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(oData.referralLink)}`
+            );
+          }
+          if (oData.earnings) {
+            setEarnLifetime(Number(oData.earnings.lifetime) || 0);
+            setEarnAvailable(Number(oData.earnings.available) || 0);
+            setEarnPending(Number(oData.earnings.pending) || 0);
+            setEarnMonth(Number(oData.earnings.thisMonth) || 0);
+            setEarnings(Number(oData.earnings.lifetime) || 0);
+          }
+          if (oData.minPayout != null) {
+            setMinPayout(Number(oData.minPayout) || 50);
+            setThreshold(Number(oData.minPayout) || 50);
+          }
+          if (Array.isArray(oData.conversions)) setConversions(oData.conversions);
+          if (oData.tracking) {
+            if (oData.tracking.cookieDays)
+              setCookieDays(String(oData.tracking.cookieDays));
+            if (oData.tracking.postbackUrl != null)
+              setPostbackUrl(oData.tracking.postbackUrl);
+          }
+        }
+        if (payRes.ok && Array.isArray(payData.payouts)) {
+          setPayouts(payData.payouts);
+        }
+      } catch {
+        /* overview optional */
+      }
+
       try {
         const [sRes, kRes] = await Promise.all([
           fetch("/api/affiliate-settings/social", {
@@ -336,6 +420,106 @@ export default function AffiliateSettingsClient() {
   const pixelSnippet = referralCode
     ? `<script src="https://thick-nine.vercel.app/track.js?ref=${encodeURIComponent(referralCode)}"></script>`
     : `<script src="https://thick-nine.vercel.app/track.js?id=YOUR_REF"></script>`;
+
+  const withRef = (text: string) => {
+    if (!referralLink) return text;
+    if (text.includes(referralLink)) return text;
+    return `${text} ${referralLink}`;
+  };
+
+  const requestPayout = async () => {
+    if (earnAvailable < minPayout) {
+      showToast(`Need at least $${minPayout} available.`, "removed");
+      return;
+    }
+    if (!confirm(`Request payout of $${earnAvailable.toFixed(2)}?`)) return;
+    setPayoutBusy(true);
+    try {
+      const res = await fetch("/api/affiliate-settings/payouts", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount: earnAvailable }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.message || "Payout request failed.", "removed");
+        return;
+      }
+      showToast(data.message || "Payout requested.", "success");
+      if (data.payout) setPayouts((prev) => [data.payout, ...prev]);
+      setEarnAvailable(0);
+      setEarnPending((p) => p + (Number(data.payout?.amount) || 0));
+    } catch {
+      showToast("Network error.", "removed");
+    } finally {
+      setPayoutBusy(false);
+    }
+  };
+
+  const saveTracking = async () => {
+    try {
+      const res = await fetch("/api/affiliate-settings/tracking", {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cookieDays: Number(cookieDays),
+          postbackUrl,
+          autoPayoutThreshold: threshold,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.message || "Could not save tracking.", "removed");
+        return;
+      }
+      showToast("Tracking preferences saved.", "success");
+    } catch {
+      showToast("Network error.", "removed");
+    }
+  };
+
+  const testPostback = async () => {
+    try {
+      const res = await fetch("/api/affiliate-settings/postback/test", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+      const data = await res.json().catch(() => ({}));
+      showToast(
+        data.message || (data.success ? "OK" : "Failed"),
+        data.success ? "success" : "removed"
+      );
+    } catch {
+      showToast("Network error.", "removed");
+    }
+  };
+
+  const downloadBanner = () => {
+    if (!previewSrc) {
+      showToast("Generate a banner first.", "info");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = previewSrc;
+    a.download = `thick9-banner-${audience.replace(/\s+/g, "_")}.svg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    showToast("Download started.", "success");
+  };
 
   const copyText = async (text: string) => {
     try {
@@ -640,6 +824,55 @@ export default function AffiliateSettingsClient() {
                 {saving ? "Saving…" : "Save profile"}
               </button>
             </div>
+
+            <div className="aff-card settings-island">
+              <div className="island-header">
+                <h3>Referral link</h3>
+              </div>
+              <div className="settings-grid-duo">
+                <div className="input-group-glass" style={{ flexDirection: "column" }}>
+                  <label>Your code</label>
+                  <input type="text" value={referralCode} readOnly />
+                </div>
+                <div className="input-group-glass" style={{ flexDirection: "column" }}>
+                  <label>Share URL</label>
+                  <input type="text" value={referralLink} readOnly />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 16, alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="btn-main-red"
+                  onClick={() => copyText(referralLink)}
+                  disabled={!referralLink}
+                >
+                  <i className="fas fa-copy" /> Copy link
+                </button>
+                <button
+                  type="button"
+                  className="btn-glass-small"
+                  style={{ color: "#333", border: "1px solid #ddd" }}
+                  onClick={() => copyText(referralCode)}
+                  disabled={!referralCode}
+                >
+                  Copy code
+                </button>
+                {qrDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrDataUrl}
+                    alt="Referral QR"
+                    width={120}
+                    height={120}
+                    style={{ borderRadius: 8, border: "1px solid #eee" }}
+                  />
+                ) : null}
+              </div>
+              <p className="input-hint" style={{ marginTop: 8 }}>
+                Visitors with ?ref={referralCode || "CODE"} are attributed to you when signup stores referredBy.
+              </p>
+            </div>
+
           </section>
 
           {/* FINANCIALS */}
@@ -684,6 +917,109 @@ export default function AffiliateSettingsClient() {
                   </p>
                 </div>
               </div>
+            </div>
+
+
+            <div className="aff-card settings-island">
+              <div className="island-header">
+                <h3>Earnings snapshot</h3>
+              </div>
+              <div className="settings-grid-duo">
+                <div className="input-group-glass" style={{ flexDirection: "column" }}>
+                  <label>Lifetime</label>
+                  <strong style={{ fontSize: "1.4rem" }}>${earnLifetime.toFixed(2)}</strong>
+                </div>
+                <div className="input-group-glass" style={{ flexDirection: "column" }}>
+                  <label>This month</label>
+                  <strong style={{ fontSize: "1.4rem" }}>${earnMonth.toFixed(2)}</strong>
+                </div>
+                <div className="input-group-glass" style={{ flexDirection: "column" }}>
+                  <label>Available</label>
+                  <strong style={{ fontSize: "1.4rem", color: "#2ed573" }}>
+                    ${earnAvailable.toFixed(2)}
+                  </strong>
+                </div>
+                <div className="input-group-glass" style={{ flexDirection: "column" }}>
+                  <label>Pending payout</label>
+                  <strong style={{ fontSize: "1.4rem" }}>${earnPending.toFixed(2)}</strong>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-main-red"
+                style={{ marginTop: 16 }}
+                disabled={payoutBusy || earnAvailable < minPayout}
+                onClick={requestPayout}
+              >
+                {payoutBusy
+                  ? "Submitting…"
+                  : earnAvailable < minPayout
+                    ? `Min. payout $${minPayout}`
+                    : `Request payout ($${earnAvailable.toFixed(2)})`}
+              </button>
+            </div>
+
+            <div className="aff-card settings-island">
+              <div className="island-header">
+                <h3>Recent conversions</h3>
+              </div>
+              {conversions.length === 0 ? (
+                <p className="input-hint">
+                  No referred signups yet. Share your link to get started.
+                </p>
+              ) : (
+                conversions.map((c) => (
+                  <div key={c.id} className="api-key-item" style={{ marginBottom: 8 }}>
+                    <div className="key-details">
+                      <strong>{c.name}</strong>
+                      <p>
+                        {c.role || "user"}
+                        {c.verified ? " · verified" : ""}
+                        {c.joinedAt
+                          ? ` · ${new Date(c.joinedAt).toLocaleDateString()}`
+                          : ""}
+                      </p>
+                    </div>
+                    <span className={`tag-status ${c.verified ? "green" : "orange"}`}>
+                      {c.verified ? "OK" : "Pending"}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="aff-card settings-island">
+              <div className="island-header">
+                <h3>Payout history</h3>
+              </div>
+              {payouts.length === 0 ? (
+                <p className="input-hint">No payout requests yet.</p>
+              ) : (
+                payouts.map((row) => (
+                  <div key={row._id} className="api-key-item" style={{ marginBottom: 8 }}>
+                    <div className="key-details">
+                      <strong>${Number(row.amount).toFixed(2)}</strong>
+                      <p>
+                        {row.method || "—"} ·{" "}
+                        {row.createdAt
+                          ? new Date(row.createdAt).toLocaleString()
+                          : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={`tag-status ${
+                        row.status === "paid" || row.status === "approved"
+                          ? "green"
+                          : row.status === "rejected"
+                            ? "orange"
+                            : "orange"
+                      }`}
+                    >
+                      {row.status}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="aff-card settings-island">
@@ -904,6 +1240,19 @@ export default function AffiliateSettingsClient() {
                   <p className="input-hint">Your referral code: {referralCode}</p>
                 )}
               </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+                <button type="button" className="btn-main-red" onClick={saveTracking}>
+                  Save tracking prefs
+                </button>
+                <button
+                  type="button"
+                  className="btn-glass-small"
+                  style={{ color: "#333", border: "1px solid #ccc" }}
+                  onClick={testPostback}
+                >
+                  Test postback
+                </button>
+              </div>
             </div>
           </section>
 
@@ -1117,6 +1466,19 @@ export default function AffiliateSettingsClient() {
                   >
                     Generate Custom Banner
                   </button>
+                  <button
+                    type="button"
+                    className="btn-glass-small"
+                    style={{
+                      marginTop: 10,
+                      width: "100%",
+                      color: "#333",
+                      border: "1px solid #ccc",
+                    }}
+                    onClick={downloadBanner}
+                  >
+                    <i className="fas fa-download" /> Download SVG
+                  </button>
                 </div>
                 <div className="ai-preview-window">
                   {previewSrc ? (
@@ -1223,7 +1585,9 @@ export default function AffiliateSettingsClient() {
                   className="copy-btn-dark"
                   onClick={() =>
                     copyText(
-                      "Stop hunting for clients. Start building on Thick 9. 🚀 #FreelanceLife"
+                      withRef(
+                        "Stop hunting for clients. Start building on Thick 9. 🚀 #FreelanceLife"
+                      )
                     )
                   }
                 >
