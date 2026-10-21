@@ -156,7 +156,7 @@ export default function AffiliateSettingsClient() {
   const [taxId, setTaxId] = useState("");
   const [cookieDays, setCookieDays] = useState("90");
   const [postbackUrl, setPostbackUrl] = useState("");
-  const [referralCode, setReferralCode] = useState("");
+  // referralCode is declared in Overview batch above
 
   // Security
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
