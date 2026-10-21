@@ -1320,20 +1320,49 @@ router.post(
         order.disputeReason = `${order.disputeReason || ''}\n\n[Admin resolution] ${note}`.slice(0, 2000);
       }
 
-      // Outcome mapping (ledger/payout automation can hook here later)
-      if (resolution === 'refund_buyer' || resolution === 'withdrawn') {
+      const paidTotal = Number(
+        order.grandTotal ?? order.subtotal ?? order.basePackagePrice ?? 0
+      );
+
+      // Outcome + buyer refund ledger (provider refund hooks when paymentIntentId exists)
+      if (resolution === 'refund_buyer') {
         order.status = 'cancelled';
+        order.refundAmount = paidTotal;
+        order.refundStatus = 'pending';
+        order.refundedAt = new Date();
+        order.refundNote = note || 'Full refund to buyer (dispute).';
+      } else if (resolution === 'withdrawn') {
+        order.status = 'cancelled';
+        if (!order.refundStatus || order.refundStatus === 'none') {
+          order.refundAmount = 0;
+          order.refundStatus = 'none';
+        }
       } else if (resolution === 'pay_seller') {
         order.status = 'completed';
+        order.refundAmount = 0;
+        order.refundStatus = 'none';
         if (!order.escrowReleaseDate) {
           const release = new Date();
           release.setDate(release.getDate() + 14);
           order.escrowReleaseDate = release;
         }
       } else if (resolution === 'partial') {
-        // Keep completed for seller portion; note amount for finance
+        const buyerRefund = Math.min(
+          Number.isFinite(partialAmount) ? partialAmount : 0,
+          paidTotal
+        );
+        const sellerPortion = Math.max(0, paidTotal - buyerRefund);
         order.status = 'completed';
-        order.deliveryNote = `${order.deliveryNote || ''}\nPartial resolve amount: $${partialAmount}`.slice(0, 2000);
+        order.refundAmount = buyerRefund;
+        order.refundStatus = buyerRefund > 0 ? 'pending' : 'none';
+        order.refundedAt = buyerRefund > 0 ? new Date() : null;
+        order.refundNote =
+          note ||
+          `Partial: $${buyerRefund.toFixed(2)} to buyer, $${sellerPortion.toFixed(2)} to seller.`;
+        order.deliveryNote = `${order.deliveryNote || ''}\nPartial resolve: refund $${buyerRefund} / seller $${sellerPortion}`.slice(
+          0,
+          2000
+        );
         if (!order.escrowReleaseDate) {
           const release = new Date();
           release.setDate(release.getDate() + 14);
@@ -1346,7 +1375,13 @@ router.post(
       try {
         const Notification = require('../models/Notification');
         const short = String(order._id).slice(-6).toUpperCase();
-        const msg = `Dispute on order #${short} resolved: ${resolution.replace(/_/g, ' ')}.`;
+        let msg = `Dispute on order #${short} resolved: ${resolution.replace(/_/g, ' ')}.`;
+        if (
+          (resolution === 'refund_buyer' || resolution === 'partial') &&
+          Number(order.refundAmount) > 0
+        ) {
+          msg += ` Refund $${Number(order.refundAmount).toFixed(2)} marked ${order.refundStatus}.`;
+        }
         await Notification.create({
           userId: order.clientId,
           type: 'dispute_resolved',
@@ -1396,6 +1431,10 @@ router.post(
           status: order.status,
           disputeResolution: order.disputeResolution,
           disputeResolvedAt: order.disputeResolvedAt,
+          refundAmount: order.refundAmount || 0,
+          refundStatus: order.refundStatus || 'none',
+          refundedAt: order.refundedAt || null,
+          refundNote: order.refundNote || '',
         },
       });
     } catch (err) {

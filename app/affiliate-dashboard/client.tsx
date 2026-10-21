@@ -686,8 +686,10 @@ export default function AffiliateDashboardClient() {
 
     const controller = new AbortController();
 
-    fetch('/api/affiliate/payouts', {
+    // System B — AffiliatePayoutRequest list
+    fetch('/api/affiliate-settings/payouts', {
       headers: { Authorization: `Bearer ${authToken}` },
+      credentials: 'include',
       signal: controller.signal,
     })
       .then((res) => {
@@ -892,34 +894,45 @@ export default function AffiliateDashboardClient() {
     setIsSubmittingWithdraw(true);
 
     try {
-      const res = await fetch('/api/affiliate/withdraw', {
+      // System B — wallet + AffiliatePayoutRequest (not /api/affiliate/withdraw)
+      const res = await fetch('/api/affiliate-settings/payouts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          Authorization: `Bearer ${authToken}`,
         },
+        credentials: 'include',
         body: JSON.stringify({
           amount: amountNum,
-          method: withdrawMethod
-        })
+          // method is stored on user.payoutDetails server-side; optional note only
+          note: withdrawMethod ? `Preferred method: ${withdrawMethod}` : undefined,
+        }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok && data.success) {
-        setAvailableBalance((prev) => parseFloat((prev - amountNum).toFixed(2)));
-        setPendingBalance((prev) => parseFloat((prev + amountNum).toFixed(2)));
-        setPayoutsHistory((prev) => [data.withdrawal, ...prev]);
+        const paid = Number(data.payout?.amount ?? amountNum);
+        setAvailableBalance((prev) =>
+          parseFloat(Math.max(0, prev - paid).toFixed(2))
+        );
+        setPendingBalance((prev) => parseFloat((prev + paid).toFixed(2)));
+        if (data.payout) {
+          setPayoutsHistory((prev) => [data.payout, ...prev]);
+        }
 
         setIsWithdrawModalOpen(false);
         setWithdrawAmount('');
-        triggerToast("Withdrawal request submitted!");
+        triggerToast(data.message || 'Withdrawal request submitted!');
       } else {
-        triggerToast(data.message || "Withdrawal failed", "removed");
+        triggerToast(
+          data.message || data.error || 'Withdrawal failed',
+          'removed'
+        );
       }
     } catch (err) {
-      console.error("Error requesting withdrawal:", err);
-      triggerToast("Server error requesting withdrawal", "removed");
+      console.error('Error requesting withdrawal:', err);
+      triggerToast('Server error requesting withdrawal', 'removed');
     } finally {
       setIsSubmittingWithdraw(false);
     }

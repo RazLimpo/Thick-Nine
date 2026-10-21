@@ -45,6 +45,11 @@ type OrderDetail = {
   disputeReason?: string;
   disputedAt?: string | null;
   disputeResolution?: string;
+  disputeResolvedAt?: string | null;
+  refundAmount?: number;
+  refundStatus?: "none" | "pending" | "succeeded" | "failed" | string;
+  refundedAt?: string | null;
+  refundNote?: string;
   deliveredAt?: string | null;
   buyerRating?: number | null;
   buyerReview?: string;
@@ -1363,6 +1368,50 @@ export default function OrderSuccessClient({
                 </div>
               )}
 
+              {/* Buyer refund after dispute resolve */}
+              {order.refundStatus &&
+                order.refundStatus !== "none" &&
+                Number(order.refundAmount) > 0 && (
+                  <div
+                    style={{
+                      marginBottom: 20,
+                      padding: 16,
+                      borderRadius: 12,
+                      border: "1px solid #bbf7d0",
+                      background: "#f0fdf4",
+                      color: "#166534",
+                    }}
+                  >
+                    <strong>
+                      <i className="fas fa-undo" /> Refund{" "}
+                      {order.refundStatus === "succeeded"
+                        ? "completed"
+                        : order.refundStatus === "failed"
+                          ? "failed"
+                          : "recorded"}
+                    </strong>
+                    <p style={{ margin: "8px 0 0" }}>
+                      Amount: <strong>{money(order.refundAmount)}</strong>
+                      {order.disputeResolution
+                        ? ` · ${String(order.disputeResolution).replace(/_/g, " ")}`
+                        : ""}
+                    </p>
+                    {order.refundNote ? (
+                      <p style={{ margin: "6px 0 0", fontSize: "0.9rem" }}>
+                        {order.refundNote}
+                      </p>
+                    ) : null}
+                    {order.refundedAt ? (
+                      <p style={{ margin: "6px 0 0", fontSize: "0.85rem" }}>
+                        {formatDate(order.refundedAt)} · Status:{" "}
+                        {order.refundStatus}
+                        {order.refundStatus === "pending"
+                          ? " (provider transfer when payment gateway is live)"
+                          : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
 
               {/* Invoice download */}
               {(role === "client" || role === "seller") &&

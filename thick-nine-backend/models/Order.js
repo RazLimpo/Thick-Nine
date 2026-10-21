@@ -110,6 +110,19 @@ const OrderSchema = new mongoose.Schema(
       default: "none",
     },
 
+    // Refund ledger (buyer) — provider API hooks in when paymentIntentId exists
+    refundAmount: { type: Number, default: 0 },
+    refundStatus: {
+      type: String,
+      enum: ["none", "pending", "succeeded", "failed"],
+      default: "none",
+    },
+    refundedAt: { type: Date, default: null },
+    refundNote: { type: String, default: "", maxlength: 1000 },
+    /** Set at checkout when real processor is wired */
+    paymentIntentId: { type: String, default: null },
+    paymentProvider: { type: String, default: null }, // stripe | paystack | etc.
+
     buyerRating: { type: Number, min: 1, max: 5, default: null },
     buyerReview: { type: String, default: "", maxlength: 2000 },
     ratedAt: { type: Date, default: null },
