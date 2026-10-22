@@ -19,6 +19,7 @@ const Order = require("../models/Order");
 const Transaction = require("../models/Transaction");
 const Admin = require('../models/Admin');
 const AuditLog = require('../models/AuditLog');
+const AffiliatePayoutRequest = require('../models/AffiliatePayoutRequest');
 
 // ==================================================================
 // ADMIN ROUTE SECURITY
@@ -1689,6 +1690,228 @@ router.delete(
       return res.status(500).json({
         success: false,
         message: 'Failed to delete user.',
+      });
+    }
+  }
+);
+
+
+// ==================================================================
+// AFFILIATE PAYOUT QUEUE (System B — AffiliatePayoutRequest)
+// ==================================================================
+
+/**
+ * GET /api/admin/affiliate-payouts
+ * Query: ?status=pending|paid|rejected|approved|all  (default pending)
+ */
+router.get(
+  '/affiliate-payouts',
+  auth,
+  adminContext,
+  requirePermission('payouts:read'),
+  async (req, res) => {
+    try {
+      const statusQ = String(req.query.status || 'pending').toLowerCase();
+      const filter = {};
+      if (statusQ && statusQ !== 'all') {
+        filter.status = statusQ;
+      }
+
+      const rows = await AffiliatePayoutRequest.find(filter)
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .populate('user', 'fullName displayName email username wallet payoutDetails referralCode')
+        .lean();
+
+      const pendingCount = await AffiliatePayoutRequest.countDocuments({
+        status: 'pending',
+      });
+      const pendingSumAgg = await AffiliatePayoutRequest.aggregate([
+        { $match: { status: 'pending' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]);
+
+      return res.json({
+        success: true,
+        payouts: rows,
+        summary: {
+          pendingCount,
+          pendingAmount: pendingSumAgg[0]?.total || 0,
+        },
+      });
+    } catch (err) {
+      console.error('GET affiliate-payouts:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to load affiliate payouts.',
+      });
+    }
+  }
+);
+
+/**
+ * PATCH /api/admin/affiliate-payouts/:id
+ * body: { action: 'approve' | 'paid' | 'reject', adminNote? }
+ *
+ * approve — mark approved (still held in pendingBalance)
+ * paid    — mark paid; clear hold from pendingBalance; bump lifetimeWithdrawals
+ * reject  — mark rejected; restore amount to availableBalance from pending
+ */
+router.patch(
+  '/affiliate-payouts/:id',
+  auth,
+  adminContext,
+  requirePermission('payouts:read'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const action = String(req.body?.action || '').toLowerCase();
+      const adminNote = String(req.body?.adminNote || '')
+        .trim()
+        .slice(0, 500);
+
+      if (!['approve', 'paid', 'reject'].includes(action)) {
+        return res.status(400).json({
+          success: false,
+          message: "action must be 'approve', 'paid', or 'reject'.",
+        });
+      }
+
+      const payout = await AffiliatePayoutRequest.findById(id);
+      if (!payout) {
+        return res.status(404).json({
+          success: false,
+          message: 'Payout request not found.',
+        });
+      }
+
+      if (['paid', 'rejected', 'cancelled'].includes(payout.status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Request already ${payout.status}.`,
+        });
+      }
+
+      const user = await User.findById(payout.user);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Affiliate user not found.',
+        });
+      }
+
+      if (!user.wallet) {
+        user.wallet = {
+          availableBalance: 0,
+          pendingBalance: 0,
+          lifetimeEarnings: 0,
+          lifetimeWithdrawals: 0,
+        };
+      }
+
+      const amount = Number(payout.amount) || 0;
+
+      if (action === 'approve') {
+        payout.status = 'approved';
+        if (adminNote) payout.adminNote = adminNote;
+        await payout.save();
+      } else if (action === 'paid') {
+        const pending = Number(user.wallet.pendingBalance || 0);
+        user.wallet.pendingBalance = Math.max(0, pending - amount);
+        user.wallet.lifetimeWithdrawals =
+          Number(user.wallet.lifetimeWithdrawals || 0) + amount;
+        await user.save();
+
+        payout.status = 'paid';
+        payout.processedAt = new Date();
+        if (adminNote) payout.adminNote = adminNote;
+        await payout.save();
+
+        try {
+          await Transaction.create({
+            userId: user._id,
+            type: 'payout',
+            payoutMethod: (payout.method || 'payoneer').toLowerCase(),
+            payoneerEmail: payout.destination?.email || '',
+            amount,
+            status: 'completed',
+            payoutType: 'affiliate_commission',
+            note: `Admin paid AffiliatePayoutRequest ${payout._id}`,
+          });
+        } catch (_) {}
+      } else if (action === 'reject') {
+        const pending = Number(user.wallet.pendingBalance || 0);
+        const available = Number(user.wallet.availableBalance || 0);
+        user.wallet.pendingBalance = Math.max(0, pending - amount);
+        user.wallet.availableBalance = available + amount;
+        await user.save();
+
+        payout.status = 'rejected';
+        payout.processedAt = new Date();
+        if (adminNote) payout.adminNote = adminNote;
+        await payout.save();
+      }
+
+      try {
+        await AuditLog.create({
+          actor: {
+            id: req.admin?.id || req.user?.id,
+            name: req.admin?.name || '',
+            email: req.admin?.email || '',
+            role: req.admin?.role || 'admin',
+          },
+          target: {
+            id: payout._id,
+            name: `Affiliate payout $${amount}`,
+            email: user.email || '',
+            role: 'affiliate',
+          },
+          action: `affiliate_payout_${action}`,
+          oldPermissions: [],
+          newPermissions: [],
+          details: `${action} payout ${payout._id} for user ${user._id}. ${adminNote}`.trim(),
+        });
+      } catch (_) {}
+
+      try {
+        const Notification = require('../models/Notification');
+        const msg =
+          action === 'paid'
+            ? `Your affiliate payout of $${amount.toFixed(2)} was marked paid.`
+            : action === 'reject'
+              ? `Your affiliate payout of $${amount.toFixed(2)} was rejected.`
+              : `Your affiliate payout of $${amount.toFixed(2)} was approved.`;
+        await Notification.create({
+          userId: user._id,
+          type: 'affiliate_payout',
+          title: 'Payout update',
+          message: msg,
+          link: '/affiliate-settings',
+          read: false,
+        });
+      } catch (_) {}
+
+      return res.json({
+        success: true,
+        message: `Payout ${action === 'reject' ? 'rejected' : action === 'paid' ? 'marked paid' : 'approved'}.`,
+        payout: {
+          _id: payout._id,
+          status: payout.status,
+          amount: payout.amount,
+          processedAt: payout.processedAt,
+          adminNote: payout.adminNote,
+        },
+        wallet: {
+          availableBalance: user.wallet.availableBalance,
+          pendingBalance: user.wallet.pendingBalance,
+          lifetimeWithdrawals: user.wallet.lifetimeWithdrawals,
+        },
+      });
+    } catch (err) {
+      console.error('PATCH affiliate-payouts:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to process payout.',
       });
     }
   }

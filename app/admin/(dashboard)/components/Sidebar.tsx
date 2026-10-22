@@ -1,3 +1,4 @@
+// app/admin/components/Sidebar.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -14,24 +15,31 @@ interface NavItem {
   path: string;
   icon: string;
   permission?: string;
-  badgeKey?: "messages" | "orders" | "withdrawals" | "clients";
+  badgeKey?: 'messages' | 'orders' | 'withdrawals' | 'affiliatePayouts' | 'clients';
 }
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', path: '/admin/dashboard', icon: 'fa-chart-line' },
   {
-  name: "Clients",
-  path: "/admin/clients",
-  icon: "fa-users",
-  permission: "users:read",
-  badgeKey: "clients",
-},
+    name: 'Clients',
+    path: '/admin/clients',
+    icon: 'fa-users',
+    permission: 'users:read',
+    badgeKey: 'clients',
+  },
   {
     name: 'Orders & Escrow',
     path: '/admin/orders',
     icon: 'fa-receipt',
     permission: 'orders:read',
     badgeKey: 'orders',
+  },
+  {
+    name: 'Affiliate payouts',
+    path: '/admin/affiliate-payouts',
+    icon: 'fa-hand-holding-usd',
+    permission: 'payouts:read',
+    badgeKey: 'affiliatePayouts',
   },
   {
     name: 'Withdrawals',
@@ -56,12 +64,19 @@ export default function AdminSidebar({ user }: SidebarProps) {
     messages: 0,
     orders: 0,
     withdrawals: 0,
+    affiliatePayouts: 0,
     clients: 0,
   });
 
   useEffect(() => {
     if (!user) {
-      setCounts({ messages: 0, orders: 0, withdrawals: 0, clients: 0 });
+      setCounts({
+        messages: 0,
+        orders: 0,
+        withdrawals: 0,
+        affiliatePayouts: 0,
+        clients: 0,
+      });
       return;
     }
 
@@ -78,15 +93,34 @@ export default function AdminSidebar({ user }: SidebarProps) {
         const data = await res.json().catch(() => ({}));
 
         if (!cancelled && res.ok && data.success && data.counts) {
+          const c = data.counts;
           setCounts({
-            messages: Number(data.counts.messages) || 0,
-            orders: Number(data.counts.orders) || 0,
-            withdrawals: Number(data.counts.withdrawals) || 0,
-            clients: Number(data.counts.clients) || 0,
+            messages: Number(c.messages) || 0,
+            orders: Number(c.orders) || 0,
+            withdrawals: Number(c.withdrawals) || 0,
+            // Prefer dedicated field; fall back to pending affiliate if API adds it later
+            affiliatePayouts:
+              Number(c.affiliatePayouts ?? c.affiliate_payouts ?? 0) || 0,
+            clients: Number(c.clients) || 0,
           });
         }
       } catch (err) {
         console.error('Sidebar notification counts failed:', err);
+      }
+
+      // Optional: pending affiliate payout count from System B queue
+      try {
+        const res2 = await fetch(
+          '/api/admin/affiliate-payouts?status=pending',
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data2 = await res2.json().catch(() => ({}));
+        if (!cancelled && res2.ok && data2.success) {
+          const n = Number(data2.summary?.pendingCount) || 0;
+          setCounts((prev) => ({ ...prev, affiliatePayouts: n }));
+        }
+      } catch {
+        /* queue proxy may not be live yet */
       }
     }
 
@@ -116,16 +150,18 @@ export default function AdminSidebar({ user }: SidebarProps) {
 
           const isActive = pathname.startsWith(item.path);
 
-         const badgeCount =
-  item.badgeKey === "messages"
-    ? counts.messages
-    : item.badgeKey === "orders"
-      ? counts.orders
-      : item.badgeKey === "withdrawals"
-        ? counts.withdrawals
-        : item.badgeKey === "clients"
-          ? counts.clients
-          : 0;
+          const badgeCount =
+            item.badgeKey === 'messages'
+              ? counts.messages
+              : item.badgeKey === 'orders'
+                ? counts.orders
+                : item.badgeKey === 'withdrawals'
+                  ? counts.withdrawals
+                  : item.badgeKey === 'affiliatePayouts'
+                    ? counts.affiliatePayouts
+                    : item.badgeKey === 'clients'
+                      ? counts.clients
+                      : 0;
 
           return (
             <Link
