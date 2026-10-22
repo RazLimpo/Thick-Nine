@@ -1373,17 +1373,17 @@ export default function AffiliateDashboardClient() {
           <li>
             <i className="fas fa-ad"></i>
             <div><strong>Banner Ads</strong><p>Download brand banners</p></div>
-            <a href="assets/banners.zip"><i className="fas fa-images"></i></a>
+            <a href="/assets/banners.zip" download><i className="fas fa-images"></i></a>
           </li>
           <li>
             <i className="fas fa-vial"></i>
             <div><strong>Official Logos</strong><p>High-res transparent PNGs</p></div>
-            <a href="assets/logos.zip"><i className="fas fa-images"></i></a>
+            <a href="/assets/logos.zip" download><i className="fas fa-images"></i></a> 
           </li>
           <li>
             <i className="fab fa-instagram"></i>
             <div><strong>Social Kit</strong><p>Ready-to-post story templates</p></div>
-            <a href="assets/social-pack.zip"><i className="fas fa-images"></i></a>
+            <a href="/assets/social-pack.zip" download><i className="fas fa-images"></i></a>
           </li>
         </ul>
         
