@@ -275,6 +275,8 @@ export default function AffiliateDashboardClient() {
 
   // Modals State
   const [isMediaKitOpen, setIsMediaKitOpen] = useState<boolean>(false);
+  const [mediaKitTab, setMediaKitTab] = useState<'all' | 'banners' | 'logos' | 'social'>('all');
+  const [mediaKitAudience, setMediaKitAudience] = useState<'all' | 'buyers' | 'freelancers' | 'affiliates'>('all');  
   const [isDeleteVideoModalOpen, setIsDeleteVideoModalOpen] = useState<boolean>(false);
   const [serviceToRemove, setServiceToRemove] = useState<string | number | null>(null);
 
@@ -2420,7 +2422,8 @@ export default function AffiliateDashboardClient() {
   </div>
 )}
 
-{/* BRAND MEDIA KIT MODAL */}
+
+       {/* BRAND MEDIA KIT MODAL */}
 {isMediaKitOpen && (
   <div 
     className="modal-overlay is-active" 
@@ -2441,58 +2444,588 @@ export default function AffiliateDashboardClient() {
         <button onClick={() => setIsMediaKitOpen(false)} className="close-btn" aria-label="Close modal">&times;</button>
       </div>
 
+      {/* TIER 1: PRIMARY ASSET TABS */}
       <div className="gallery-filter-bar">
-        <button type="button" className="filter-btn active">All Assets</button>
-        <button type="button" className="filter-btn">Banners</button>
-        <button type="button" className="filter-btn">Logos</button>
-        <button type="button" className="filter-btn">Social</button>
+        <button 
+          type="button" 
+          className={`filter-btn ${mediaKitTab === 'all' ? 'active' : ''}`}
+          onClick={() => { setMediaKitTab('all'); setMediaKitAudience('all'); }}
+        >
+          All Assets
+        </button>
+        <button 
+          type="button" 
+          className={`filter-btn ${mediaKitTab === 'banners' ? 'active' : ''}`}
+          onClick={() => setMediaKitTab('banners')}
+        >
+          Banners
+        </button>
+        <button 
+          type="button" 
+          className={`filter-btn ${mediaKitTab === 'logos' ? 'active' : ''}`}
+          onClick={() => { setMediaKitTab('logos'); setMediaKitAudience('all'); }}
+        >
+          Logos
+        </button>
+        <button 
+          type="button" 
+          className={`filter-btn ${mediaKitTab === 'social' ? 'active' : ''}`}
+          onClick={() => setMediaKitTab('social')}
+        >
+          Social Kits
+        </button>
       </div>
 
-      <div className="gallery-grid">
-        <div className="gallery-item">
-          <div className="item-preview">
-            <Image
-              src="https://via.placeholder.com/300x200"
-              alt="Hero Banner Dark Preview"
-              width={300}
-              height={200}
-              unoptimized
-              style={{ width: '100%', height: 'auto' }}
-            />
-          </div>
-          <div className="item-info">
-            <strong>Hero Banner (Dark)</strong>
-            <span>1200 x 600 • JPG</span>
-            <a href="#0" onClick={(e) => e.preventDefault()} className="item-dl-link">
-              <i className="fas fa-download"></i> Download
-            </a>
-          </div>
+      {/* TIER 2: AUDIENCE SUB-FILTERS (Only visible for Banners, Social Kits, or All Assets) */}
+      {(mediaKitTab === 'banners' || mediaKitTab === 'social' || mediaKitTab === 'all') && (
+        <div className="gallery-subfilter-bar" style={{ display: 'flex', gap: '8px', padding: '0 20px 15px', overflowX: 'auto' }}>
+          <button 
+            type="button" 
+            className={`subfilter-btn ${mediaKitAudience === 'all' ? 'active' : ''}`}
+            onClick={() => setMediaKitAudience('all')}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '16px',
+              fontSize: '0.8rem',
+              background: mediaKitAudience === 'all' ? 'rgba(255,45,85,0.2)' : 'transparent',
+              color: mediaKitAudience === 'all' ? '#ff2d55' : '#a0aec0',
+              border: '1px solid #ff2d55',
+              cursor: 'pointer'
+            }}
+          >
+            All Audiences
+          </button>
+          <button 
+            type="button" 
+            className={`subfilter-btn ${mediaKitAudience === 'buyers' ? 'active' : ''}`}
+            onClick={() => setMediaKitAudience('buyers')}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '16px',
+              fontSize: '0.8rem',
+              background: mediaKitAudience === 'buyers' ? 'rgba(255,45,85,0.2)' : 'transparent',
+              color: mediaKitAudience === 'buyers' ? '#ff2d55' : '#a0aec0',
+              border: '1px solid #ff2d55',
+              cursor: 'pointer'
+            }}
+          >
+            For Buyers
+          </button>
+          <button 
+            type="button" 
+            className={`subfilter-btn ${mediaKitAudience === 'freelancers' ? 'active' : ''}`}
+            onClick={() => setMediaKitAudience('freelancers')}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '16px',
+              fontSize: '0.8rem',
+              background: mediaKitAudience === 'freelancers' ? 'rgba(255,45,85,0.2)' : 'transparent',
+              color: mediaKitAudience === 'freelancers' ? '#ff2d55' : '#a0aec0',
+              border: '1px solid #ff2d55',
+              cursor: 'pointer'
+            }}
+          >
+            For Freelancers
+          </button>
+          <button 
+            type="button" 
+            className={`subfilter-btn ${mediaKitAudience === 'affiliates' ? 'active' : ''}`}
+            onClick={() => setMediaKitAudience('affiliates')}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '16px',
+              fontSize: '0.8rem',
+              background: mediaKitAudience === 'affiliates' ? 'rgba(255,45,85,0.2)' : 'transparent',
+              color: mediaKitAudience === 'affiliates' ? '#ff2d55' : '#a0aec0',
+              border: '1px solid #ff2d55',
+              cursor: 'pointer'
+            }}
+          >
+            For Affiliates
+          </button>
         </div>
+      )}
 
-        <div className="gallery-item">
-          <div className="item-preview">
-            <Image
-              src="https://via.placeholder.com/300x200"
-              alt="Primary Logo Transparent Preview"
-              width={300}
-              height={200}
-              unoptimized
-              style={{ width: '100%', height: 'auto' }}
-            />
-          </div>
-          <div className="item-info">
-            <strong>Primary Logo</strong>
-            <span>Transparent • PNG</span>
-            <a href="#0" onClick={(e) => e.preventDefault()} className="item-dl-link">
-              <i className="fas fa-download"></i> Download
-            </a>
-          </div>
+      
+      {/* DYNAMIC GALLERY GRID */}
+<div className="gallery-grid">
+  
+  {/* ---------------- LOGOS ---------------- */}
+  {(mediaKitTab === 'all' || mediaKitTab === 'logos') && mediaKitAudience === 'all' && (
+    <>
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/logos/logo_primary_dark.png" alt="Primary Logo Dark" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
         </div>
+        <div className="item-info">
+          <strong>Primary Logo (For Dark BG)</strong>
+          <span>Transparent • PNG</span>
+          <a href="/assets/logos/logo_primary_dark.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/logos/logo_primary_light.png" alt="Primary Logo Light" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Primary Logo (For Light BG)</strong>
+          <span>Transparent • PNG</span>
+          <a href="/assets/logos/logo_primary_light.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/logos/icon_mark_512x512.png" alt="Icon Mark" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Icon Mark / Avatar</strong>
+          <span>512 x 512 • Transparent PNG</span>
+          <a href="/assets/logos/icon_mark_512x512.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+    </>
+  )}
+
+  {/* ---------------- BANNERS - BUYERS ---------------- */}
+  {(mediaKitTab === 'all' || mediaKitTab === 'banners') && (mediaKitAudience === 'all' || mediaKitAudience === 'buyers') && (
+    <>
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/banners/buyers/sidebar_square_250x250.png" alt="Buyer Sidebar Square" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Square Sidebar)</strong>
+          <span>250 x 250 • PNG</span>
+          <a href="/assets/banners/buyers/sidebar_square_250x250.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/banners/buyers/skyskraper_160x600.png" alt="Buyer Skyscraper" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Skyscraper Banner</strong>
+          <span>160 x 600 • PNG</span>
+          <a href="/assets/banners/buyers/skyskraper_160x600.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+    </>
+  )}
+
+  {/* ---------------- BANNERS - FREELANCERS ---------------- */}
+  {(mediaKitTab === 'all' || mediaKitTab === 'banners') && (mediaKitAudience === 'all' || mediaKitAudience === 'freelancers') && (
+    <div className="gallery-item">
+      <div className="item-preview">
+        <Image src="/assets/banners/freelancers/facebook_feed_1200x630.png" alt="Freelancer Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+      </div>
+      <div className="item-info">
+        <strong>Freelancer Recruitment Banner</strong>
+        <span>1200 x 630 • PNG</span>
+        <a href="/assets/banners/freelancers/facebook_feed_1200x630.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
       </div>
     </div>
-  </div>
-)}
+  )}
 
+  {/* ---------------- BANNERS - AFFILIATES ---------------- */}
+  {(mediaKitTab === 'all' || mediaKitTab === 'banners') && (mediaKitAudience === 'all' || mediaKitAudience === 'affiliates') && (
+    <div className="gallery-item">
+      <div className="item-preview">
+        <Image src="/assets/banners/affiliates/hero_banner_1200x600.png" alt="Affiliate Hero Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+      </div>
+      <div className="item-info">
+        <strong>Affiliate Partner Hero Banner</strong>
+        <span>1200 x 600 • PNG</span>
+        <a href="/assets/banners/affiliates/hero_banner_1200x600.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+      </div>
+    </div>
+  )}
+
+  {/* ---------------- SOCIAL KITS - BUYERS ---------------- */}
+  {(mediaKitTab === 'all' || mediaKitTab === 'social') && (mediaKitAudience === 'all' || mediaKitAudience === 'buyers') && (
+    <>     
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/facebook_cover_851x315.png" alt="Buyer Facebook Cover" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Facebook Cover)</strong>
+          <span>851 x 315 • PNG</span>
+          <a href="/assets/social-kits/buyers/facebook_cover_851x315.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>   
+      
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/facebook_post_1200x630.png" alt="Buyer Facebook Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Facebook Post)</strong>
+          <span>1200 x 630 • PNG</span>
+          <a href="/assets/social-kits/buyers/facebook_post_1200x630.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>    
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/facebook_story_1080x1920.png" alt="Buyer Facebook Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Facebook Story)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/buyers/facebook_story_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/instagram_post_1080x1350.png" alt="Buyer Instagram Portrait Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Instagram Portrait Post)</strong>
+          <span>1080 x 1350 • PNG</span>
+          <a href="/assets/social-kits/buyers/instagram_post_1080x1350.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/instagram_story_1080x1920.png" alt="Buyer Instagram Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Instagram Story)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/buyers/instagram_story_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/pinterest_pin_1000x1500.png" alt="Buyer Pinterest Pin" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Pinterest Pin)</strong>
+          <span>1000 x 1500 • PNG</span>
+          <a href="/assets/social-kits/buyers/pinterest_pin_1000x1500.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+  
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/twitter_header_1500x500.png" alt="Buyer Twitter Header" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Twitter/X Header)</strong>
+          <span>1500 x 500 • PNG</span>
+          <a href="/assets/social-kits/buyers/twitter_header_1500x500.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/twitter_post_1600x900.png" alt="Buyer Twitter Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (Twitter/X Post)</strong>
+          <span>1600 x 900 • PNG</span>
+          <a href="/assets/social-kits/buyers/twitter_post_1600x900.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/whatsapp_post_1600x1200.png" alt="Buyer WhatsApp Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (WhatsApp Direct Post)</strong>
+          <span>1600 x 1200 • PNG</span>
+          <a href="/assets/social-kits/buyers/whatsapp_post_1600x1200.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/whatsapp_status_1080x1920.png" alt="Buyer WhatsApp Status" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (WhatsApp Status)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/buyers/whatsapp_status_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>    
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/buyers/youtube_banner_2560x1440.png" alt="Buyer YouTube Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Buyer Promo (YouTube Banner)</strong>
+          <span>2560 x 1440 • PNG</span>
+          <a href="/assets/social-kits/buyers/youtube_banner_2560x1440.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+    </>
+  )}
+
+  {/* ---------------- SOCIAL KITS - FREELANCERS ---------------- */}
+  {(mediaKitTab === 'all' || mediaKitTab === 'social') && (mediaKitAudience === 'all' || mediaKitAudience === 'freelancers') && (
+    <>    
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/facebook_cover_851x315.png" alt="Freelancer Facebook Cover" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (Facebook Cover)</strong>
+          <span>851 x 315 • PNG</span>
+          <a href="/assets/social-kits/freelancers/facebook_cover_851x315.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+     
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/facebook_post_1200x630.png" alt="Freelancer Facebook Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (Facebook Post)</strong>
+          <span>1200 x 630 • PNG</span>
+          <a href="/assets/social-kits/freelancers/facebook_post_1200x630.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+      
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/facebook_story_1080x1920.png" alt="Freelancer Facebook Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (Facebook Story)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/freelancers/facebook_story_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/instagram_post_1080x1350.png" alt="Freelancer Instagram Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (IG Portrait Post)</strong>
+          <span>1080 x 1350 • PNG</span>
+          <a href="/assets/social-kits/freelancers/instagram_post_1080x1350.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/instagram_story_1080x1920.png" alt="Freelancer Instagram Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (Instagram Story)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/freelancers/instagram_story_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/pinterest_pin_1000x1500.png" alt="Freelancer Pinterest Pin" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (Pinterest Pin)</strong>
+          <span>1000 x 1500 • PNG</span>
+          <a href="/assets/social-kits/freelancers/pinterest_pin_1000x1500.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+  
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/twitter_header_1500x500.png" alt="Freelancer Twitter Header" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (Twitter/X Header)</strong>
+          <span>1500 x 500 • PNG</span>
+          <a href="/assets/social-kits/freelancers/twitter_header_1500x500.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/twitter_post_1600x900.png" alt="Freelancer Twitter Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (Twitter/X Post)</strong>
+          <span>1600 x 900 • PNG</span>
+          <a href="/assets/social-kits/freelancers/twitter_post_1600x900.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+  
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/whatsapp_post_1600x1200.png" alt="Freelancer WhatsApp Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (WhatsApp Direct Post)</strong>
+          <span>1600 x 1200 • PNG</span>
+          <a href="/assets/social-kits/freelancers/whatsapp_post_1600x1200.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/whatsapp_status_1080x1920.png" alt="Freelancer WhatsApp Status" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (WhatsApp Status)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/freelancers/whatsapp_status_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/freelancers/youtube_banner_2560x1440.png" alt="Freelancer YouTube Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Freelancer Recruitment (YouTube Banner)</strong>
+          <span>2560 x 1440 • PNG</span>
+          <a href="/assets/social-kits/freelancers/youtube_banner_2560x1440.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+    </>
+  )}
+
+  {/* ---------------- SOCIAL KITS - AFFILIATES ---------------- */}
+  {(mediaKitTab === 'all' || mediaKitTab === 'social') && (mediaKitAudience === 'all' || mediaKitAudience === 'affiliates') && (
+    <>
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/facebook_cover_851x315.png" alt="Affiliate Facebook Cover" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (Facebook Cover)</strong>
+          <span>851 x 315 • PNG</span>
+          <a href="/assets/social-kits/affiliates/facebook_cover_851x315.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+      
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/facebook_post_1200x630.png" alt="Affiliate Facebook Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (Facebook Post)</strong>
+          <span>1200 x 630 • PNG</span>
+          <a href="/assets/social-kits/affiliates/facebook_post_1200x630.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>    
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/facebook_story_1080x1920.png" alt="Affiliate Facebook Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (Facebook Story)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/affiliates/facebook_story_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/instagram_post_1080x1350.png" alt="Affiliate Instagram Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (IG Portrait Post)</strong>
+          <span>1080 x 1350 • PNG</span>
+          <a href="/assets/social-kits/affiliates/instagram_post_1080x1350.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/instagram_story_1080x1920.png" alt="Affiliate Instagram Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (Instagram Story)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/affiliates/instagram_story_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/pinterest_pin_1000x1500.png" alt="Affiliate Pinterest Pin" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (Pinterest Pin)</strong>
+          <span>1000 x 1500 • PNG</span>
+          <a href="/assets/social-kits/affiliates/pinterest_pin_1000x1500.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+  
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/twitter_header_1500x500.png" alt="Affiliate Twitter Header" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (Twitter/X Header)</strong>
+          <span>1500 x 500 • PNG</span>
+          <a href="/assets/social-kits/affiliates/twitter_header_1500x500.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div> 
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/twitter_post_1600x900.png" alt="Affiliate Twitter Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (Twitter/X Post)</strong>
+          <span>1600 x 900 • PNG</span>
+          <a href="/assets/social-kits/affiliates/twitter_post_1600x900.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+  
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/whatsapp_post_1600x1200.png" alt="Affiliate WhatsApp Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (WhatsApp Direct Post)</strong>
+          <span>1600 x 1200 • PNG</span>
+          <a href="/assets/social-kits/affiliates/whatsapp_post_1600x1200.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/whatsapp_status_1080x1920.png" alt="Affiliate WhatsApp Status" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (WhatsApp Status)</strong>
+          <span>1080 x 1920 • PNG</span>
+          <a href="/assets/social-kits/affiliates/whatsapp_status_1080x1920.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+
+      <div className="gallery-item">
+        <div className="item-preview">
+          <Image src="/assets/social-kits/affiliates/youtube_banner_2560x1440.png" alt="Affiliate YouTube Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        </div>
+        <div className="item-info">
+          <strong>Affiliate Partner Recruitment (YouTube Banner)</strong>
+          <span>2560 x 1440 • PNG</span>
+          <a href="/assets/social-kits/affiliates/youtube_banner_2560x1440.png" download className="item-dl-link"><i className="fas fa-download"></i> Download</a>
+        </div>
+      </div>
+    </>
+  )}
+
+</div>
+      
+    </div>
+  </div>
+)}             
+        
 {/* WITHDRAWAL REQUEST MODAL */}
 {isWithdrawModalOpen && (
   <div 
