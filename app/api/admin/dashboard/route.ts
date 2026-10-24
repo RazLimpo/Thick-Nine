@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import User from '@/thick-nine-backend/models/User';
 import Order from '@/thick-nine-backend/models/Order';
 
+export const dynamic = "force-dynamic";
+
 const MONGODB_URI = process.env.MONGODB_URI || '';
 
 async function connectDB() {
