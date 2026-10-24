@@ -1385,7 +1385,7 @@ export default function AffiliateDashboardClient() {
           <li>
             <i className="fab fa-instagram"></i>
             <div><strong>Social Kit</strong><p>Ready-to-post story templates</p></div>
-            <a href="/assets/social-pack.zip" download><i className="fas fa-images"></i></a>
+            <a href="/assets/social-kits.zip" download><i className="fas fa-images"></i></a>
           </li>
         </ul>
         
