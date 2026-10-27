@@ -17,84 +17,84 @@ const categories: Category[] = [
     name: "ai-services",
     label: "AI",
     displayTitle: "AI Services",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/ai.png",
     className: "bg-ai",
   },
   {
     name: "business-services",
     label: "Professional",
     displayTitle: "Business Services",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/business.png",
     className: "bg-business",
   },
   {
     name: "data-science",
     label: "Analysis",
     displayTitle: "Data Science",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/data.png",
     className: "bg-data",
   },
   {
     name: "digital-marketing",
     label: "Growth",
     displayTitle: "Digital Marketing",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/digital-marketing.png",
     className: "bg-marketing",
   },
   {
     name: "graphics-design",
     label: "Creative",
     displayTitle: "Graphics & Design",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/graphics-design.png",
     className: "bg-graphics",
   },
   {
     name: "music-audio",
     label: "Acoustic",
     displayTitle: "Music and Audio",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/music-n-audio.png",
     className: "bg-music",
   },
   {
     name: "photography",
     label: "Visual",
     displayTitle: "Photography",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/photography.png",
     className: "bg-photography",
   },
   {
     name: "programming-tech",
     label: "Solutions",
     displayTitle: "Programming & Tech",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/programming.png",
     className: "bg-programming",
   },
   {
     name: "travel-lifestyle",
     label: "Lifestyle",
     displayTitle: "Travel & Lifestyle",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/travel-n-lifestyle.png",
     className: "bg-travelling",
   },
   {
     name: "video-animation",
     label: "Motion",
     displayTitle: "Video & Animation",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/video-n-animation.png",
     className: "bg-video",
   },
   {
     name: "writing-translation",
     label: "Contents",
     displayTitle: "Writing & Translation",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/writing-n-translation.png",
     className: "bg-writing",
   },
   {
     name: "miscellaneous",
     label: "General",
     displayTitle: "Miscellaneous (General)",
-    image: "/images/category-sidebar/watch.png",
+    image: "/images/category-sidebar/miscellaneous.png",
     className: "bg-misc",
   },
 ];
@@ -124,8 +124,8 @@ export default function CategorySidebar() {
                   src={category.image}
                   alt={category.displayTitle}
                   fill
-                  sizes="120px"
-                  style={{ objectFit: 'cover' }} /* Changed 'contain' to 'cover' to fill the card */
+                  sizes="130px"
+                  style={{ objectFit: 'contain' }} /* Changed 'contain' to 'cover' to fill the card */
                   priority={category.name === "Graphics" || category.name === "Programming"}
                 />
               </div>
