@@ -2555,7 +2555,7 @@ export default function AffiliateDashboardClient() {
     <>
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/logos/logo_primary_dark.png" alt="Primary Logo Dark" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/logos/logo_primary_dark.png" alt="Primary Logo Dark" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Primary Logo (For Dark BG)</strong>
@@ -2566,7 +2566,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/logos/logo_primary_light.png" alt="Primary Logo Light" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/logos/logo_primary_light.png" alt="Primary Logo Light" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Primary Logo (For Light BG)</strong>
@@ -2577,7 +2577,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/logos/icon_mark_512x512.png" alt="Icon Mark" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/logos/icon_mark_512x512.png" alt="Icon Mark" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Icon Mark / Avatar</strong>
@@ -2593,7 +2593,7 @@ export default function AffiliateDashboardClient() {
     <>
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/banners/buyers/sidebar_square_250x250.png" alt="Buyer Sidebar Square" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/banners/buyers/sidebar_square_250x250.png" alt="Buyer Sidebar Square" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Square Sidebar)</strong>
@@ -2603,7 +2603,7 @@ export default function AffiliateDashboardClient() {
       </div>
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/banners/buyers/skyskraper_160x600.png" alt="Buyer Skyscraper" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/banners/buyers/skyskraper_160x600.png" alt="Buyer Skyscraper" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Skyscraper Banner</strong>
@@ -2618,7 +2618,7 @@ export default function AffiliateDashboardClient() {
   {(mediaKitTab === 'all' || mediaKitTab === 'banners') && (mediaKitAudience === 'all' || mediaKitAudience === 'freelancers') && (
     <div className="gallery-item">
       <div className="item-preview">
-        <Image src="/assets/banners/freelancers/facebook_feed_1200x630.png" alt="Freelancer Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        <Image src="/assets/banners/freelancers/facebook_feed_1200x630.png" alt="Freelancer Banner" width={300} height={200} unoptimized />
       </div>
       <div className="item-info">
         <strong>Freelancer Recruitment Banner</strong>
@@ -2632,7 +2632,7 @@ export default function AffiliateDashboardClient() {
   {(mediaKitTab === 'all' || mediaKitTab === 'banners') && (mediaKitAudience === 'all' || mediaKitAudience === 'affiliates') && (
     <div className="gallery-item">
       <div className="item-preview">
-        <Image src="/assets/banners/affiliates/hero_banner_1200x600.png" alt="Affiliate Hero Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+        <Image src="/assets/banners/affiliates/hero_banner_1200x600.png" alt="Affiliate Hero Banner" width={300} height={200} unoptimized />
       </div>
       <div className="item-info">
         <strong>Affiliate Partner Hero Banner</strong>
@@ -2647,7 +2647,7 @@ export default function AffiliateDashboardClient() {
     <>     
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/facebook_cover_851x315.png" alt="Buyer Facebook Cover" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/facebook_cover_851x315.png" alt="Buyer Facebook Cover" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Facebook Cover)</strong>
@@ -2658,7 +2658,7 @@ export default function AffiliateDashboardClient() {
       
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/facebook_post_1200x630.png" alt="Buyer Facebook Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/facebook_post_1200x630.png" alt="Buyer Facebook Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Facebook Post)</strong>
@@ -2669,7 +2669,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/facebook_story_1080x1920.png" alt="Buyer Facebook Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/facebook_story_1080x1920.png" alt="Buyer Facebook Story" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Facebook Story)</strong>
@@ -2680,7 +2680,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/instagram_post_1080x1350.png" alt="Buyer Instagram Portrait Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/instagram_post_1080x1350.png" alt="Buyer Instagram Portrait Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Instagram Portrait Post)</strong>
@@ -2691,7 +2691,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/instagram_story_1080x1920.png" alt="Buyer Instagram Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/instagram_story_1080x1920.png" alt="Buyer Instagram Story" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Instagram Story)</strong>
@@ -2702,7 +2702,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/pinterest_pin_1000x1500.png" alt="Buyer Pinterest Pin" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/pinterest_pin_1000x1500.png" alt="Buyer Pinterest Pin" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Pinterest Pin)</strong>
@@ -2713,7 +2713,7 @@ export default function AffiliateDashboardClient() {
   
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/twitter_header_1500x500.png" alt="Buyer Twitter Header" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/twitter_header_1500x500.png" alt="Buyer Twitter Header" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Twitter/X Header)</strong>
@@ -2724,7 +2724,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/twitter_post_1600x900.png" alt="Buyer Twitter Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/twitter_post_1600x900.png" alt="Buyer Twitter Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (Twitter/X Post)</strong>
@@ -2735,7 +2735,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/whatsapp_post_1600x1200.png" alt="Buyer WhatsApp Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/whatsapp_post_1600x1200.png" alt="Buyer WhatsApp Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (WhatsApp Direct Post)</strong>
@@ -2746,7 +2746,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/whatsapp_status_1080x1920.png" alt="Buyer WhatsApp Status" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/whatsapp_status_1080x1920.png" alt="Buyer WhatsApp Status" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (WhatsApp Status)</strong>
@@ -2757,7 +2757,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/buyers/youtube_banner_2560x1440.png" alt="Buyer YouTube Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/buyers/youtube_banner_2560x1440.png" alt="Buyer YouTube Banner" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Buyer Promo (YouTube Banner)</strong>
@@ -2773,7 +2773,7 @@ export default function AffiliateDashboardClient() {
     <>    
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/facebook_cover_851x315.png" alt="Freelancer Facebook Cover" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/facebook_cover_851x315.png" alt="Freelancer Facebook Cover" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (Facebook Cover)</strong>
@@ -2784,7 +2784,7 @@ export default function AffiliateDashboardClient() {
      
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/facebook_post_1200x630.png" alt="Freelancer Facebook Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/facebook_post_1200x630.png" alt="Freelancer Facebook Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (Facebook Post)</strong>
@@ -2795,7 +2795,7 @@ export default function AffiliateDashboardClient() {
       
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/facebook_story_1080x1920.png" alt="Freelancer Facebook Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/facebook_story_1080x1920.png" alt="Freelancer Facebook Story" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (Facebook Story)</strong>
@@ -2806,7 +2806,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/instagram_post_1080x1350.png" alt="Freelancer Instagram Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/instagram_post_1080x1350.png" alt="Freelancer Instagram Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (IG Portrait Post)</strong>
@@ -2817,7 +2817,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/instagram_story_1080x1920.png" alt="Freelancer Instagram Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/instagram_story_1080x1920.png" alt="Freelancer Instagram Story" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (Instagram Story)</strong>
@@ -2828,7 +2828,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/pinterest_pin_1000x1500.png" alt="Freelancer Pinterest Pin" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/pinterest_pin_1000x1500.png" alt="Freelancer Pinterest Pin" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (Pinterest Pin)</strong>
@@ -2839,7 +2839,7 @@ export default function AffiliateDashboardClient() {
   
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/twitter_header_1500x500.png" alt="Freelancer Twitter Header" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/twitter_header_1500x500.png" alt="Freelancer Twitter Header" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (Twitter/X Header)</strong>
@@ -2850,7 +2850,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/twitter_post_1600x900.png" alt="Freelancer Twitter Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/twitter_post_1600x900.png" alt="Freelancer Twitter Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (Twitter/X Post)</strong>
@@ -2861,7 +2861,7 @@ export default function AffiliateDashboardClient() {
   
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/whatsapp_post_1600x1200.png" alt="Freelancer WhatsApp Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/whatsapp_post_1600x1200.png" alt="Freelancer WhatsApp Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (WhatsApp Direct Post)</strong>
@@ -2872,7 +2872,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/whatsapp_status_1080x1920.png" alt="Freelancer WhatsApp Status" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/whatsapp_status_1080x1920.png" alt="Freelancer WhatsApp Status" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (WhatsApp Status)</strong>
@@ -2883,7 +2883,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/freelancers/youtube_banner_2560x1440.png" alt="Freelancer YouTube Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/freelancers/youtube_banner_2560x1440.png" alt="Freelancer YouTube Banner" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Freelancer Recruitment (YouTube Banner)</strong>
@@ -2899,7 +2899,7 @@ export default function AffiliateDashboardClient() {
     <>
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/facebook_cover_851x315.png" alt="Affiliate Facebook Cover" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/facebook_cover_851x315.png" alt="Affiliate Facebook Cover" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (Facebook Cover)</strong>
@@ -2910,7 +2910,7 @@ export default function AffiliateDashboardClient() {
       
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/facebook_post_1200x630.png" alt="Affiliate Facebook Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/facebook_post_1200x630.png" alt="Affiliate Facebook Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (Facebook Post)</strong>
@@ -2921,7 +2921,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/facebook_story_1080x1920.png" alt="Affiliate Facebook Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/facebook_story_1080x1920.png" alt="Affiliate Facebook Story" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (Facebook Story)</strong>
@@ -2932,7 +2932,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/instagram_post_1080x1350.png" alt="Affiliate Instagram Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/instagram_post_1080x1350.png" alt="Affiliate Instagram Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (IG Portrait Post)</strong>
@@ -2943,7 +2943,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/instagram_story_1080x1920.png" alt="Affiliate Instagram Story" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/instagram_story_1080x1920.png" alt="Affiliate Instagram Story" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (Instagram Story)</strong>
@@ -2954,7 +2954,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/pinterest_pin_1000x1500.png" alt="Affiliate Pinterest Pin" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/pinterest_pin_1000x1500.png" alt="Affiliate Pinterest Pin" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (Pinterest Pin)</strong>
@@ -2965,7 +2965,7 @@ export default function AffiliateDashboardClient() {
   
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/twitter_header_1500x500.png" alt="Affiliate Twitter Header" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/twitter_header_1500x500.png" alt="Affiliate Twitter Header" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (Twitter/X Header)</strong>
@@ -2976,7 +2976,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/twitter_post_1600x900.png" alt="Affiliate Twitter Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/twitter_post_1600x900.png" alt="Affiliate Twitter Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (Twitter/X Post)</strong>
@@ -2987,7 +2987,7 @@ export default function AffiliateDashboardClient() {
   
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/whatsapp_post_1600x1200.png" alt="Affiliate WhatsApp Post" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/whatsapp_post_1600x1200.png" alt="Affiliate WhatsApp Post" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (WhatsApp Direct Post)</strong>
@@ -2998,7 +2998,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/whatsapp_status_1080x1920.png" alt="Affiliate WhatsApp Status" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/whatsapp_status_1080x1920.png" alt="Affiliate WhatsApp Status" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (WhatsApp Status)</strong>
@@ -3009,7 +3009,7 @@ export default function AffiliateDashboardClient() {
 
       <div className="gallery-item">
         <div className="item-preview">
-          <Image src="/assets/social-kits/affiliates/youtube_banner_2560x1440.png" alt="Affiliate YouTube Banner" width={300} height={200} unoptimized style={{ width: '100%', height: 'auto' }} />
+          <Image src="/assets/social-kits/affiliates/youtube_banner_2560x1440.png" alt="Affiliate YouTube Banner" width={300} height={200} unoptimized />
         </div>
         <div className="item-info">
           <strong>Affiliate Partner Recruitment (YouTube Banner)</strong>

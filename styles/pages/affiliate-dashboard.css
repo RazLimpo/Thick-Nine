@@ -17,6 +17,7 @@
     
 
 
+
 /* --- 1. Background & Layout Wrapper --- */
 .aff-dash-bg {
     background-color: var(--bg-light);
@@ -1720,6 +1721,8 @@
     border-radius: 12px;
     border: 1px solid #f1f5f9;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
     transition: transform 0.2s;
 }
 
@@ -1730,19 +1733,26 @@
 
 .item-preview {
     position: relative;
+    width: 100%;
     height: 150px;
+    max-height: 150px;
+    overflow: hidden;      /* crop overflow */
     background: #f8fafc;
+    flex-shrink: 0;
 }
 
 .item-preview img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: contain;   /* or cover if you want edge-to-edge crop */
+    object-position: center;
+    display: block;
 }
 
 
 .item-info {
     padding: 15px;
+    flex: 1;
 }
 
 .item-info strong { display: block; font-size: 0.9rem; margin-bottom: 2px; }
@@ -2160,7 +2170,7 @@
 .prestige-status-card {
   margin-bottom: 25px;
   padding: 28px;
-  background: #faf7f5;
+  background: #f3f4f6;
   border: none;
   border-radius: 22px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
@@ -2501,4 +2511,7 @@
   font-weight: 700;
   color: #1a202c;
 }
+
+
+
 
