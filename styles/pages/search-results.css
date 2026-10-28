@@ -323,7 +323,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .f-icon {
-  color: #e83e8c;
+  color: #007bff;
 }
 
 .mjob-username {
@@ -429,6 +429,41 @@ input[type="range"]::-webkit-slider-thumb {
   background: #f8f9fa;
   border-color: #dc3545;
   color: #dc3545;
+}
+
+
+
+/* --- Result Text Display Styling --- */
+.results-count-row h2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-chip-row {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.query-highlight {
+  font-weight: 700;
+  color: #111827;
 }
 
 

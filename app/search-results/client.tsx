@@ -19,6 +19,7 @@ import { useServices } from "@/hooks/useServices";
 import { useSearchFilters } from "@/hooks/useSearchFilters";
 
 import type { Service } from "@/types/service";
+import { CATEGORIES } from "@/lib/categories";
 
 import "@/styles/pages/search-results.css";
 import "@/styles/pages/service-card.css";
@@ -35,42 +36,54 @@ export default function SearchResultsClient() {
   // ==================================================
   // 2. Search Filters & Pagination
   // ==================================================
-  const {
-    searchTerm,
-    categories,
-    minPrice,
-    maxPrice,
-    locations,
-    delivery,
-    isOnlineOnly,
-    isFeaturedOnly,
-    isProOnly,
-    currentPage,
-    totalPages,
-    totalMatches,
-    paginatedServices,
-    setSearchTerm,
-    setCategories,
-    setMinPrice,
-    setMaxPrice,
-    setLocations,
-    setDelivery,
-    setIsOnlineOnly,
-    setIsFeaturedOnly,
-    setIsProOnly,
-    setCurrentPage,
-    clearAllFilters,
-  } = useSearchFilters(services, 12);
+const {
+  searchTerm,
+  categories,
+  minPrice,
+  maxPrice,
+  locations,
+  delivery,
+  isOnlineOnly,
+  isFeaturedOnly,
+  isProOnly,
+  currentPage,
+  totalPages,
+  totalMatches,
+  paginatedServices,
+  setSearchTerm,
+  setCategories,
+  setMinPrice,
+  setMaxPrice,
+  setLocations,
+  setDelivery,
+  setIsOnlineOnly,
+  setIsFeaturedOnly,
+  setIsProOnly,
+  setCurrentPage,
+  clearAllFilters,
+} = useSearchFilters(services, 12);
 
-  // Apply ?q= from the header search bar into the filter
-  useEffect(() => {
-    const q = searchParams.get("q");
-    if (q != null && q.trim() !== "") {
-      setSearchTerm(q.trim());
-      setCurrentPage(1);
-    }
-  }, [searchParams, setSearchTerm, setCurrentPage]);
+const activeCategoryLabels = useMemo(() => {
+  return (categories || [])
+    .map((slug) => CATEGORIES[slug as keyof typeof CATEGORIES]?.label)
+    .filter(Boolean) as string[];
+}, [categories]);
 
+useEffect(() => {
+  const q = searchParams.get("q");
+  const category = searchParams.get("category");
+  const subcategory = searchParams.get("subcategory");
+
+  const nextSearchText = [q, subcategory]
+    .map((v) => v?.trim())
+    .filter(Boolean)
+    .join(" ");
+
+  setSearchTerm(nextSearchText);
+  setCategories(category?.trim() ? [category.trim()] : []);
+  setCurrentPage(1);
+}, [searchParams, setSearchTerm, setCategories, setCurrentPage]);
+  
   // ==================================================
   // 3. Sidebar Filter State
   // ==================================================
@@ -167,11 +180,12 @@ export default function SearchResultsClient() {
         />
 
         <ResultsControls
-          totalResults={totalMatches}
-          searchQuery={searchTerm}
-          selectedPills={selectedPills}
-          onTogglePill={handleTogglePill}
-        />
+  totalResults={totalMatches}
+  searchQuery={searchTerm}
+  activeCategories={activeCategoryLabels}
+  selectedPills={selectedPills}
+  onTogglePill={handleTogglePill}
+/>
 
         <ResultsGrid services={paginatedServices} isLoading={loading} />
 

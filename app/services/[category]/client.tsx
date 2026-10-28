@@ -29,7 +29,7 @@ export default function CategoryClient({ slug, categoryData }: CategoryClientPro
             return (
               <Link 
                 key={sub} 
-                href={`/services/${slug}?subCategory=${encodedSub}`}
+                href={`/search-results?category=${encodeURIComponent(slug)}&subcategory=${encodeURIComponent(sub)}`}
                 className="subcategory-card"
                 style={{ textDecoration: 'none' }}
               >
