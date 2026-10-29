@@ -38,15 +38,23 @@ export async function getServices(): Promise<any[]> {
 }
 
 /**
- * Fetch a single active service by ID.
- * Returns null when the service is missing or not active.
+ * Fetch a single service by ID.
+ * Optional `extraHeaders` (Authorization / Cookie) let the backend return
+ * paused/draft when the caller is the seller (owner preview).
+ * Returns null when missing or not visible to this caller.
  */
-export async function getServiceById(id: string): Promise<Service | null> {
+export async function getServiceById(
+  id: string,
+  extraHeaders?: Record<string, string>
+): Promise<Service | null> {
   if (!id) return null;
 
   const response = await fetch(`${API_BASE_URL}/api/services/${id}`, {
     method: "GET",
-    headers: { Accept: "application/json" },
+    headers: {
+      Accept: "application/json",
+      ...(extraHeaders || {}),
+    },
     cache: "no-store",
   });
 

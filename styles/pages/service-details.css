@@ -1144,3 +1144,69 @@ color: #e11d48;
 opacity: 0.7;
 cursor: wait;
 }
+
+/* Paused public listing banner */
+.service-paused-banner {
+display: flex;
+gap: 12px;
+align-items: flex-start;
+margin: 12px 0 20px;
+padding: 14px 16px;
+border-radius: 10px;
+background: #fff7ed;
+border: 1px solid #fdba74;
+color: #9a3412;
+}
+.service-paused-banner i {
+font-size: 1.4rem;
+margin-top: 2px;
+color: #ea580c;
+}
+.service-paused-banner strong {
+display: block;
+font-size: 0.95rem;
+margin-bottom: 4px;
+}
+.service-paused-banner p {
+margin: 0;
+font-size: 0.88rem;
+line-height: 1.4;
+color: #c2410c;
+}
+.service-details-main .order-card.is-paused-cta,
+.service-details-main button.continue-btn:disabled {
+opacity: 0.55;
+cursor: not-allowed;
+}
+
+
+/* Owner-only paused preview + unavailable state */
+.service-unavailable-box {
+text-align: center;
+padding: 64px 20px;
+max-width: 480px;
+margin: 40px auto;
+color: #64748b;
+}
+.service-unavailable-box i {
+font-size: 2.5rem;
+color: #94a3b8;
+margin-bottom: 12px;
+display: block;
+}
+.service-unavailable-box h1 {
+font-size: 1.4rem;
+color: #334155;
+margin-bottom: 8px;
+}
+.service-draft-banner {
+background: #f8fafc;
+border-color: #cbd5e1;
+color: #475569;
+}
+.service-draft-banner i {
+color: #64748b;
+}
+.service-draft-banner p {
+color: #64748b;
+}

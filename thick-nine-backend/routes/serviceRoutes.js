@@ -1242,8 +1242,21 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 });
 
 // =====================================================
-// 16. GET /api/services/:id  — public single active service (LAST)
+// 16. GET /api/services/:id  — public active; owner may preview paused/draft (LAST)
 // =====================================================
+function optionalUserIdFromReq(req) {
+  try {
+    const h = req.headers.authorization || "";
+    const token = h.startsWith("Bearer ") ? h.slice(7) : null;
+    if (!token) return null;
+    const jwt = require("jsonwebtoken");
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    return payload.id || payload._id || payload.userId || null;
+  } catch {
+    return null;
+  }
+}
+
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -1255,18 +1268,38 @@ router.get("/:id", async (req, res) => {
       });
     }
 
-    const service = await Service.findOne({ _id: id, status: "active" })
+    // Load without status filter first — then enforce visibility rules
+    const service = await Service.findById(id)
       .populate(
-  "sellerId",
-  "fullName displayName avatar averageRating location onlineStatus lastSeen isVerified planType level professionalTitle metrics memberSince"
-)
+        "sellerId",
+        "fullName displayName avatar averageRating location onlineStatus lastSeen isVerified planType level professionalTitle metrics memberSince"
+      )
       .lean();
 
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: "Service not found or not active.",
+        message: "Service not found.",
       });
+    }
+
+    const status = String(service.status || "active").toLowerCase();
+    const viewerId = optionalUserIdFromReq(req);
+    const sellerId = String(
+      service.sellerId?._id || service.sellerId || ""
+    );
+    const isOwner =
+      Boolean(viewerId) && Boolean(sellerId) && String(viewerId) === sellerId;
+
+    // Marketplace strangers: active only
+    // Owner: active + paused + draft (preview from Service Management)
+    if (status !== "active") {
+      if (!isOwner || !["paused", "draft"].includes(status)) {
+        return res.status(404).json({
+          success: false,
+          message: "Service not found or not available.",
+        });
+      }
     }
 
     return res.status(200).json({

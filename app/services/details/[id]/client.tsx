@@ -78,6 +78,8 @@ export default function ServiceDetailsClient({
   const router = useRouter();
   const [messaging, setMessaging] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
+  /** null = still checking auth; true = logged-in seller of this service */
+  const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [favBusy, setFavBusy] = useState(false);
 
   const packages = service.packages || {};
@@ -155,6 +157,30 @@ export default function ServiceDetailsClient({
     ? `/freelancer-profile?id=${encodeURIComponent(sellerId)}`
     : "/freelancer-profile";
   const serviceId = String(service.id || service._id || "").trim();
+  const serviceStatus = String(
+    (service as Service & { status?: string }).status || "active"
+  ).toLowerCase();
+  const isPaused = serviceStatus === "paused";
+  const isDraft = serviceStatus === "draft";
+  const isPubliclyListed = serviceStatus === "active";
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      setIsOwner(false);
+      return;
+    }
+    const token = localStorage.getItem("token");
+    const myId =
+      localStorage.getItem("userId") ||
+      localStorage.getItem("id") ||
+      "";
+    if (!token || !myId || !sellerId) {
+      setIsOwner(false);
+      return;
+    }
+    setIsOwner(String(myId) === String(sellerId));
+  }, [sellerId]);
+
   const rating = service.rating ?? 0;
   const reviewsCount = service.reviewsCount ?? 0;
 
@@ -432,6 +458,10 @@ export default function ServiceDetailsClient({
   };
 
   const proceedToCheckout = () => {
+    if (isPaused) {
+      showToast("This service is paused and cannot accept new orders.", "error");
+      return;
+    }
     const serviceId = service.id || service._id || "";
     const sellerId = seller?._id || seller?.id || "";
 
@@ -476,6 +506,24 @@ export default function ServiceDetailsClient({
     window.location.href = `/client-checkout?${params.toString()}`;
   };
 
+  // Non-owners must not see paused/draft public page
+  if (!isPubliclyListed && isOwner === false) {
+    return (
+      <main className="service-details-main">
+        <div className="container service-unavailable-box">
+          <i className="fas fa-eye-slash" aria-hidden />
+          <h1>Service not available</h1>
+          <p>
+            This service is not currently listed on the marketplace.
+          </p>
+          <Link href="/" className="btn-primary" style={{ marginTop: 16, display: "inline-block" }}>
+            Back to home
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="service-details-main">
       <div className="container">
@@ -502,6 +550,45 @@ export default function ServiceDetailsClient({
             {service.title}
           </span>
         </nav>
+
+        {isPaused && isOwner && (
+          <div
+            className="service-paused-banner"
+            role="status"
+            aria-live="polite"
+          >
+            <i className="fas fa-pause-circle" aria-hidden />
+            <div>
+              <strong>Preview: this service is paused</strong>
+              <p>
+                Only you can see this page while it is paused. It stays hidden
+                from marketplace listings and buyers cannot order until you
+                resume it from Service Management.
+              </p>
+              <p style={{ marginTop: 8 }}>
+                <Link href="/service-management">Open Service Management</Link>
+                {" · "}
+                <Link href={`/service-dashboard/${serviceId}`}>Service Dashboard</Link>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isDraft && isOwner && (
+          <div
+            className="service-paused-banner service-draft-banner"
+            role="status"
+            aria-live="polite"
+          >
+            <i className="fas fa-file-alt" aria-hidden />
+            <div>
+              <strong>Draft preview</strong>
+              <p>
+                This service is still a draft. Publish it to appear on the marketplace.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="service-header">
@@ -934,9 +1021,15 @@ export default function ServiceDetailsClient({
                 type="button"
                 className="btn-continue"
                 onClick={proceedToCheckout}
+                disabled={isPaused}
+                title={isPaused ? "Service is paused" : undefined}
               >
-                Continue $<span id="total-amount">{total}</span>
-                <i className="fas fa-arrow-right" />
+                {isPaused ? "Paused" : (
+                  <>
+                    Continue $<span id="total-amount">{total}</span>
+                    <i className="fas fa-arrow-right" />
+                  </>
+                )}
               </button>
             </div>
           </aside>
@@ -953,8 +1046,14 @@ export default function ServiceDetailsClient({
           type="button"
           className="btn-continue-mobile"
           onClick={proceedToCheckout}
+          disabled={isPaused}
+          title={isPaused ? "Service is paused" : undefined}
         >
-          Continue <i className="fas fa-arrow-right" />
+          {isPaused ? "Paused" : (
+            <>
+              Continue <i className="fas fa-arrow-right" />
+            </>
+          )}
         </button>
       </div>
       <div id="toast-container" />
