@@ -1,0 +1,440 @@
+/* styles/pages/freelancer-withdrawals.css — scoped under .freelancer-withdrawals-page */
+
+.freelancer-withdrawals-page {
+  --fw-success: #27ae60;
+  --fw-warning: #f39c12;
+  --fw-text: #333;
+  --fw-bg: #f4f7f9;
+  --fw-primary: var(--primary-color, #d96464);
+  --fw-secondary: var(--secondary-color, #222);
+}
+
+.freelancer-withdrawals-page .page-container {
+  max-width: 1000px;
+  margin: 24px auto 40px;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.freelancer-withdrawals-page .page-title {
+  color: var(--fw-primary);
+  font-size: 1.75rem;
+  margin-bottom: 5px;
+}
+
+.freelancer-withdrawals-page .page-subtitle {
+  color: #777;
+  margin-bottom: 20px;
+}
+
+.freelancer-withdrawals-page hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 28px 0;
+}
+
+.freelancer-withdrawals-page .section-title {
+  color: var(--fw-primary);
+  border-left: 4px solid var(--fw-success);
+  padding-left: 10px;
+  margin-bottom: 22px;
+  font-size: 1.25rem;
+}
+
+.freelancer-withdrawals-page .withdrawal-summary-grid {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.freelancer-withdrawals-page .f-card {
+  flex: 1;
+  min-width: 220px;
+  background: #fff;
+  padding: 18px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f1f5f9;
+}
+
+.freelancer-withdrawals-page .f-card h3 {
+  color: #888;
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+}
+
+.freelancer-withdrawals-page .f-card .large-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin: 4px 0;
+}
+
+.freelancer-withdrawals-page .f-card .sub-text {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.freelancer-withdrawals-page .balance-card .large-value {
+  color: var(--fw-success);
+}
+.freelancer-withdrawals-page .pending-card .large-value {
+  color: var(--fw-warning);
+}
+.freelancer-withdrawals-page .withdrawn-card .large-value {
+  color: var(--fw-primary);
+}
+
+.freelancer-withdrawals-page .withdrawal-step {
+  margin-bottom: 32px;
+}
+.freelancer-withdrawals-page .withdrawal-step h4 {
+  color: var(--fw-primary);
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+}
+.freelancer-withdrawals-page .step-description {
+  color: #777;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.freelancer-withdrawals-page .method-selection-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.freelancer-withdrawals-page .method-card {
+  padding: 14px 16px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  flex: 1;
+  min-width: 140px;
+  max-width: 200px;
+  background: #fff;
+}
+
+.freelancer-withdrawals-page .method-card:hover {
+  border-color: var(--fw-primary);
+}
+
+.freelancer-withdrawals-page .method-card.active {
+  border-color: var(--fw-success);
+  box-shadow: 0 0 8px rgba(46, 204, 113, 0.35);
+  background-color: #f7fffb;
+}
+
+.freelancer-withdrawals-page .method-icon {
+  font-size: 2rem;
+  color: var(--fw-primary);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.freelancer-withdrawals-page .method-card h5 {
+  margin: 4px 0 0;
+  font-size: 1rem;
+}
+
+.freelancer-withdrawals-page .fee-info {
+  font-size: 0.78rem;
+  color: #777;
+  margin-top: 4px;
+}
+
+.freelancer-withdrawals-page .add-method-btn {
+  background: #eee;
+  color: var(--fw-primary);
+  border: 1px solid #ddd;
+  padding: 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.freelancer-withdrawals-page .input-group {
+  max-width: 400px;
+}
+.freelancer-withdrawals-page .input-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.freelancer-withdrawals-page .amount-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f9f9f9;
+}
+
+.freelancer-withdrawals-page .amount-input-wrapper span {
+  padding: 10px 12px;
+  background: #eee;
+  font-weight: 700;
+  color: var(--fw-primary);
+}
+
+.freelancer-withdrawals-page .amount-input-wrapper input {
+  flex-grow: 1;
+  border: none;
+  padding: 10px;
+  font-size: 1.15rem;
+  outline: none;
+  background: #fff;
+  width: 100%;
+}
+
+.freelancer-withdrawals-page .input-note {
+  font-size: 0.85rem;
+  color: #888;
+  margin-top: 6px;
+}
+
+.freelancer-withdrawals-page .review-summary-box {
+  padding: 18px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fcfcfc;
+  max-width: 400px;
+}
+
+.freelancer-withdrawals-page .dl-stripped-table {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 16px;
+  margin-bottom: 10px;
+}
+
+.freelancer-withdrawals-page .dl-stripped-table dt {
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.freelancer-withdrawals-page .dl-stripped-table dt i {
+  color: var(--fw-primary);
+}
+
+.freelancer-withdrawals-page .dl-stripped-table dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 700;
+}
+
+.freelancer-withdrawals-page .dl-stripped-table .total-row {
+  font-weight: 700;
+  color: var(--fw-success);
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.freelancer-withdrawals-page .alert-box {
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.freelancer-withdrawals-page .alert-info {
+  background: #e8f5fe;
+  border: 1px solid #b3e5fc;
+  color: #0288d1;
+}
+
+.freelancer-withdrawals-page .btn-action {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.freelancer-withdrawals-page .btn-confirm-withdrawal {
+  background: var(--fw-success);
+  color: #fff;
+  font-size: 1rem;
+  padding: 12px 22px;
+  margin-top: 24px;
+}
+
+.freelancer-withdrawals-page .btn-confirm-withdrawal:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.freelancer-withdrawals-page .btn-confirm-withdrawal:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  color: #666;
+}
+
+.freelancer-withdrawals-page .internal-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #eee;
+  flex-wrap: wrap;
+}
+
+.freelancer-withdrawals-page .internal-tab-button {
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #888;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.freelancer-withdrawals-page .internal-tab-button:hover {
+  color: var(--fw-primary);
+}
+
+.freelancer-withdrawals-page .internal-tab-button.active {
+  color: var(--fw-success);
+  border-bottom-color: var(--fw-success);
+  font-weight: 700;
+}
+
+.freelancer-withdrawals-page .tab-content {
+  padding-top: 12px;
+}
+
+.freelancer-withdrawals-page .table-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.freelancer-withdrawals-page .table-controls input,
+.freelancer-withdrawals-page .table-controls select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.freelancer-withdrawals-page .table-controls input {
+  flex-grow: 1;
+  max-width: 340px;
+}
+
+.freelancer-withdrawals-page .f-table-wrapper {
+  overflow-x: auto;
+}
+
+.freelancer-withdrawals-page .f-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.freelancer-withdrawals-page .f-table th,
+.freelancer-withdrawals-page .f-table td {
+  padding: 12px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.freelancer-withdrawals-page .f-table thead th {
+  background: var(--fw-secondary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.freelancer-withdrawals-page .status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.freelancer-withdrawals-page .status-completed,
+.freelancer-withdrawals-page .status-paid {
+  background: var(--fw-success);
+}
+.freelancer-withdrawals-page .status-pending,
+.freelancer-withdrawals-page .status-pending_payoneer {
+  background: var(--fw-warning);
+}
+.freelancer-withdrawals-page .status-failed,
+.freelancer-withdrawals-page .status-rejected {
+  background: #e74c3c;
+}
+
+.freelancer-withdrawals-page .pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.freelancer-withdrawals-page .pagination-controls .btn-action {
+  background: #eee;
+  color: var(--fw-primary);
+  border: 1px solid #ddd;
+  padding: 8px 14px;
+}
+
+.freelancer-withdrawals-page .pagination-controls .btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.freelancer-withdrawals-page .empty-state {
+  text-align: center;
+  color: #718096;
+  padding: 24px !important;
+}
+
+.freelancer-withdrawals-page .error-banner {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.freelancer-withdrawals-page .success-banner {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 576px) {
+  .freelancer-withdrawals-page .page-container {
+    margin: 12px;
+    padding: 14px;
+  }
+  .freelancer-withdrawals-page .method-card {
+    max-width: none;
+  }
+}

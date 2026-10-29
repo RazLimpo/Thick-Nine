@@ -39,6 +39,7 @@ const presenceRoutes = require("./routes/presenceRoutes");
 const bookmarkRoutes = require("./routes/bookmarkRoutes");
 const clientSettingsRoutes = require("./routes/clientSettingsRoutes");
 const affiliateSettingsRoutes = require("./routes/affiliateSettingsRoutes");
+const freelancerWithdrawalRoutes = require("./routes/freelancerWithdrawalRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -150,6 +151,7 @@ app.use("/api/presence", presenceRoutes);
 app.use("/api/bookmarks", bookmarkRoutes);
 app.use("/api/client", clientSettingsRoutes);
 app.use("/api/affiliate-settings", require("./routes/affiliateSettingsRoutes"));
+app.use("/api/freelancer", freelancerWithdrawalRoutes);
 
 
 app.get("/", (req, res) => {

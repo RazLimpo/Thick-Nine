@@ -42,8 +42,8 @@ const NAV_ITEMS: NavItem[] = [
     badgeKey: 'affiliatePayouts',
   },
   {
-    name: 'Withdrawals',
-    path: '/admin/withdrawals',
+    name: 'Seller payouts',
+    path: '/admin/seller-payouts',
     icon: 'fa-wallet',
     permission: 'payouts:read',
     badgeKey: 'withdrawals',
@@ -121,6 +121,20 @@ export default function AdminSidebar({ user }: SidebarProps) {
         }
       } catch {
         /* queue proxy may not be live yet */
+      }
+
+      // Pending seller withdrawals (freelancer queue)
+      try {
+        const res3 = await fetch('/api/admin/seller-payouts?status=pending', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data3 = await res3.json().catch(() => ({}));
+        if (!cancelled && res3.ok && data3.success) {
+          const n = Number(data3.summary?.pendingCount) || 0;
+          setCounts((prev) => ({ ...prev, withdrawals: n }));
+        }
+      } catch {
+        /* optional */
       }
     }
 
