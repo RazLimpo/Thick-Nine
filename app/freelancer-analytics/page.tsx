@@ -1,6 +1,8 @@
-import React from 'react';
-import AffiliateDashboard from './client';
+// app/freelancer-analytics/page.tsx
+import FreelancerAnalyticsClient from "./client";
 
-export default function AffiliateDashboardPage() {
-  return <AffiliateDashboard />;
+export const dynamic = "force-dynamic";
+
+export default function FreelancerAnalyticsPage() {
+  return <FreelancerAnalyticsClient />;
 }
