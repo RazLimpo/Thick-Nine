@@ -2,6 +2,7 @@ import "@/styles/pages/index.css";
 import "@/styles/pages/service-card.css";
 
 import HeroSection from "@/components/HeroSection/HeroSection";
+import HomePromoStrip from "@/components/Home/HomePromoStrip";
 import ServiceGrid from "@/components/ServiceGrid/ServiceGrid";
 import CategorySidebar from "@/components/CategorySidebar/CategorySidebar";
 import ValueSection from "@/components/ValueSection/ValueSection";
@@ -12,7 +13,10 @@ export default function HomePage() {
       {/* 1. Full-width Slide Hero Banner */}
       <HeroSection />
 
-      {/* 2. Split Flexible Homepage Columns */}
+      {/* 2. Sponsored (paid) OR Featured (top performers) — 5 cards / 10s */}
+      <HomePromoStrip />
+
+      {/* 3. Split Flexible Homepage Columns */}
       <section className="featured-services-section">
         <div className="homepage-flex-wrapper">
           {/* Left Column: Dynamic Live Gigs */}
@@ -22,8 +26,8 @@ export default function HomePage() {
           <CategorySidebar />
         </div>
       </section>
-      
-      {/* 3. Onboarding Value Flow Steps */}
+
+      {/* 4. Onboarding Value Flow Steps */}
       <ValueSection />
     </main>
   );

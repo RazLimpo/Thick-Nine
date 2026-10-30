@@ -72,6 +72,26 @@ interface AnalyticsPayload {
   promos?: PromoEntry[];
   recommendations?: string[];
   level?: string | null;
+  benchmarks?: {
+    sampleSize?: number;
+    peerAvgEarnings?: number;
+    peerAvgCompletedOrders?: number;
+    peerAvgRating?: number | null;
+    yourEarnings?: number;
+    yourCompletedOrders?: number;
+    yourRating?: number;
+    note?: string;
+  };
+  boostRoas?: {
+    serviceId?: string;
+    title?: string;
+    spend?: number;
+    attributedRevenue?: number;
+    roas?: number;
+    orderCount?: number;
+    package?: string | null;
+    theoretical?: boolean;
+  }[];
 }
 
 function money(n?: number) {
@@ -726,30 +746,115 @@ export default function FreelancerAnalyticsClient() {
 
         <section>
           <h3>8. Benchmarking and Goals</h3>
-          <div className="card goal-tracker">
-            <h5>
-              Goal: {money(data?.goals?.target)} earnings
-              {data?.goals?.targetDate
-                ? ` by ${String(data.goals.targetDate).slice(0, 10)}`
-                : ""}
-            </h5>
-            <div className="progress-bar-container">
-              <div
-                className="progress-fill"
-                style={{ width: `${Math.max(goalPct, goalPct > 0 ? 8 : 0)}%` }}
+          <div className="insight-grid">
+            <div className="card">
+              <h5>Peer benchmarks</h5>
+              <p className="empty-hint" style={{ marginTop: 0 }}>
+                Anonymous averages for sellers with at least one completed order
+                in this period
+                {data?.benchmarks?.sampleSize
+                  ? ` (n=${data.benchmarks.sampleSize})`
+                  : ""}
+                .
+              </p>
+              <table className="striped-table">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>You</th>
+                    <th>Peers</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Earnings</td>
+                    <td>{money(data?.benchmarks?.yourEarnings ?? o.totalEarnings)}</td>
+                    <td>{money(data?.benchmarks?.peerAvgEarnings)}</td>
+                  </tr>
+                  <tr>
+                    <td>Completed orders</td>
+                    <td>{data?.benchmarks?.yourCompletedOrders ?? o.ordersCompleted ?? 0}</td>
+                    <td>{data?.benchmarks?.peerAvgCompletedOrders ?? "—"}</td>
+                  </tr>
+                  <tr>
+                    <td>Avg rating</td>
+                    <td>
+                      {data?.benchmarks?.yourRating != null
+                        ? Number(data.benchmarks.yourRating).toFixed(1)
+                        : "—"}
+                    </td>
+                    <td>
+                      {data?.benchmarks?.peerAvgRating != null
+                        ? Number(data.benchmarks.peerAvgRating).toFixed(1)
+                        : "—"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="card goal-tracker">
+              <h5>
+                Goal: {money(data?.goals?.target)} earnings
+                {data?.goals?.targetDate
+                  ? ` by ${String(data.goals.targetDate).slice(0, 10)}`
+                  : ""}
+              </h5>
+              <div className="progress-bar-container">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${Math.max(goalPct, goalPct > 0 ? 8 : 0)}%` }}
+                >
+                  {money(data?.goals?.current)} ({goalPct}%)
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ marginTop: 12 }}
+                onClick={() => setGoalOpen(true)}
               >
-                {money(data?.goals?.current)} ({goalPct}%)
+                Set / Edit Goals
+              </button>
+            </div>
+          </div>
+
+          {(data?.boostRoas || []).length > 0 && (
+            <div className="card" style={{ marginTop: 16 }}>
+              <h5>Boost ROAS (theoretical)</h5>
+              <p className="empty-hint">
+                Spend = package list price. Revenue = completed orders on that
+                service during the last boost window. Live card charge comes later.
+              </p>
+              <div className="table-container">
+                <table className="striped-table">
+                  <thead>
+                    <tr>
+                      <th>Service</th>
+                      <th>Spend</th>
+                      <th>Revenue</th>
+                      <th>ROAS</th>
+                      <th>Orders</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(data?.boostRoas || []).map((b, i) => (
+                      <tr key={b.serviceId || i}>
+                        <td>{b.title || "Service"}</td>
+                        <td>{money(b.spend)}</td>
+                        <td>{money(b.attributedRevenue)}</td>
+                        <td>
+                          <strong>
+                            {b.roas != null ? `${b.roas}x` : "—"}
+                          </strong>
+                        </td>
+                        <td>{b.orderCount ?? 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <button
-              type="button"
-              className="btn-primary"
-              style={{ marginTop: 12 }}
-              onClick={() => setGoalOpen(true)}
-            >
-              Set / Edit Goals
-            </button>
-          </div>
+          )}
         </section>
 
         <hr />

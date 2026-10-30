@@ -268,6 +268,115 @@ router.get("/analytics", auth, async (req, res) => {
       );
     }
 
+    // ----- Peer benchmarks (anonymized platform averages) -----
+    const peerMatch = { status: "completed" };
+    if (since) peerMatch.createdAt = { $gte: since };
+
+    let benchmarks = {
+      sampleSize: 0,
+      peerAvgEarnings: 0,
+      peerAvgCompletedOrders: 0,
+      peerAvgRating: null,
+      yourEarnings: Math.round(earnings * 100) / 100,
+      yourCompletedOrders: completed.length,
+      yourRating: Math.round(avgRating * 100) / 100,
+      note: "Averages across sellers with ≥1 completed order in this period. Theoretical until paid boosts.",
+    };
+
+    try {
+      const peerRows = await Order.aggregate([
+        { $match: peerMatch },
+        {
+          $group: {
+            _id: "$sellerId",
+            earnings: {
+              $sum: {
+                $ifNull: ["$sellerEarnings", { $ifNull: ["$subtotal", 0] }],
+              },
+            },
+            completed: { $sum: 1 },
+            ratingSum: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $ne: ["$buyerRating", null] }, { $ne: ["$buyerRating", undefined] }] },
+                  "$buyerRating",
+                  0,
+                ],
+              },
+            },
+            ratingCount: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $ne: ["$buyerRating", null] }, { $ne: ["$buyerRating", undefined] }] },
+                  1,
+                  0,
+                ],
+              },
+            },
+          },
+        },
+        { $match: { completed: { $gte: 1 } } },
+      ]);
+
+      const n = peerRows.length;
+      if (n > 0) {
+        const sumE = peerRows.reduce((s, r) => s + (Number(r.earnings) || 0), 0);
+        const sumC = peerRows.reduce((s, r) => s + (Number(r.completed) || 0), 0);
+        let rateSum = 0;
+        let rateN = 0;
+        peerRows.forEach((r) => {
+          if (r.ratingCount > 0) {
+            rateSum += Number(r.ratingSum) / Number(r.ratingCount);
+            rateN += 1;
+          }
+        });
+        benchmarks = {
+          ...benchmarks,
+          sampleSize: n,
+          peerAvgEarnings: Math.round((sumE / n) * 100) / 100,
+          peerAvgCompletedOrders: Math.round((sumC / n) * 10) / 10,
+          peerAvgRating:
+            rateN > 0 ? Math.round((rateSum / rateN) * 100) / 100 : null,
+        };
+      }
+    } catch (peerErr) {
+      console.error("peer benchmarks:", peerErr);
+    }
+
+    // Theoretical boost ROAS across this seller's services (package amount as spend)
+    const boostRoas = [];
+    for (const svc of services) {
+      const lb = svc.lastBoost;
+      if (!lb || !lb.amount || !lb.purchasedAt) continue;
+      const spend = Number(lb.amount) || 0;
+      if (spend <= 0) continue;
+      const start = new Date(lb.purchasedAt);
+      const end = svc.sponsoredUntil ? new Date(svc.sponsoredUntil) : new Date();
+      if (Number.isNaN(start.getTime())) continue;
+      const endSafe = Number.isNaN(end.getTime()) ? new Date() : end;
+      const attributed = completed.filter((o) => {
+        if (String(o.serviceId) !== String(svc._id)) return false;
+        const t = new Date(o.createdAt).getTime();
+        return t >= start.getTime() && t <= endSafe.getTime();
+      });
+      const revenue = attributed.reduce(
+        (s, o) => s + (Number(o.sellerEarnings) || Number(o.subtotal) || 0),
+        0
+      );
+      boostRoas.push({
+        serviceId: String(svc._id),
+        title: svc.title || "Service",
+        spend,
+        attributedRevenue: Math.round(revenue * 100) / 100,
+        roas: Math.round((revenue / spend) * 100) / 100,
+        orderCount: attributed.length,
+        windowStart: start,
+        windowEnd: endSafe,
+        package: lb.package || null,
+        theoretical: true,
+      });
+    }
+
     return res.json({
       success: true,
       period,
@@ -325,6 +434,8 @@ router.get("/analytics", auth, async (req, res) => {
       promos: Array.isArray(user?.promoLog) ? user.promoLog.slice(-10).reverse() : [],
       recommendations,
       level: user?.level || null,
+      benchmarks,
+      boostRoas,
     });
   } catch (err) {
     console.error("GET freelancer/analytics:", err);
@@ -334,8 +445,6 @@ router.get("/analytics", auth, async (req, res) => {
     });
   }
 });
-
-module.exports = router;
 
 // PATCH /api/freelancer/analytics/goals — custom earnings goal
 router.patch("/analytics/goals", auth, async (req, res) => {
@@ -434,3 +543,5 @@ router.post("/analytics/promos", auth, async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to save promo." });
   }
 });
+
+module.exports = router;

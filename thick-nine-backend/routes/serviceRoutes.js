@@ -817,6 +817,124 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
   }
 });
 
+
+
+/**
+ * POST /api/services/:id/boost
+ * Body: { package: "7d" | "14d" | "30d" }
+ * Auth: service owner
+ */
+
+const BOOST_PACKAGES = {
+  "7d": { days: 7, amount: 5, label: "7-day boost" },
+  "14d": { days: 14, amount: 9, label: "14-day boost" },
+  "30d": { days: 30, amount: 15, label: "30-day boost" },
+};
+
+// POST /:id/boost — owner buys / extends sponsored window
+router.post("/:id/boost", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const { id } = req.params;
+    const pkgKey = String(req.body?.package || "7d");
+    const pkg = BOOST_PACKAGES[pkgKey];
+    if (!pkg) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid package. Use 7d, 14d, or 30d.",
+      });
+    }
+
+    const service = await Service.findById(id);
+    if (!service) {
+      return res.status(404).json({ success: false, message: "Service not found." });
+    }
+
+    if (String(service.sellerId) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the service owner can buy a boost.",
+      });
+    }
+
+    if (service.status !== "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Only active services can be boosted. Publish or resume first.",
+      });
+    }
+
+    // Extend from max(now, current sponsoredUntil)
+    const now = new Date();
+    const currentUntil =
+      service.sponsoredUntil && new Date(service.sponsoredUntil) > now
+        ? new Date(service.sponsoredUntil)
+        : now;
+    const until = new Date(currentUntil.getTime() + pkg.days * 24 * 60 * 60 * 1000);
+
+    service.sponsored = true;
+    service.sponsoredUntil = until;
+    service.lastBoost = {
+      package: pkgKey,
+      amount: pkg.amount,
+      purchasedAt: now,
+    };
+    await service.save();
+
+    // TODO (processor): charge pkg.amount via Stripe/Paystack; on failure rollback flags.
+
+    return res.json({
+      success: true,
+      message: `${pkg.label} active until ${until.toISOString()}.`,
+      boost: {
+        package: pkgKey,
+        days: pkg.days,
+        amount: pkg.amount,
+        sponsored: true,
+        sponsoredUntil: until,
+      },
+      service: {
+        _id: service._id,
+        sponsored: service.sponsored,
+        sponsoredUntil: service.sponsoredUntil,
+        lastBoost: service.lastBoost,
+        status: service.status,
+      },
+    });
+  } catch (err) {
+    console.error("POST /services/:id/boost:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to activate boost.",
+    });
+  }
+});
+
+/**
+ * Optional helper — call from marketplace list handler before returning services:
+ *
+ * async function clearExpiredBoosts(docs) {
+ *   const now = new Date();
+ *   const ops = [];
+ *   for (const s of docs) {
+ *     if (s.sponsored && s.sponsoredUntil && new Date(s.sponsoredUntil) <= now) {
+ *       ops.push(Service.updateOne({ _id: s._id }, { $set: { sponsored: false } }));
+ *       s.sponsored = false;
+ *     }
+ *   }
+ *   if (ops.length) await Promise.all(ops);
+ *   return docs;
+ * }
+ */
+
+
+
+
+
 // =====================================================
 // 10. GET /api/services/:id/manage — owner only
 // =====================================================
@@ -824,6 +942,7 @@ router.get("/:id/manage", authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
     const { id } = req.params;
+    const Order = require("../models/Order");
 
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
@@ -841,7 +960,63 @@ router.get("/:id/manage", authMiddleware, async (req, res) => {
         message: "Service not found or you do not own it.",
       });
     }
-    return res.status(200).json({ success: true, service });
+
+    async function theoreticalBoostRoas(serviceDoc) {
+      const lb = serviceDoc.lastBoost;
+      if (!lb || !lb.amount || !lb.purchasedAt) {
+        return null;
+      }
+
+      const spend = Number(lb.amount) || 0;
+      if (spend <= 0) return null;
+
+      const start = new Date(lb.purchasedAt);
+      if (Number.isNaN(start.getTime())) return null;
+
+      const end = serviceDoc.sponsoredUntil
+        ? new Date(serviceDoc.sponsoredUntil)
+        : new Date();
+      const endSafe = Number.isNaN(end.getTime()) ? new Date() : end;
+
+      const orders = await Order.find({
+        serviceId: serviceDoc._id,
+        sellerId: serviceDoc.sellerId,
+        status: "completed",
+        createdAt: { $gte: start, $lte: endSafe },
+      })
+        .select("sellerEarnings subtotal createdAt")
+        .lean();
+
+      const attributedRevenue = orders.reduce(
+        (sum, order) =>
+          sum +
+          (Number(order.sellerEarnings) || Number(order.subtotal) || 0),
+        0
+      );
+
+      return {
+        theoretical: true,
+        spend,
+        attributedRevenue: Math.round(attributedRevenue * 100) / 100,
+        roas:
+          spend > 0
+            ? Math.round((attributedRevenue / spend) * 100) / 100
+            : null,
+        orderCount: orders.length,
+        windowStart: start,
+        windowEnd: endSafe,
+        package: lb.package || null,
+        note: "Theoretical ROAS — spend is package list price until live payment.",
+      };
+    }
+
+    const boostRoas = await theoreticalBoostRoas(service);
+
+    return res.status(200).json({
+      success: true,
+      service,
+      boostRoas,
+    });
   } catch (error) {
     console.error("GET manage error:", error);
     return res
@@ -849,6 +1024,7 @@ router.get("/:id/manage", authMiddleware, async (req, res) => {
       .json({ success: false, message: "Failed to load service." });
   }
 });
+
 
 // =====================================================
 // 11. GET /api/services/:id/analytics — owner only

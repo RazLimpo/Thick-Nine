@@ -1,112 +1,168 @@
-//SponsoredCarousel.
-
+// components/SearchResults/SponsoredCarousel.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
-export interface SponsoredAd {
+export type SponsoredAd = {
   id: string;
   title: string;
   price: string;
   username: string;
   gender?: "male" | "female";
   imageUrl: string;
-  linkUrl?: string;
-}
+  linkUrl: string;
+  /** Optional — defaults to Sponsored for backward compat */
+  badge?: "Sponsored" | "Featured";
+};
 
-interface SponsoredCarouselProps {
+const INTERVAL_MS = 10_000; // 10 seconds per slide (agreed)
+
+type Props = {
   ads?: SponsoredAd[];
-  autoPlayInterval?: number;
-}
+  /** Section title when featured fallback */
+  mode?: "sponsored" | "featured" | "empty";
+};
 
-// Fallback ads while backend data is unavailable
-const DEFAULT_ADS: SponsoredAd[] = [
-  {
-    id: "1",
-    title: "Professional Web Development & UI Design",
-    price: "$150",
-    username: "AlexDev",
-    gender: "male",
-    imageUrl:
-      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80",
-    linkUrl: "/service-details",
-  },
-  {
-    id: "2",
-    title: "Custom Logo & Brand Identity Design",
-    price: "$85",
-    username: "SarahDesigns",
-    gender: "female",
-    imageUrl:
-      "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=600&q=80",
-    linkUrl: "/service-details",
-  },
-];
+export default function SponsoredCarousel({ ads, mode }: Props) {
+  const list = Array.isArray(ads) ? ads.filter((a) => a?.id) : [];
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
-export default function SponsoredCarousel({
-  ads = DEFAULT_ADS,
-  autoPlayInterval = 4000,
-}: SponsoredCarouselProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const resolvedMode =
+    mode ||
+    (list.some((a) => a.badge === "Featured") &&
+    !list.some((a) => a.badge === "Sponsored")
+      ? "featured"
+      : "sponsored");
+
+  const go = useCallback(
+    (dir: 1 | -1) => {
+      if (list.length <= 1) return;
+      setIndex((i) => (i + dir + list.length) % list.length);
+    },
+    [list.length]
+  );
 
   useEffect(() => {
-    if (ads.length <= 1) return;
+    setIndex(0);
+  }, [list.length, resolvedMode]);
 
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % ads.length);
-    }, autoPlayInterval);
+  useEffect(() => {
+    if (list.length <= 1 || paused) return;
+    const t = window.setInterval(() => {
+      setIndex((i) => (i + 1) % list.length);
+    }, INTERVAL_MS);
+    return () => window.clearInterval(t);
+  }, [list.length, paused]);
 
-    return () => clearInterval(interval);
-  }, [ads, autoPlayInterval]);
+  if (list.length === 0) return null;
 
-  if (ads.length === 0) return null;
+  const sectionLabel =
+    resolvedMode === "featured" ? "Featured" : "Sponsored";
+  const sectionHint =
+    resolvedMode === "featured"
+      ? "Top performing services on Thick 9"
+      : "Promoted services matched your search";
 
   return (
     <div
-      className="sponsored-carousel"
-      aria-label="Sponsored marketplace services"
+      className="sponsored-carousel-wrap"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
     >
-      <span className="sponsored-badge">Sponsored</span>
+      <div className="sponsored-carousel-header">
+        <span className="sponsored-carousel-title">
+          <i
+            className={
+              resolvedMode === "featured"
+                ? "fas fa-fire"
+                : "fas fa-bullhorn"
+            }
+            aria-hidden
+          />{" "}
+          {sectionLabel}
+        </span>
+        <span className="sponsored-carousel-hint">{sectionHint}</span>
+        {list.length > 1 && (
+          <div className="sponsored-carousel-nav">
+            <button
+              type="button"
+              className="sponsored-nav-btn"
+              aria-label="Previous"
+              onClick={() => go(-1)}
+            >
+              <i className="fas fa-chevron-left" />
+            </button>
+            <button
+              type="button"
+              className="sponsored-nav-btn"
+              aria-label="Next"
+              onClick={() => go(1)}
+            >
+              <i className="fas fa-chevron-right" />
+            </button>
+          </div>
+        )}
+      </div>
 
-      <div
-        className="ad-inner-track"
-        style={{
-          transform: `translateX(-${currentIndex * 100}%)`,
-        }}
-      >
-        {ads.map((ad) => (
-          <Link
-            key={ad.id}
-            href={ad.linkUrl ?? "/service-details"}
-            className="ad-item"
-            style={{
-              backgroundImage: `url(${ad.imageUrl || "/default-service.png"})`,
-            }}
-            aria-label={`View sponsored service: ${ad.title}`}
-          >
-            <div className="ad-permanent-info">
-             <div className="ad-meta">
-  <span className="mjob-username">
-    <i
-      className={`fas fa-user ${
-        ad.gender === "female" ? "f-icon" : "m-icon"
-      }`}
-      aria-hidden="true"
-    />{" "}
-    {ad.username}
-  </span>
-
-  <span className="ad-price">
-    {ad.price}
-  </span>
-</div>
-              <div className="ad-title">
-                {ad.title}
+      <div className="sponsored-carousel" role="region" aria-roledescription="carousel">
+        <div
+          className="ad-inner-track"
+          style={{ transform: `translateX(-${index * 100}%)` }}
+        >
+          {list.map((ad) => {
+            const badge = ad.badge || (resolvedMode === "featured" ? "Featured" : "Sponsored");
+            return (
+              <div
+                key={ad.id}
+                className="ad-item"
+                style={{
+                  backgroundImage: `url(${ad.imageUrl || "/default-service.png"})`,
+                }}
+              >
+                <span
+                  className={`sponsored-badge ${
+                    badge === "Featured" ? "is-featured" : "is-sponsored"
+                  }`}
+                >
+                  {badge}
+                </span>
+                <Link href={ad.linkUrl} className="ad-permanent-info">
+                  <h3 className="ad-title">{ad.title}</h3>
+                  <div className="ad-meta">
+                    <span className="mjob-username">
+                      <i
+                        className={`fas fa-user ${
+                          ad.gender === "female" ? "f-icon" : "m-icon"
+                        }`}
+                      />
+                      {ad.username}
+                    </span>
+                    <span className="ad-price">
+                      From ${Number(ad.price || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </Link>
               </div>
-            </div>
-          </Link>
-        ))}
+            );
+          })}
+        </div>
+
+        {list.length > 1 && (
+          <div className="sponsored-dots" aria-hidden>
+            {list.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`dot ${i === index ? "active" : ""}`}
+                onClick={() => setIndex(i)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

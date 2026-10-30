@@ -120,8 +120,6 @@
   opacity: 1;
 }
 
-
-
 .vertical-stack {
   display: flex;
   flex-direction: column;
@@ -257,14 +255,68 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 0.65rem;
 }
 
-/* --- Carousel Styling --- */
+/* ============================================================
+   Promo strip — Sponsored / Featured (single source of truth)
+   Replaces the older carousel-only block to avoid conflicts.
+   ============================================================ */
+
+.sponsored-carousel-wrap {
+  margin-bottom: 28px;
+}
+
+.sponsored-carousel-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 10px;
+}
+
+.sponsored-carousel-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.sponsored-carousel-title i {
+  margin-right: 6px;
+  color: var(--primary-color, #dc3545);
+}
+
+.sponsored-carousel-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  flex: 1;
+}
+
+.sponsored-carousel-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.sponsored-nav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  color: #374151;
+}
+
+.sponsored-nav-btn:hover {
+  border-color: var(--primary-color, #dc3545);
+  color: var(--primary-color, #dc3545);
+}
+
 .sponsored-carousel {
   height: 220px;
   border-radius: 12px;
   overflow: hidden;
   position: relative;
-  margin-bottom: 30px;
   width: 100%;
+  background: #f3f4f6;
+  /* margin-bottom lives on .sponsored-carousel-wrap */
 }
 
 .ad-inner-track {
@@ -283,12 +335,23 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   align-items: flex-end;
   flex-shrink: 0;
+  position: relative;
 }
 
 .ad-permanent-info {
   width: 100%;
   padding: 20px;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  color: #fff;
+  text-decoration: none;
+  display: block;
+}
+
+.ad-permanent-info .ad-title,
+.ad-title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: #fff;
 }
 
@@ -311,6 +374,16 @@ input[type="range"]::-webkit-slider-thumb {
   z-index: 10;
 }
 
+.sponsored-badge.is-sponsored {
+  background: #fff;
+  color: #b45309;
+}
+
+.sponsored-badge.is-featured {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .ad-meta {
   display: flex;
   justify-content: space-between;
@@ -323,7 +396,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .f-icon {
-  color: #007bff;
+  color: #e83e8c;
 }
 
 .mjob-username {
@@ -337,6 +410,31 @@ input[type="range"]::-webkit-slider-thumb {
 .mjob-username i {
   margin-right: 8px;
   font-size: 14px;
+}
+
+.sponsored-dots {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 12;
+}
+
+.sponsored-dots .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+.sponsored-dots .dot.active {
+  background: #fff;
+  transform: scale(1.2);
 }
 
 /* --- No Results View --- */
@@ -431,8 +529,6 @@ input[type="range"]::-webkit-slider-thumb {
   color: #dc3545;
 }
 
-
-
 /* --- Result Text Display Styling --- */
 .results-count-row h2 {
   display: flex;
@@ -465,7 +561,6 @@ input[type="range"]::-webkit-slider-thumb {
   font-weight: 700;
   color: #111827;
 }
-
 
 /* ===================== MOBILE RESPONSIVE RULES ===================== */
 @media (max-width: 992px) {
@@ -501,7 +596,6 @@ input[type="range"]::-webkit-slider-thumb {
     border-bottom: none;
   }
 
-  /* ==================== MAIN "FILTER RESULTS" HEADER ARROW ==================== */
   .filter-main-title {
     display: flex;
     justify-content: space-between;
@@ -519,14 +613,13 @@ input[type="range"]::-webkit-slider-thumb {
     transition: transform 0.3s ease;
     color: #555;
     margin-left: 12px;
-    transform: rotate(90deg); 
+    transform: rotate(90deg);
   }
 
   .filter-card.open .filter-main-title::after {
     transform: rotate(-90deg);
   }
 
-  /* Individual Section Toggles - Keep your existing arrows (no extra arrow from main title) */
   .filter-toggle {
     width: 100%;
     padding: 16px 20px;
@@ -541,8 +634,6 @@ input[type="range"]::-webkit-slider-thumb {
     align-items: center;
     border-bottom: 1px solid #f0f0f0;
   }
-
-  /* Do NOT add extra ::after here - let your existing chevron handle it */
 
   .filter-dropdown-content {
     max-height: 0;
@@ -559,15 +650,29 @@ input[type="range"]::-webkit-slider-thumb {
     opacity: 1;
   }
 
-  /* Other mobile styles */
-  .vertical-stack { gap: 14px; }
-  .vertical-stack label { font-size: 0.97rem; padding: 4px 0; }
+  .vertical-stack {
+    gap: 14px;
+  }
+  .vertical-stack label {
+    font-size: 0.97rem;
+    padding: 4px 0;
+  }
 
-  .budget-input-row { margin: 12px 0 20px; }
-  .budget-slider-container { margin: 12px 0 8px; }
-  .sponsored-carousel { margin: 24px 0 20px; height: 170px; }
+  .budget-input-row {
+    margin: 12px 0 20px;
+  }
+  .budget-slider-container {
+    margin: 12px 0 8px;
+  }
+
+  .sponsored-carousel-wrap {
+    margin: 16px 0 20px;
+  }
+
+  .sponsored-carousel {
+    height: 170px;
+  }
 }
-
 
 @media (max-width: 768px) {
   .filter-main-title {
@@ -596,5 +701,13 @@ input[type="range"]::-webkit-slider-thumb {
   .page-arrow {
     font-size: 0.8rem;
     padding: 8px 10px;
+  }
+
+  .sponsored-carousel-header {
+    gap: 8px;
+  }
+
+  .sponsored-carousel-hint {
+    flex-basis: 100%;
   }
 }

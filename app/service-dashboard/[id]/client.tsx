@@ -34,6 +34,14 @@ interface DashboardService {
   packages?: Record<string, unknown>;
   updatedAt?: string;
   createdAt?: string;
+  /** Paid boost */
+  sponsored?: boolean;
+  sponsoredUntil?: string | null;
+  lastBoost?: {
+    package?: string | null;
+    amount?: number;
+    purchasedAt?: string | null;
+  };
 }
 
 type AnalyticsPayload = {
@@ -220,6 +228,21 @@ export default function ServiceDashboardClient({
   const [offerPrice, setOfferPrice] = useState("");
   const [offerDays, setOfferDays] = useState("3");
 
+  // Boost visibility
+  const [boostBusy, setBoostBusy] = useState(false);
+  const [boostPackage, setBoostPackage] = useState<"7d" | "14d" | "30d">("7d");
+  const [boostRoas, setBoostRoas] = useState<{
+    theoretical?: boolean;
+    spend?: number;
+    attributedRevenue?: number;
+    roas?: number | null;
+    orderCount?: number;
+    windowStart?: string;
+    windowEnd?: string;
+    package?: string | null;
+    note?: string;
+  } | null>(null);
+
   /* ---------- auth headers ---------- */
   const getAuthHeaders = (): Record<string, string> => {
     const headers: Record<string, string> = { Accept: "application/json" };
@@ -230,6 +253,7 @@ export default function ServiceDashboardClient({
     return headers;
   };
 
+    
   /* ---------- load service (owner) ---------- */
   const loadService = useCallback(async () => {
     setLoading(true);
@@ -252,6 +276,7 @@ export default function ServiceDashboardClient({
       }
 
       setService(data.service || null);
+      setBoostRoas(data.boostRoas || null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -731,6 +756,79 @@ export default function ServiceDashboardClient({
     setModalMode("tips");
     setModalTitle("Promotion & Growth Playbook");
     setModalOpen(true);
+  };
+
+  /* ---------- buy boost ---------- */
+  const buyBoost = async () => {
+    if (!service) return;
+    if (service.status !== "active") {
+      alert("Only active services can be boosted. Resume the service first.");
+      return;
+    }
+    const labels: Record<string, string> = {
+      "7d": "7-day ($5)",
+      "14d": "14-day ($9)",
+      "30d": "30-day ($15)",
+    };
+    if (
+      !confirm(
+        `Activate a ${labels[boostPackage] || boostPackage} boost for this service?`
+      )
+    ) {
+      return;
+    }
+
+    setBoostBusy(true);
+    try {
+      const res = await fetch(`/api/services/${serviceId}/boost`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ package: boostPackage }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.message || "Failed to activate boost.");
+        return;
+      }
+      setService((prev) =>
+        prev
+          ? {
+              ...prev,
+              sponsored: true,
+              sponsoredUntil:
+                data.boost?.sponsoredUntil ||
+                data.service?.sponsoredUntil ||
+                prev.sponsoredUntil,
+              lastBoost: data.service?.lastBoost || prev.lastBoost,
+            }
+          : prev
+      );
+      alert(data.message || "Boost activated.");
+      // Refresh manage payload for theoretical ROAS
+      try {
+        const r2 = await fetch(`/api/services/${serviceId}/manage`, {
+          method: "GET",
+          credentials: "include",
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        });
+        const d2 = await r2.json().catch(() => ({}));
+        if (r2.ok) {
+          if (d2.service) setService((prev) => (prev ? { ...prev, ...d2.service } : d2.service));
+          setBoostRoas(d2.boostRoas || null);
+        }
+      } catch {
+        /* ignore */
+      }
+    } catch {
+      alert("Network error while buying boost.");
+    } finally {
+      setBoostBusy(false);
+    }
   };
 
   /* ---------- pause / resume ---------- */
@@ -1362,9 +1460,146 @@ export default function ServiceDashboardClient({
             <h3>
               <i className="fas fa-bullhorn" /> Promotion
             </h3>
+            <p style={{ fontSize: "0.82rem", color: "#64748b", marginTop: 0 }}>
+              Paid <strong>Sponsored</strong> placement on homepage &amp; search.
+              When no one is boosting, top performers show as{" "}
+              <strong>Featured</strong> for free.
+            </p>
+
+            {service.sponsored &&
+            service.sponsoredUntil &&
+            new Date(service.sponsoredUntil) > new Date() ? (
+              <p
+                style={{
+                  color: "#16a34a",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  marginBottom: 10,
+                }}
+              >
+                Boost active until{" "}
+                {new Date(service.sponsoredUntil).toLocaleString()}
+                {service.lastBoost?.package
+                  ? ` · ${service.lastBoost.package}`
+                  : ""}
+              </p>
+            ) : (
+              <p
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "0.85rem",
+                  marginBottom: 10,
+                }}
+              >
+                No active boost
+              </p>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+                marginBottom: 10,
+              }}
+            >
+              {(
+                [
+                  { id: "7d" as const, label: "7 days · $5" },
+                  { id: "14d" as const, label: "14 days · $9" },
+                  { id: "30d" as const, label: "30 days · $15" },
+                ]
+              ).map((p) => (
+                <label
+                  key={p.id}
+                  style={{
+                    border:
+                      boostPackage === p.id
+                        ? "2px solid #dc3545"
+                        : "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    cursor: "pointer",
+                    fontSize: "0.82rem",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="boostPkg"
+                    value={p.id}
+                    checked={boostPackage === p.id}
+                    onChange={() => setBoostPackage(p.id)}
+                  />
+                  {p.label}
+                </label>
+              ))}
+            </div>
+
+            {boostRoas && boostRoas.spend != null && (
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  marginBottom: 10,
+                  fontSize: "0.82rem",
+                }}
+              >
+                <strong>Theoretical ROAS</strong>
+                {boostRoas.theoretical ? (
+                  <span style={{ color: "#94a3b8" }}> (list price)</span>
+                ) : null}
+                <div style={{ marginTop: 6, color: "#334155" }}>
+                  Spend {typeof boostRoas.spend === "number" ? `$${boostRoas.spend}` : "—"}
+                  {" · "}
+                  Revenue $
+                  {Number(boostRoas.attributedRevenue || 0).toFixed(2)}
+                  {" · "}
+                  <strong>
+                    {boostRoas.roas != null ? `${boostRoas.roas}x` : "—"}
+                  </strong>
+                  {boostRoas.orderCount != null
+                    ? ` · ${boostRoas.orderCount} orders`
+                    : ""}
+                </div>
+                <p style={{ margin: "6px 0 0", color: "#94a3b8", fontSize: "0.75rem" }}>
+                  {boostRoas.note ||
+                    "Orders completed during the last boost window ÷ package price."}
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="btn-primary full-width"
+              disabled={boostBusy || service.status !== "active"}
+              onClick={buyBoost}
+            >
+              <i className="fas fa-rocket" />{" "}
+              {boostBusy ? "Activating…" : "Buy boost"}
+            </button>
+            {service.status !== "active" && (
+              <p
+                style={{
+                  fontSize: "0.78rem",
+                  color: "#b91c1c",
+                  marginTop: 8,
+                  marginBottom: 0,
+                }}
+              >
+                Resume the service before boosting.
+              </p>
+            )}
+
             <button
               type="button"
               className="btn-outline full-width"
+              style={{ marginTop: 10 }}
               onClick={openCouponsModal}
             >
               <i className="fas fa-ticket-alt" /> Manage Coupons

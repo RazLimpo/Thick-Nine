@@ -612,3 +612,150 @@
   margin-bottom: 15px;
 }
 
+/* ============================================================
+ Homepage promo strip — Sponsored / Featured (5 cards / 10s)
+ Append to styles/pages/index.css
+ ============================================================ */
+
+.home-promo-strip {
+padding: 36px 5% 12px;
+background: #fff;
+}
+
+.home-promo-inner {
+max-width: 1300px;
+margin: 0 auto;
+}
+
+.home-promo-header {
+display: flex;
+align-items: flex-end;
+justify-content: space-between;
+gap: 16px;
+flex-wrap: wrap;
+margin-bottom: 20px;
+}
+
+.home-promo-title {
+margin: 0;
+font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+font-weight: 800;
+color: #1f2937;
+}
+
+.home-promo-title i {
+color: var(--primary-color, #dc3545);
+margin-right: 6px;
+}
+
+.home-promo-hint {
+margin: 4px 0 0;
+font-size: 0.85rem;
+color: #6b7280;
+}
+
+.home-promo-nav {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+
+.home-promo-nav-btn {
+width: 36px;
+height: 36px;
+border-radius: 8px;
+border: 1px solid #e5e7eb;
+background: #fff;
+cursor: pointer;
+color: #374151;
+}
+
+.home-promo-nav-btn:hover {
+border-color: var(--primary-color, #dc3545);
+color: var(--primary-color, #dc3545);
+}
+
+.home-promo-page-indicator {
+font-size: 0.8rem;
+font-weight: 600;
+color: #6b7280;
+min-width: 48px;
+text-align: center;
+}
+
+.home-promo-grid {
+display: grid;
+grid-template-columns: repeat(5, minmax(0, 1fr));
+gap: 16px;
+align-items: stretch;
+}
+
+.home-promo-card-wrap {
+min-width: 0;
+}
+
+.home-promo-card-wrap .mjob-card {
+max-width: 100%;
+width: 100%;
+}
+
+.home-promo-dots {
+display: flex;
+justify-content: center;
+gap: 8px;
+margin-top: 18px;
+}
+
+.home-promo-dot {
+width: 8px;
+height: 8px;
+border-radius: 50%;
+border: none;
+padding: 0;
+background: #d1d5db;
+cursor: pointer;
+}
+
+.home-promo-dot.active {
+background: var(--primary-color, #dc3545);
+transform: scale(1.2);
+}
+
+.home-promo-footer {
+text-align: center;
+margin-top: 16px;
+}
+
+.home-promo-view-all {
+font-size: 0.9rem;
+font-weight: 700;
+color: #374151;
+text-decoration: none;
+}
+
+.home-promo-view-all:hover {
+color: var(--primary-color, #dc3545);
+}
+
+@media (max-width: 1200px) {
+.home-promo-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+}
+
+@media (max-width: 768px) {
+.home-promo-strip {
+  padding: 24px 4% 8px;
+}
+
+.home-promo-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+}
+
+@media (max-width: 480px) {
+.home-promo-grid {
+  grid-template-columns: 1fr;
+}
+}

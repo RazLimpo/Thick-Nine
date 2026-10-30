@@ -150,32 +150,49 @@ const ServiceSchema = new mongoose.Schema(
     },
 
     // ----------------------------------------------------
-    // SECTION 5: Flags & Status
-    // ----------------------------------------------------
-    featured: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+// SECTION 5: Flags & Status
+// ----------------------------------------------------
+featured: {
+  type: Boolean,
+  default: false,
+  index: true,
+},
 
-    sponsored: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+sponsored: {
+  type: Boolean,
+  default: false,
+  index: true,
+},
 
-    status: {
-      type: String,
-      enum: ["active", "paused", "draft"],
-      default: "draft",
-      index: true,
-    },
-  },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  }
+/**
+ * Paid boost window. Sponsored only while
+ * sponsored === true AND (sponsoredUntil is null OR > now).
+ */
+sponsoredUntil: {
+  type: Date,
+  default: null,
+  index: true,
+},
+
+/** Last boost purchase metadata */
+lastBoost: {
+  package: { type: String, default: null }, // "7d" | "14d" | "30d"
+  amount: { type: Number, default: 0 },
+  purchasedAt: { type: Date, default: null },
+},
+
+status: {
+  type: String,
+  enum: ["active", "paused", "draft"],
+  default: "draft",
+  index: true,
+},
+},  // ← end of schema fields
+{
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+}
 );
 
 ServiceSchema.index({ category: 1, status: 1, price: 1 });
