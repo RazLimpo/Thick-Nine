@@ -1,12 +1,23 @@
 // app/freelancer-analytics/client.tsx
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import "@/styles/pages/freelancer-analytics.css";
 
 type Period = "30" | "7" | "lifetime";
+
+interface PromoEntry {
+  _id?: string;
+  name?: string;
+  cost?: number;
+  views?: number;
+  orders?: number;
+  notes?: string;
+  ended?: boolean;
+  createdAt?: string;
+}
 
 interface AnalyticsPayload {
   period?: string;
@@ -34,13 +45,7 @@ interface AnalyticsPayload {
     clicks?: number;
   }[];
   topClients?: { name?: string; revenue?: number; orders?: number }[];
-  orderStatus?: {
-    pending?: number;
-    active?: number;
-    completed?: number;
-    cancelled?: number;
-    disputed?: number;
-  };
+  orderStatus?: Record<string, number>;
   clients?: {
     repeatClients?: number;
     repeatRate?: number;
@@ -58,7 +63,13 @@ interface AnalyticsPayload {
     conversionRate?: number;
     breakdown?: AnalyticsPayload["earningsByGig"];
   };
-  goals?: { target?: number; current?: number; percent?: number };
+  goals?: {
+    target?: number;
+    current?: number;
+    percent?: number;
+    targetDate?: string | null;
+  };
+  promos?: PromoEntry[];
   recommendations?: string[];
   level?: string | null;
 }
@@ -70,6 +81,15 @@ function money(n?: number) {
   })}`;
 }
 
+function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = { Accept: "application/json" };
+  if (typeof window !== "undefined") {
+    const t = localStorage.getItem("token");
+    if (t) h.Authorization = `Bearer ${t}`;
+  }
+  return h;
+}
+
 function downloadCsv(data: AnalyticsPayload) {
   const rows: string[][] = [
     ["Metric", "Value"],
@@ -78,7 +98,7 @@ function downloadCsv(data: AnalyticsPayload) {
     ["Orders completed", String(data.overview?.ordersCompleted ?? "")],
     ["Average rating", String(data.overview?.averageRating ?? "")],
     ["Active gigs", String(data.overview?.activeGigs ?? "")],
-    ["Completion rate %", String(data.overview?.completionRate ?? "")],
+    ["Goal target", String(data.goals?.target ?? "")],
   ];
   (data.earningsByGig || []).forEach((g) => {
     rows.push([
@@ -86,7 +106,9 @@ function downloadCsv(data: AnalyticsPayload) {
       `${g.earnings}|orders=${g.orders}|conv=${g.conversionRate}`,
     ]);
   });
-  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const csv = rows
+    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -96,12 +118,120 @@ function downloadCsv(data: AnalyticsPayload) {
   URL.revokeObjectURL(url);
 }
 
+/** Simple SVG bar chart — no chart library */
+function BarChart({
+  points,
+  height = 200,
+}: {
+  points: { label: string; value: number }[];
+  height?: number;
+}) {
+  if (!points.length) {
+    return (
+      <div className="chart-placeholder">No data for this period yet.</div>
+    );
+  }
+  const max = Math.max(...points.map((p) => p.value), 1);
+  const barW = Math.max(12, Math.min(40, Math.floor(560 / points.length) - 6));
+  const gap = 6;
+  const width = points.length * (barW + gap) + 40;
+  return (
+    <div className="svg-chart-wrap">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width="100%"
+        height={height}
+        role="img"
+        aria-label="Earnings bar chart"
+      >
+        {points.map((p, i) => {
+          const h = Math.max(2, (p.value / max) * (height - 36));
+          const x = 20 + i * (barW + gap);
+          const y = height - 24 - h;
+          return (
+            <g key={p.label + i}>
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={h}
+                rx={3}
+                fill="#d96464"
+                opacity={0.9}
+              >
+                <title>{`${p.label}: ${money(p.value)}`}</title>
+              </rect>
+              {points.length <= 14 && (
+                <text
+                  x={x + barW / 2}
+                  y={height - 8}
+                  textAnchor="middle"
+                  fontSize="9"
+                  fill="#64748b"
+                >
+                  {p.label.slice(5)}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+/** Horizontal status bars */
+function StatusBars({ status }: { status?: Record<string, number> }) {
+  const entries = Object.entries(status || {});
+  const total = entries.reduce((s, [, v]) => s + Number(v), 0) || 1;
+  if (!entries.length) {
+    return <div className="chart-placeholder">No order data</div>;
+  }
+  return (
+    <div className="status-bars">
+      {entries.map(([k, v]) => {
+        const pct = Math.round((Number(v) / total) * 100);
+        return (
+          <div key={k} className="status-bar-row">
+            <span className="status-bar-label">
+              {k} ({v})
+            </span>
+            <div className="status-bar-track">
+              <div
+                className="status-bar-fill"
+                style={{ width: `${pct}%` }}
+                title={`${pct}%`}
+              />
+            </div>
+            <span className="status-bar-pct">{pct}%</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function FreelancerAnalyticsClient() {
   const router = useRouter();
   const [period, setPeriod] = useState<Period>("30");
   const [data, setData] = useState<AnalyticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [goalTarget, setGoalTarget] = useState("6000");
+  const [goalDate, setGoalDate] = useState("");
+  const [goalBusy, setGoalBusy] = useState(false);
+
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoForm, setPromoForm] = useState({
+    name: "",
+    cost: "",
+    views: "",
+    orders: "",
+    notes: "",
+  });
+  const [promoBusy, setPromoBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,10 +244,7 @@ export default function FreelancerAnalyticsClient() {
         return;
       }
       const res = await fetch(`/api/freelancer/analytics?period=${period}`, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: authHeaders(),
         credentials: "include",
         cache: "no-store",
       });
@@ -128,6 +255,14 @@ export default function FreelancerAnalyticsClient() {
         return;
       }
       setData(json);
+      if (json.goals?.target) setGoalTarget(String(json.goals.target));
+      if (json.goals?.targetDate) {
+        try {
+          setGoalDate(String(json.goals.targetDate).slice(0, 10));
+        } catch {
+          /* ignore */
+        }
+      }
     } catch {
       setError("Network error loading analytics.");
     } finally {
@@ -139,8 +274,79 @@ export default function FreelancerAnalyticsClient() {
     load();
   }, [load]);
 
+  const chartPoints = useMemo(() => {
+    return (data?.earningsSeries || []).map((p) => ({
+      label: p.date,
+      value: Number(p.amount) || 0,
+    }));
+  }, [data?.earningsSeries]);
+
+  const saveGoal = async () => {
+    setGoalBusy(true);
+    try {
+      const res = await fetch("/api/freelancer/analytics/goals", {
+        method: "PATCH",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          target: Number(goalTarget),
+          targetDate: goalDate || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(json.message || "Could not save goal.");
+        return;
+      }
+      setGoalOpen(false);
+      await load();
+    } catch {
+      alert("Network error saving goal.");
+    } finally {
+      setGoalBusy(false);
+    }
+  };
+
+  const savePromo = async () => {
+    setPromoBusy(true);
+    try {
+      const res = await fetch("/api/freelancer/analytics/promos", {
+        method: "POST",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          name: promoForm.name,
+          cost: Number(promoForm.cost) || 0,
+          views: Number(promoForm.views) || 0,
+          orders: Number(promoForm.orders) || 0,
+          notes: promoForm.notes,
+          ended: true,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(json.message || "Could not save promo.");
+        return;
+      }
+      setPromoOpen(false);
+      setPromoForm({ name: "", cost: "", views: "", orders: "", notes: "" });
+      await load();
+    } catch {
+      alert("Network error saving promo.");
+    } finally {
+      setPromoBusy(false);
+    }
+  };
+
   const o = data?.overview || {};
   const goalPct = Math.min(100, Number(data?.goals?.percent) || 0);
+  const promos = data?.promos || [];
 
   return (
     <div className="freelancer-analytics-page">
@@ -150,13 +356,12 @@ export default function FreelancerAnalyticsClient() {
         {error && (
           <div className="error-banner">
             {error}{" "}
-            <button type="button" onClick={load} style={{ marginLeft: 8 }}>
+            <button type="button" onClick={load}>
               Retry
             </button>
           </div>
         )}
 
-        {/* 1. Overview */}
         <section>
           <h3>1. Overview Dashboard</h3>
           <div className="period-row">
@@ -173,34 +378,34 @@ export default function FreelancerAnalyticsClient() {
           </div>
 
           {loading ? (
-            <p className="loading-state empty-hint">Loading metrics…</p>
+            <p className="empty-hint">Loading metrics…</p>
           ) : (
             <div className="kpi-grid">
-              <div className="card" title="Earnings in selected period">
+              <div className="card">
                 <div className="metric-value">{money(o.totalEarnings)}</div>
                 <div className="metric-label">Total Earnings (Period)</div>
               </div>
-              <div className="card" title="Completed orders">
+              <div className="card">
                 <div className="metric-value">{o.ordersCompleted ?? 0}</div>
                 <div className="metric-label">Orders Completed</div>
               </div>
-              <div className="card" title="Average buyer rating">
+              <div className="card">
                 <div className="metric-value">
                   {o.averageRating ? o.averageRating.toFixed(1) : "—"}
                 </div>
                 <div className="metric-label">Average Rating</div>
               </div>
-              <div className="card" title="Profile response rate if set">
+              <div className="card">
                 <div className="metric-value">
                   {o.responseRate != null ? `${o.responseRate}%` : "—"}
                 </div>
                 <div className="metric-label">Response Rate</div>
               </div>
-              <div className="card" title="Cancelled / total orders">
+              <div className="card">
                 <div className="metric-value">{o.cancellationRate ?? 0}%</div>
                 <div className="metric-label">Cancellation Rate</div>
               </div>
-              <div className="card" title="Active listed services">
+              <div className="card">
                 <div className="metric-value">{o.activeGigs ?? 0}</div>
                 <div className="metric-label">Active Gigs</div>
               </div>
@@ -210,32 +415,10 @@ export default function FreelancerAnalyticsClient() {
 
         <hr />
 
-        {/* 2. Earnings */}
         <section>
           <h3>2. Earnings Analytics</h3>
           <h4>Earnings Over Time</h4>
-          <div className="chart-placeholder">
-            {(data?.earningsSeries?.length ?? 0) === 0 ? (
-              "No completed earnings in this period yet."
-            ) : (
-              <div style={{ width: "100%", fontSize: "0.85rem" }}>
-                {(data?.earningsSeries || []).slice(-14).map((p) => (
-                  <div
-                    key={p.date}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "4px 8px",
-                      borderBottom: "1px solid #e2e8f0",
-                    }}
-                  >
-                    <span>{p.date}</span>
-                    <strong>{money(p.amount)}</strong>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <BarChart points={chartPoints} />
 
           <div className="insight-grid" style={{ marginTop: 20 }}>
             <div className="card">
@@ -292,70 +475,55 @@ export default function FreelancerAnalyticsClient() {
 
         <hr />
 
-        {/* 3. Order performance */}
         <section>
           <h3>3. Order and Delivery Performance</h3>
           <div className="kpi-grid four-col">
             <div className="card">
               <div className="metric-value">{o.orderVolume ?? 0}</div>
-              <div className="metric-label order-volume">Order Volume</div>
+              <div className="metric-label">Order Volume</div>
             </div>
             <div className="card">
               <div className="metric-value">{o.completionRate ?? 0}%</div>
-              <div className="metric-label completion-rate">Completion Rate</div>
+              <div className="metric-label">Completion Rate</div>
             </div>
             <div className="card">
               <div className="metric-value">
                 {o.avgDeliveryDays != null ? `${o.avgDeliveryDays} days` : "—"}
               </div>
-              <div className="metric-label delivery-time">Avg. Delivery Time</div>
+              <div className="metric-label">Avg. Delivery Time</div>
             </div>
             <div className="card">
               <div className="metric-value">{o.lateDeliveryRate ?? 0}%</div>
-              <div className="metric-label late-rate">Late Delivery Rate</div>
+              <div className="metric-label">Late Delivery Rate</div>
             </div>
           </div>
           <h4>Order Status Breakdown</h4>
-          <div className="chart-placeholder">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              {Object.entries(data?.orderStatus || {}).map(([k, v]) => (
-                <span key={k} className="pill good">
-                  {k}: {v}
-                </span>
-              ))}
-              {!data?.orderStatus && (
-                <span className="empty-hint">No order data</span>
-              )}
-            </div>
-          </div>
+          <StatusBars status={data?.orderStatus} />
         </section>
 
         <hr />
 
-        {/* 4. Clients & ratings */}
         <section>
           <h3>4. Client Interaction & Ratings</h3>
           <div className="insight-grid">
             <div className="card">
               <h5>Client Interaction</h5>
-              <div className="table-container">
-                <table className="striped-table">
-                  <tbody>
-                    <tr>
-                      <td>Unique Clients</td>
-                      <td>{data?.clients?.uniqueClients ?? 0}</td>
-                    </tr>
-                    <tr>
-                      <td>Repeat Clients</td>
-                      <td>{data?.clients?.repeatClients ?? 0}</td>
-                    </tr>
-                    <tr>
-                      <td>Repeat Rate</td>
-                      <td>{data?.clients?.repeatRate ?? 0}%</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <table className="striped-table">
+                <tbody>
+                  <tr>
+                    <td>Unique Clients</td>
+                    <td>{data?.clients?.uniqueClients ?? 0}</td>
+                  </tr>
+                  <tr>
+                    <td>Repeat Clients</td>
+                    <td>{data?.clients?.repeatClients ?? 0}</td>
+                  </tr>
+                  <tr>
+                    <td>Repeat Rate</td>
+                    <td>{data?.clients?.repeatRate ?? 0}%</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
             <div className="card">
               <h5>Ratings and Reviews</h5>
@@ -369,17 +537,17 @@ export default function FreelancerAnalyticsClient() {
               </p>
               <div style={{ marginBottom: 10 }}>
                 <span className="pill good">
-                  5 Stars: {data?.ratings?.distribution?.five ?? 0}%
+                  5★ {data?.ratings?.distribution?.five ?? 0}%
                 </span>
                 <span className="pill warn">
-                  4 Stars: {data?.ratings?.distribution?.four ?? 0}%
+                  4★ {data?.ratings?.distribution?.four ?? 0}%
                 </span>
                 <span className="pill warn">
-                  ≤3: {data?.ratings?.distribution?.threeOrLess ?? 0}%
+                  ≤3 {data?.ratings?.distribution?.threeOrLess ?? 0}%
                 </span>
               </div>
               {data?.ratings?.sampleReview ? (
-                <p>Review highlight: “{data.ratings.sampleReview}”</p>
+                <p>“{data.ratings.sampleReview}”</p>
               ) : (
                 <p className="empty-hint">No written reviews in this period.</p>
               )}
@@ -389,7 +557,6 @@ export default function FreelancerAnalyticsClient() {
 
         <hr />
 
-        {/* 5. Gig performance */}
         <section>
           <h3>5. Gig Performance Insights</h3>
           <div className="kpi-grid small-cards">
@@ -401,7 +568,7 @@ export default function FreelancerAnalyticsClient() {
             </div>
             <div className="card">
               <div className="metric-value">{data?.gigs?.ctr ?? 0}%</div>
-              <div className="metric-label">Click-Through Rate (CTR)</div>
+              <div className="metric-label">CTR</div>
             </div>
             <div className="card">
               <div className="metric-value">
@@ -410,8 +577,7 @@ export default function FreelancerAnalyticsClient() {
               <div className="metric-label">Conversion Rate</div>
             </div>
           </div>
-
-          <h4 style={{ marginTop: 28 }}>Gig Performance Breakdown</h4>
+          <h4>Gig Performance Breakdown</h4>
           <div className="table-container">
             <table className="gig-performance-table">
               <thead>
@@ -464,32 +630,54 @@ export default function FreelancerAnalyticsClient() {
 
         <hr />
 
-        {/* 6–8 simplified / linked */}
         <section>
           <h3>6. Traffic & Promotion</h3>
           <div className="insight-grid">
             <div className="card">
               <h5>Traffic</h5>
               <p className="empty-hint">
-                Per-service traffic sources live on each{" "}
-                <Link href="/service-management">Service Dashboard</Link>{" "}
-                (views / analytics). Aggregate platform search vs external needs
-                ServiceView logs across all gigs — use individual dashboards for
-                detail.
+                Detailed source breakdown is on each{" "}
+                <Link href="/service-management">Service Dashboard</Link>.
+                Account views:{" "}
+                <strong>{(data?.gigs?.views ?? 0).toLocaleString()}</strong> ·
+                clicks:{" "}
+                <strong>{(data?.gigs?.clicks ?? 0).toLocaleString()}</strong>
               </p>
             </div>
             <div className="card">
-              <h5>Promotion</h5>
+              <h5>Promotion / boost log</h5>
               <p className="empty-hint">
-                Boost campaigns are not tracked in v1. Use service dashboard
-                coupons and promotion tips instead.
+                Log manual boosts until paid campaigns are productized.
               </p>
-              <Link
-                href="/service-management"
-                className="action-call-highlight"
+              {(promos.length === 0 && (
+                <p className="empty-hint">No promos logged yet.</p>
+              )) || (
+                <table className="striped-table">
+                  <tbody>
+                    {promos.slice(0, 5).map((p, i) => (
+                      <tr key={p._id || i}>
+                        <td>
+                          {p.name}{" "}
+                          {p.ended ? (
+                            <span className="pill warn">Ended</span>
+                          ) : null}
+                        </td>
+                        <td>
+                          {money(p.cost)} · {p.orders || 0} orders
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ marginTop: 12 }}
+                onClick={() => setPromoOpen(true)}
               >
-                <i className="fas fa-external-link-alt" /> Open Service Management
-              </Link>
+                Log a promo
+              </button>
             </div>
           </div>
         </section>
@@ -536,12 +724,14 @@ export default function FreelancerAnalyticsClient() {
 
         <hr />
 
-        {/* Goals */}
         <section>
           <h3>8. Benchmarking and Goals</h3>
           <div className="card goal-tracker">
             <h5>
-              Period goal: {money(data?.goals?.target)} earnings
+              Goal: {money(data?.goals?.target)} earnings
+              {data?.goals?.targetDate
+                ? ` by ${String(data.goals.targetDate).slice(0, 10)}`
+                : ""}
             </h5>
             <div className="progress-bar-container">
               <div
@@ -551,16 +741,19 @@ export default function FreelancerAnalyticsClient() {
                 {money(data?.goals?.current)} ({goalPct}%)
               </div>
             </div>
-            <p className="empty-hint">
-              Goal target is a simple $6,000 default for the selected period —
-              edit later when you store custom goals on the profile.
-            </p>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ marginTop: 12 }}
+              onClick={() => setGoalOpen(true)}
+            >
+              Set / Edit Goals
+            </button>
           </div>
         </section>
 
         <hr />
 
-        {/* Reports */}
         <section>
           <h3>9. Reports & Recommendations</h3>
           <div className="insight-grid">
@@ -586,6 +779,120 @@ export default function FreelancerAnalyticsClient() {
           </div>
         </section>
       </div>
+
+      {/* Goal modal */}
+      {goalOpen && (
+        <div className="fa-modal-overlay" role="dialog" aria-modal="true">
+          <div className="fa-modal">
+            <h3>Set earnings goal</h3>
+            <label>
+              Target amount (USD)
+              <input
+                type="number"
+                min={1}
+                value={goalTarget}
+                onChange={(e) => setGoalTarget(e.target.value)}
+              />
+            </label>
+            <label>
+              Target date (optional)
+              <input
+                type="date"
+                value={goalDate}
+                onChange={(e) => setGoalDate(e.target.value)}
+              />
+            </label>
+            <div className="fa-modal-actions">
+              <button type="button" onClick={() => setGoalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={goalBusy}
+                onClick={saveGoal}
+              >
+                {goalBusy ? "Saving…" : "Save goal"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Promo modal */}
+      {promoOpen && (
+        <div className="fa-modal-overlay" role="dialog" aria-modal="true">
+          <div className="fa-modal">
+            <h3>Log a promotion / boost</h3>
+            <label>
+              Name
+              <input
+                value={promoForm.name}
+                onChange={(e) =>
+                  setPromoForm((f) => ({ ...f, name: e.target.value }))
+                }
+                placeholder="e.g. 7-day gig boost"
+              />
+            </label>
+            <label>
+              Cost (USD)
+              <input
+                type="number"
+                min={0}
+                value={promoForm.cost}
+                onChange={(e) =>
+                  setPromoForm((f) => ({ ...f, cost: e.target.value }))
+                }
+              />
+            </label>
+            <label>
+              Views generated
+              <input
+                type="number"
+                min={0}
+                value={promoForm.views}
+                onChange={(e) =>
+                  setPromoForm((f) => ({ ...f, views: e.target.value }))
+                }
+              />
+            </label>
+            <label>
+              Orders generated
+              <input
+                type="number"
+                min={0}
+                value={promoForm.orders}
+                onChange={(e) =>
+                  setPromoForm((f) => ({ ...f, orders: e.target.value }))
+                }
+              />
+            </label>
+            <label>
+              Notes
+              <textarea
+                rows={3}
+                value={promoForm.notes}
+                onChange={(e) =>
+                  setPromoForm((f) => ({ ...f, notes: e.target.value }))
+                }
+              />
+            </label>
+            <div className="fa-modal-actions">
+              <button type="button" onClick={() => setPromoOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={promoBusy}
+                onClick={savePromo}
+              >
+                {promoBusy ? "Saving…" : "Save promo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

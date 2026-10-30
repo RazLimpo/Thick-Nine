@@ -649,8 +649,34 @@ storeConfig: {
 },    
     
     
+    /* ===========================================================
+      SECTION 18. Custom earnings goal for /freelancer-analytics
+       =========================================================== */
+earningsGoal: {
+  target: { type: Number, default: 6000 },
+  targetDate: { type: Date, default: null },
+  updatedAt: { type: Date, default: null },
+},
+
+
+    
+    /* ===========================================================
+   SECTION 19. Manual promo / boost log until paid boost product exists
+       =========================================================== */
+promoLog: [
+  {
+    name: String,
+    cost: { type: Number, default: 0 },
+    views: { type: Number, default: 0 },
+    orders: { type: Number, default: 0 },
+    notes: { type: String, default: "" },
+    ended: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+    ],
+    
       /* ===========================================================
-       SECTION 18 — USER SETTINGS
+       SECTION 20 — USER SETTINGS
        =========================================================== */
 
     settings: {

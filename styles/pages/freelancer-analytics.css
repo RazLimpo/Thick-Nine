@@ -1,316 +1,421 @@
 /* styles/pages/freelancer-analytics.css — scoped */
 
 .freelancer-analytics-page {
-    --fa-primary: var(--primary-color, #d96464);
-    --fa-success: #28a745;
-    --fa-danger: #dc3545;
-    --fa-muted: #6c757d;
-  }
-  
+  --fa-primary: var(--primary-color, #d96464);
+  --fa-success: #28a745;
+  --fa-danger: #dc3545;
+  --fa-muted: #6c757d;
+}
+
+.freelancer-analytics-page .dashboard-container {
+  max-width: 1200px;
+  margin: 24px auto 40px;
+  background: #fff;
+  padding: 28px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.freelancer-analytics-page h1 {
+  color: var(--fa-primary);
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 14px;
+  margin-bottom: 28px;
+  font-size: 1.75rem;
+}
+
+.freelancer-analytics-page h3 {
+  color: #495057;
+  border-left: 5px solid var(--fa-primary);
+  padding-left: 10px;
+  margin-top: 32px;
+  margin-bottom: 18px;
+  font-size: 1.35rem;
+}
+
+.freelancer-analytics-page h4 {
+  color: #343a40;
+  margin-top: 22px;
+  margin-bottom: 14px;
+}
+
+.freelancer-analytics-page h5 {
+  margin: 0 0 12px;
+  color: #343a40;
+}
+
+.freelancer-analytics-page hr {
+  border: none;
+  border-top: 1px solid #e9ecef;
+  margin: 28px 0;
+}
+
+.freelancer-analytics-page .period-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.freelancer-analytics-page .period-row select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+}
+
+.freelancer-analytics-page .kpi-grid,
+.freelancer-analytics-page .insight-grid {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.freelancer-analytics-page .kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.freelancer-analytics-page .kpi-grid.small-cards {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.freelancer-analytics-page .kpi-grid.four-col {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.freelancer-analytics-page .insight-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.freelancer-analytics-page .card {
+  background: #fff;
+  padding: 18px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border: 1px solid #dee2e6;
+  overflow: hidden;
+}
+
+.freelancer-analytics-page .report-card {
+  border: 2px solid #ffc107;
+  background: #fffbe6;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.freelancer-analytics-page .advice-box {
+  border: 2px solid #ffc107;
+  background: #fffbe6;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.freelancer-analytics-page .advice-box h5 {
+  color: #b8860b;
+}
+
+.freelancer-analytics-page .metric-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--fa-success);
+  margin-bottom: 4px;
+}
+
+.freelancer-analytics-page .metric-label {
+  font-size: 0.88rem;
+  color: var(--fa-muted);
+}
+
+.freelancer-analytics-page .stat-trend {
+  font-size: 0.8rem;
+  margin-top: 6px;
+}
+
+.freelancer-analytics-page .stat-trend.trend-up {
+  color: var(--fa-success);
+}
+
+.freelancer-analytics-page .stat-trend.trend-down {
+  color: var(--fa-danger);
+}
+
+.freelancer-analytics-page .chart-placeholder,
+.freelancer-analytics-page .review-trend-chart,
+.freelancer-analytics-page .traffic-breakdown-chart {
+  min-height: 180px;
+  background: #f0f8ff;
+  border: 1px dashed #ced4da;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 16px;
+}
+
+.freelancer-analytics-page .table-container {
+  overflow-x: auto;
+}
+
+.freelancer-analytics-page .striped-table,
+.freelancer-analytics-page .gig-performance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-top: 12px;
+}
+
+.freelancer-analytics-page .striped-table th,
+.freelancer-analytics-page .striped-table td,
+.freelancer-analytics-page .gig-performance-table th,
+.freelancer-analytics-page .gig-performance-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.freelancer-analytics-page .striped-table td:last-child {
+  text-align: right;
+  font-weight: 600;
+}
+
+.freelancer-analytics-page .striped-table tbody tr:nth-child(even) {
+  background: #f7f7f7;
+}
+
+.freelancer-analytics-page .gig-performance-table th {
+  background: #f3f4f6;
+  font-size: 0.85rem;
+  color: #495057;
+}
+
+.freelancer-analytics-page .performance-metric {
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.freelancer-analytics-page .pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  margin-right: 4px;
+}
+
+.freelancer-analytics-page .pill.good {
+  background: #d4edda;
+  color: #155724;
+}
+
+.freelancer-analytics-page .pill.warn {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.freelancer-analytics-page .trend-positive {
+  color: var(--fa-success);
+  font-weight: 600;
+}
+
+.freelancer-analytics-page .trend-negative {
+  color: var(--fa-danger);
+  font-weight: 600;
+}
+
+.freelancer-analytics-page .goal-tracker {
+  margin: 12px 0;
+  border: 1px solid #ced4da;
+  border-radius: 10px;
+  padding: 16px;
+  background: #f8f9fa;
+}
+
+.freelancer-analytics-page .progress-bar-container {
+  height: 28px;
+  background: #e9ecef;
+  border-radius: 14px;
+  margin: 10px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.freelancer-analytics-page .progress-fill {
+  height: 100%;
+  background: var(--fa-success);
+  border-radius: 14px 0 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding-right: 10px;
+  min-width: 2rem;
+  transition: width 0.4s ease;
+}
+
+.freelancer-analytics-page .btn-primary {
+  background: var(--fa-primary);
+  color: #fff;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.freelancer-analytics-page .btn-primary:hover {
+  filter: brightness(0.95);
+}
+
+.freelancer-analytics-page .action-call-highlight {
+  font-weight: 700;
+  color: var(--fa-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.freelancer-analytics-page .loading-state,
+.freelancer-analytics-page .error-banner {
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.freelancer-analytics-page .error-banner {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.freelancer-analytics-page .empty-hint {
+  color: var(--fa-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
   .freelancer-analytics-page .dashboard-container {
-    max-width: 1200px;
-    margin: 24px auto 40px;
-    background: #fff;
-    padding: 28px;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    margin: 12px;
+    padding: 16px;
   }
-  
-  .freelancer-analytics-page h1 {
-    color: var(--fa-primary);
-    border-bottom: 2px solid #e9ecef;
-    padding-bottom: 14px;
-    margin-bottom: 28px;
-    font-size: 1.75rem;
-  }
-  
-  .freelancer-analytics-page h3 {
-    color: #495057;
-    border-left: 5px solid var(--fa-primary);
-    padding-left: 10px;
-    margin-top: 32px;
-    margin-bottom: 18px;
-    font-size: 1.35rem;
-  }
-  
-  .freelancer-analytics-page h4 {
-    color: #343a40;
-    margin-top: 22px;
-    margin-bottom: 14px;
-  }
-  
-  .freelancer-analytics-page h5 {
-    margin: 0 0 12px;
-    color: #343a40;
-  }
-  
-  .freelancer-analytics-page hr {
-    border: none;
-    border-top: 1px solid #e9ecef;
-    margin: 28px 0;
-  }
-  
-  .freelancer-analytics-page .period-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  
-  .freelancer-analytics-page .period-row select {
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: 1px solid #ced4da;
-  }
-  
-  .freelancer-analytics-page .kpi-grid,
-  .freelancer-analytics-page .insight-grid {
-    display: grid;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-  
   .freelancer-analytics-page .kpi-grid {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
-  
-  .freelancer-analytics-page .kpi-grid.small-cards {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
-  
   .freelancer-analytics-page .kpi-grid.four-col {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
-  
   .freelancer-analytics-page .insight-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
-  
-  .freelancer-analytics-page .card {
-    background: #fff;
-    padding: 18px;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-    border: 1px solid #dee2e6;
-    overflow: hidden;
-  }
-  
-  .freelancer-analytics-page .report-card {
-    border: 2px solid #ffc107;
-    background: #fffbe6;
-    padding: 20px;
-    border-radius: 8px;
-  }
-  
-  .freelancer-analytics-page .advice-box {
-    border: 2px solid #ffc107;
-    background: #fffbe6;
-    padding: 20px;
-    border-radius: 8px;
-  }
-  
-  .freelancer-analytics-page .advice-box h5 {
-    color: #b8860b;
-  }
-  
-  .freelancer-analytics-page .metric-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--fa-success);
-    margin-bottom: 4px;
-  }
-  
-  .freelancer-analytics-page .metric-label {
-    font-size: 0.88rem;
-    color: var(--fa-muted);
-  }
-  
-  .freelancer-analytics-page .stat-trend {
-    font-size: 0.8rem;
-    margin-top: 6px;
-  }
-  
-  .freelancer-analytics-page .stat-trend.trend-up {
-    color: var(--fa-success);
-  }
-  
-  .freelancer-analytics-page .stat-trend.trend-down {
-    color: var(--fa-danger);
-  }
-  
-  .freelancer-analytics-page .chart-placeholder,
-  .freelancer-analytics-page .review-trend-chart,
-  .freelancer-analytics-page .traffic-breakdown-chart {
-    min-height: 180px;
-    background: #f0f8ff;
-    border: 1px dashed #ced4da;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    color: #64748b;
-    font-size: 0.9rem;
-    text-align: center;
-    padding: 16px;
-  }
-  
-  .freelancer-analytics-page .table-container {
-    overflow-x: auto;
-  }
-  
-  .freelancer-analytics-page .striped-table,
-  .freelancer-analytics-page .gig-performance-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-    margin-top: 12px;
-  }
-  
-  .freelancer-analytics-page .striped-table th,
-  .freelancer-analytics-page .striped-table td,
-  .freelancer-analytics-page .gig-performance-table th,
-  .freelancer-analytics-page .gig-performance-table td {
-    padding: 10px 12px;
-    text-align: left;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .freelancer-analytics-page .striped-table td:last-child {
-    text-align: right;
-    font-weight: 600;
-  }
-  
-  .freelancer-analytics-page .striped-table tbody tr:nth-child(even) {
-    background: #f7f7f7;
-  }
-  
-  .freelancer-analytics-page .gig-performance-table th {
-    background: #f3f4f6;
-    font-size: 0.85rem;
-    color: #495057;
-  }
-  
-  .freelancer-analytics-page .performance-metric {
-    font-weight: 700;
-    color: #1e3a8a;
-  }
-  
-  .freelancer-analytics-page .pill {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    margin-right: 4px;
-  }
-  
-  .freelancer-analytics-page .pill.good {
-    background: #d4edda;
-    color: #155724;
-  }
-  
-  .freelancer-analytics-page .pill.warn {
-    background: #fff3cd;
-    color: #856404;
-  }
-  
-  .freelancer-analytics-page .trend-positive {
-    color: var(--fa-success);
-    font-weight: 600;
-  }
-  
-  .freelancer-analytics-page .trend-negative {
-    color: var(--fa-danger);
-    font-weight: 600;
-  }
-  
-  .freelancer-analytics-page .goal-tracker {
-    margin: 12px 0;
-    border: 1px solid #ced4da;
-    border-radius: 10px;
-    padding: 16px;
-    background: #f8f9fa;
-  }
-  
-  .freelancer-analytics-page .progress-bar-container {
-    height: 28px;
-    background: #e9ecef;
-    border-radius: 14px;
-    margin: 10px 0;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .freelancer-analytics-page .progress-fill {
-    height: 100%;
-    background: var(--fa-success);
-    border-radius: 14px 0 0 14px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.85rem;
-    padding-right: 10px;
-    min-width: 2rem;
-    transition: width 0.4s ease;
-  }
-  
-  .freelancer-analytics-page .btn-primary {
-    background: var(--fa-primary);
-    color: #fff;
-    padding: 10px 14px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  
-  .freelancer-analytics-page .btn-primary:hover {
-    filter: brightness(0.95);
-  }
-  
-  .freelancer-analytics-page .action-call-highlight {
-    font-weight: 700;
-    color: var(--fa-primary);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-  }
-  
-  .freelancer-analytics-page .loading-state,
-  .freelancer-analytics-page .error-banner {
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-  }
-  
-  .freelancer-analytics-page .error-banner {
-    background: #fef2f2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
-  }
-  
-  .freelancer-analytics-page .empty-hint {
-    color: var(--fa-muted);
-    font-size: 0.9rem;
-  }
-  
-  @media (max-width: 768px) {
-    .freelancer-analytics-page .dashboard-container {
-      margin: 12px;
-      padding: 16px;
-    }
-    .freelancer-analytics-page .kpi-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .freelancer-analytics-page .kpi-grid.four-col {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .freelancer-analytics-page .insight-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-  
+}
+
+/* Charts & modals (upgrades) */
+.freelancer-analytics-page .svg-chart-wrap {
+  width: 100%;
+  overflow-x: auto;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.freelancer-analytics-page .status-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.freelancer-analytics-page .status-bar-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 48px;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.freelancer-analytics-page .status-bar-track {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.freelancer-analytics-page .status-bar-fill {
+  height: 100%;
+  background: #d96464;
+  border-radius: 6px;
+}
+
+.freelancer-analytics-page .status-bar-pct {
+  text-align: right;
+  color: #64748b;
+}
+
+.freelancer-analytics-page .fa-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.freelancer-analytics-page .fa-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 22px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.freelancer-analytics-page .fa-modal h3 {
+  margin: 0 0 14px;
+  border: none;
+  padding: 0;
+  font-size: 1.15rem;
+}
+
+.freelancer-analytics-page .fa-modal label {
+  display: block;
+  font-size: 0.85rem;
+  color: #475569;
+  margin-bottom: 12px;
+}
+
+.freelancer-analytics-page .fa-modal input,
+.freelancer-analytics-page .fa-modal textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.freelancer-analytics-page .fa-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.freelancer-analytics-page .fa-modal-actions button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+}

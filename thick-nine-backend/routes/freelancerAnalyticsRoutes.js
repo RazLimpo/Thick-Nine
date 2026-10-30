@@ -49,7 +49,7 @@ router.get("/analytics", auth, async (req, res) => {
       Service.find({ sellerId: userId }).lean(),
       User.findById(userId)
         .select(
-          "fullName metrics averageRating responseRate level accountStrength sellerAvailableBalance"
+          "fullName metrics averageRating responseRate level accountStrength sellerAvailableBalance earningsGoal promoLog"
         )
         .lean(),
     ]);
@@ -228,8 +228,11 @@ router.get("/analytics", auth, async (req, res) => {
       .map(([date, amount]) => ({ date, amount }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const goalTarget = 6000;
+    const goalTarget = Number(user?.earningsGoal?.target) > 0
+      ? Number(user.earningsGoal.target)
+      : 6000;
     const goalPct = Math.min(100, Math.round((earnings / goalTarget) * 1000) / 10);
+    const goalTargetDate = user?.earningsGoal?.targetDate || null;
 
     const ctr =
       totalViews > 0
@@ -317,7 +320,9 @@ router.get("/analytics", auth, async (req, res) => {
         target: goalTarget,
         current: Math.round(earnings * 100) / 100,
         percent: goalPct,
+        targetDate: goalTargetDate,
       },
+      promos: Array.isArray(user?.promoLog) ? user.promoLog.slice(-10).reverse() : [],
       recommendations,
       level: user?.level || null,
     });
@@ -331,3 +336,101 @@ router.get("/analytics", auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// PATCH /api/freelancer/analytics/goals — custom earnings goal
+router.patch("/analytics/goals", auth, async (req, res) => {
+  try {
+    const userId = uid(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const target = Number(req.body?.target);
+    const targetDate = req.body?.targetDate
+      ? new Date(req.body.targetDate)
+      : null;
+
+    if (!Number.isFinite(target) || target <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "target must be a positive number.",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    user.earningsGoal = {
+      target,
+      targetDate: targetDate && !Number.isNaN(targetDate.getTime()) ? targetDate : null,
+      updatedAt: new Date(),
+    };
+    await user.save();
+
+    return res.json({
+      success: true,
+      goals: {
+        target: user.earningsGoal.target,
+        targetDate: user.earningsGoal.targetDate,
+      },
+    });
+  } catch (err) {
+    console.error("PATCH analytics/goals:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save goal.",
+    });
+  }
+});
+
+// GET/POST light promo log (manual boost tracking until paid boosts exist)
+router.get("/analytics/promos", auth, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const user = await User.findById(userId).select("promoLog").lean();
+    return res.json({
+      success: true,
+      promos: Array.isArray(user?.promoLog) ? user.promoLog : [],
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Failed to load promos." });
+  }
+});
+
+router.post("/analytics/promos", auth, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const { name, cost, views, orders, notes, ended } = req.body || {};
+    if (!name || String(name).trim().length < 2) {
+      return res.status(400).json({ success: false, message: "Promo name required." });
+    }
+
+    const entry = {
+      _id: new (require("mongoose").Types.ObjectId)(),
+      name: String(name).trim().slice(0, 120),
+      cost: Number(cost) || 0,
+      views: Number(views) || 0,
+      orders: Number(orders) || 0,
+      notes: String(notes || "").slice(0, 500),
+      ended: Boolean(ended),
+      createdAt: new Date(),
+    };
+
+    await User.updateOne(
+      { _id: userId },
+      { $push: { promoLog: { $each: [entry], $slice: -40 } } }
+    );
+
+    const roas =
+      entry.cost > 0 && entry.orders > 0
+        ? Math.round(((entry.orders * 50) / entry.cost) * 100) // rough if order value unknown
+        : null;
+
+    return res.status(201).json({ success: true, promo: entry, roasHint: roas });
+  } catch (err) {
+    console.error("POST analytics/promos:", err);
+    return res.status(500).json({ success: false, message: "Failed to save promo." });
+  }
+});
