@@ -167,6 +167,7 @@ export default function ServiceDashboardClient({
     | "tips"
     | "coupons"
     | "offer"
+    | "boost"
     | null
   >(null);
   const [saving, setSaving] = useState(false);
@@ -759,22 +760,29 @@ export default function ServiceDashboardClient({
   };
 
   /* ---------- buy boost ---------- */
-  const buyBoost = async () => {
+  const BOOST_LABELS: Record<"7d" | "14d" | "30d", string> = {
+    "7d": "7-day ($5)",
+    "14d": "14-day ($9)",
+    "30d": "30-day ($15)",
+  };
+
+  /** Opens in-app confirm modal (no browser confirm()) */
+  const openBoostModal = () => {
     if (!service) return;
     if (service.status !== "active") {
       alert("Only active services can be boosted. Resume the service first.");
       return;
     }
-    const labels: Record<string, string> = {
-      "7d": "7-day ($5)",
-      "14d": "14-day ($9)",
-      "30d": "30-day ($15)",
-    };
-    if (
-      !confirm(
-        `Activate a ${labels[boostPackage] || boostPackage} boost for this service?`
-      )
-    ) {
+    setModalMode("boost");
+    setModalTitle("Confirm boost");
+    setModalOpen(true);
+  };
+
+  /** Activate boost after modal confirm — smoke-test: no payment yet */
+  const confirmBoost = async () => {
+    if (!service) return;
+    if (service.status !== "active") {
+      alert("Only active services can be boosted. Resume the service first.");
       return;
     }
 
@@ -807,7 +815,9 @@ export default function ServiceDashboardClient({
             }
           : prev
       );
-      alert(data.message || "Boost activated.");
+      setModalOpen(false);
+      setModalMode(null);
+
       // Refresh manage payload for theoretical ROAS
       try {
         const r2 = await fetch(`/api/services/${serviceId}/manage`, {
@@ -818,7 +828,10 @@ export default function ServiceDashboardClient({
         });
         const d2 = await r2.json().catch(() => ({}));
         if (r2.ok) {
-          if (d2.service) setService((prev) => (prev ? { ...prev, ...d2.service } : d2.service));
+          if (d2.service)
+            setService((prev) =>
+              prev ? { ...prev, ...d2.service } : d2.service
+            );
           setBoostRoas(d2.boostRoas || null);
         }
       } catch {
@@ -835,6 +848,7 @@ export default function ServiceDashboardClient({
   const togglePause = async () => {
     if (!service) return;
     const next = service.status === "active" ? "paused" : "active";
+    setSaving(true);
     try {
       const res = await fetch(`/api/services/${service._id}/status`, {
         method: "PATCH",
@@ -852,8 +866,11 @@ export default function ServiceDashboardClient({
       }
       setService((prev) => (prev ? { ...prev, status: next } : prev));
       setModalOpen(false);
+      setModalMode(null);
     } catch {
       alert("Network error while updating status.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1578,10 +1595,18 @@ export default function ServiceDashboardClient({
               type="button"
               className="btn-primary full-width"
               disabled={boostBusy || service.status !== "active"}
-              onClick={buyBoost}
+              onClick={openBoostModal}
+              aria-busy={boostBusy}
             >
-              <i className="fas fa-rocket" />{" "}
-              {boostBusy ? "Activating…" : "Buy boost"}
+              {boostBusy ? (
+                <>
+                  <i className="fas fa-spinner fa-spin" aria-hidden /> Activating…
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-rocket" aria-hidden /> Buy boost
+                </>
+              )}
             </button>
             {service.status !== "active" && (
               <p
@@ -1702,7 +1727,35 @@ export default function ServiceDashboardClient({
             </button>
           </div>
 
-          {modalMode === "pause" && (
+                    {modalMode === "boost" && (
+            <div className="action-section">
+              <p style={{ marginTop: 0, fontSize: "0.95rem", lineHeight: 1.5 }}>
+                Activate a{" "}
+                <strong>{BOOST_LABELS[boostPackage]}</strong> Sponsored boost
+                for this service?
+              </p>
+              <p style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                Placement on homepage &amp; search while the window is active.
+                Extending adds days onto any remaining boost time.
+              </p>
+              <p
+                style={{
+                  fontSize: "0.8rem",
+                  color: "#b45309",
+                  background: "#fffbeb",
+                  border: "1px solid #fde68a",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                }}
+              >
+                <strong>Smoke-test mode:</strong> no card is charged yet. When
+                Payoneer / Stripe is connected, this step will open checkout
+                first, then activate only after payment succeeds.
+              </p>
+            </div>
+          )}
+
+{modalMode === "pause" && (
             <div id="section-remind" className="action-section">
               <div className="info-banner">
                 <i className="fas fa-info-circle" />
@@ -2355,7 +2408,7 @@ export default function ServiceDashboardClient({
               type="button"
               className="btn-outline close-modal"
               onClick={() => setModalOpen(false)}
-              disabled={saving}
+              disabled={saving || boostBusy}
             >
               Cancel
             </button>
@@ -2365,8 +2418,17 @@ export default function ServiceDashboardClient({
                 className="btn-primary"
                 id="main-action-submit"
                 onClick={togglePause}
+                disabled={saving}
+                aria-busy={saving}
               >
-                Confirm
+                {saving ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin" aria-hidden />{" "}
+                    Updating…
+                  </>
+                ) : (
+                  "Confirm"
+                )}
               </button>
             )}
             {modalMode === "delete" && (
@@ -2433,6 +2495,37 @@ export default function ServiceDashboardClient({
                 disabled={saving}
               >
                 {saving ? "Sending…" : "Send offer"}
+              </button>
+            )}
+            {modalMode === "boost" && (
+              <button
+                type="button"
+                className="btn-primary"
+                id="main-action-submit"
+                onClick={confirmBoost}
+                disabled={boostBusy}
+                aria-busy={boostBusy}
+                style={{ minWidth: 140 }}
+              >
+                {boostBusy ? (
+                  <>
+                    <i
+                      className="fas fa-spinner fa-spin"
+                      aria-hidden
+                      style={{ marginRight: 8 }}
+                    />
+                    Activating…
+                  </>
+                ) : (
+                  <>
+                    <i
+                      className="fas fa-rocket"
+                      aria-hidden
+                      style={{ marginRight: 8 }}
+                    />
+                    Confirm boost
+                  </>
+                )}
               </button>
             )}
           </div>

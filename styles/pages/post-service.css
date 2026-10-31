@@ -1,5 +1,5 @@
 /* ---------------------------------------------------- */
-/* 16. Post Service Page Styles (New Packages Design) */
+/* Post Service Page Styles (New Packages Design) */
 /* ---------------------------------------------------- */
 .form-layout {
   max-width: var(--max-width);
@@ -859,7 +859,7 @@
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
-  max-width: var(--max-width);
+  max-width: 800px;
   z-index: 1000;
   display: flex;
   align-items: center;
