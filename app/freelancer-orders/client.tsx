@@ -525,6 +525,10 @@ export default function FreelancerOrdersClient() {
                   <option value="in-progress">In Progress</option>
                   <option value="revision">Revision</option>
                 </select>
+                <Link href="/freelancer-orders-history" className="btn-history-link">
+    <i className="fas fa-history" aria-hidden="true" />
+    History
+  </Link>
               </div>
             </div>
 
