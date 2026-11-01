@@ -9,6 +9,8 @@ import SearchSidebar, {
 
 import SponsoredCarousel from "@/components/SearchResults/SponsoredCarousel";
 
+import ResultsControls from "@/components/SearchResults/ResultsControls";
+
 import ResultsGrid from "@/components/SearchResults/ResultsGrid";
 import Pagination from "@/components/SearchResults/Pagination";
 
@@ -165,8 +167,13 @@ export default function SearchResultsClient() {
           <SponsoredCarousel ads={promo.ads} mode={promo.mode} />
         )}
 
-        {/* Optional: keep ResultsControls if you still import it elsewhere */}
-        {/* activeCategoryLabels / selectedPills available for controls */}
+        <ResultsControls
+          totalResults={totalMatches}
+          searchQuery={searchTerm}
+          activeCategories={activeCategoryLabels}
+          selectedPills={selectedPills}
+          onTogglePill={handleTogglePill}
+        />
 
         <ResultsGrid services={paginatedServices} isLoading={loading} />
 
