@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Service, ServicePackage, ServiceAddon } from "@/types/service";
+import { useServiceFavorites } from "@/hooks/useServiceFavorites";
 import "@/styles/pages/service-details.css";
 
 type PackageKey = "basic" | "standard" | "premium";
@@ -76,8 +77,11 @@ export default function ServiceDetailsClient({
   service,
 }: ServiceDetailsClientProps) {
   const router = useRouter();
+  const { isFavorited, toggleFavorite } = useServiceFavorites();
+  const serviceId = String(service.id || service._id || "").trim();
+  const isSaved = isFavorited(serviceId);
+
   const [messaging, setMessaging] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
   /** null = still checking auth; true = logged-in seller of this service */
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [favBusy, setFavBusy] = useState(false);
@@ -156,7 +160,6 @@ export default function ServiceDetailsClient({
   const sellerProfileHref = sellerId
     ? `/freelancer-profile?id=${encodeURIComponent(sellerId)}`
     : "/freelancer-profile";
-  const serviceId = String(service.id || service._id || "").trim();
   const serviceStatus = String(
     (service as Service & { status?: string }).status || "active"
   ).toLowerCase();
@@ -197,44 +200,6 @@ export default function ServiceDetailsClient({
   );
 
 
-  /* ---------- favourite hydrate (Bookmark API) ---------- */
-  useEffect(() => {
-    if (!serviceId || typeof window === "undefined") return;
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setIsFavorited(
-        Boolean((service as { isFavorited?: boolean }).isFavorited)
-      );
-      return;
-    }
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch(
-          `/api/bookmarks/check?itemType=Service&itemId=${encodeURIComponent(serviceId)}`,
-          {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              Accept: "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            cache: "no-store",
-          }
-        );
-        const json = await res.json().catch(() => ({}));
-        if (!mounted) return;
-        if (res.ok && typeof json.favorited !== "undefined") {
-          setIsFavorited(Boolean(json.favorited));
-        }
-      } catch {
-        /* leave current state */
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [serviceId, service]);
 
   /* ---------- auto-rotate gallery every 6s ---------- */
   useEffect(() => {
@@ -372,7 +337,7 @@ export default function ServiceDetailsClient({
   };
 
 
-  const toggleFavorite = async () => {
+  const handleToggleFavorite = async () => {
     if (!serviceId) {
       showToast("Service unavailable.", "error");
       return;
@@ -384,48 +349,11 @@ export default function ServiceDetailsClient({
       router.push("/?auth=login");
       return;
     }
-    const next = !isFavorited;
-    setIsFavorited(next);
     setFavBusy(true);
     try {
-      if (next) {
-        const res = await fetch("/api/bookmarks", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            ...getAuthHeaders(),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ itemType: "Service", itemId: serviceId }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok && res.status !== 409) {
-          setIsFavorited(false);
-          showToast(json.message || "Could not save favourite.", "error");
-          return;
-        }
-        showToast("Saved to favourites.", "success");
-      } else {
-        const res = await fetch("/api/bookmarks", {
-          method: "DELETE",
-          credentials: "include",
-          headers: {
-            ...getAuthHeaders(),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ itemType: "Service", itemId: serviceId }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          setIsFavorited(true);
-          showToast(json.message || "Could not remove favourite.", "error");
-          return;
-        }
-        showToast("Removed from favourites.", "success");
-      }
+      await toggleFavorite(serviceId, !isSaved);
     } catch {
-      setIsFavorited((prev) => !prev);
-      showToast("Network error. Please try again.", "error");
+      showToast("Could not update favourite. Please try again.", "error");
     } finally {
       setFavBusy(false);
     }
@@ -745,15 +673,15 @@ export default function ServiceDetailsClient({
             <div className="service-quick-actions" role="group" aria-label="Service actions">
               <button
                 type="button"
-                className={`quick-action-btn${isFavorited ? " is-active" : ""}`}
-                onClick={toggleFavorite}
+                className={`quick-action-btn${isSaved ? " is-active" : ""}`}
+                onClick={handleToggleFavorite}
                 disabled={favBusy}
-                title={isFavorited ? "Remove from favourites" : "Add to favourites"}
-                aria-label={isFavorited ? "Remove from favourites" : "Add to favourites"}
-                aria-pressed={isFavorited}
+                title={isSaved ? "Remove from favourites" : "Add to favourites"}
+                aria-label={isSaved ? "Remove from favourites" : "Add to favourites"}
+                aria-pressed={isSaved}
               >
-                <i className={isFavorited ? "fas fa-heart" : "far fa-heart"} />
-                <span>{isFavorited ? "Saved" : "Save"}</span>
+                <i className={isSaved ? "fas fa-heart" : "far fa-heart"} />
+                <span>{isSaved ? "Saved" : "Save"}</span>
               </button>
               <button
                 type="button"

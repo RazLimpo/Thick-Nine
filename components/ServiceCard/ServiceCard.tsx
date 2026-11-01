@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import type { Service } from "@/types/service";
 import { isUserOnline } from "@/lib/presence";
+import { useServiceFavorites } from "@/hooks/useServiceFavorites";
 
 interface ServiceCardProps {
   service: Service;
@@ -75,17 +76,10 @@ export default function ServiceCard({
   };
 
   // ---------- Location String ----------
-  const rawCity = sellerInfo.city?.trim() || "";
-let rawCountry = sellerInfo.country?.trim() || "";
-
-if (rawCity && rawCountry.toLowerCase().startsWith(rawCity.toLowerCase())) {
-  rawCountry = rawCountry.replace(new RegExp(`^${rawCity}[,\\s]*`, "i"), "");
-}
-
-const location =
-  rawCity && rawCountry
-    ? `${rawCity}, ${rawCountry}`
-    : rawCity || rawCountry || "Remote";
+  const location =
+    sellerInfo.city && sellerInfo.country
+      ? `${sellerInfo.city}, ${sellerInfo.country}`
+      : sellerInfo.city || sellerInfo.country || "Remote";
 
   // ---------- Pricing ----------
   const formattedPrice = `$${Number(service.price ?? 0).toLocaleString()}`;
@@ -107,16 +101,23 @@ const location =
   const isSponsored = service.isSponsored ?? false;
   const isFeatured = service.isFeatured ?? false;
 
-  // ---------- Favorite State ----------
-  const [favorite, setFavorite] = useState(service.isFavorited ?? false);
+  // ---------- Favorite (shared hook — same source as service details) ----------
+  const { isFavorited, toggleFavorite } = useServiceFavorites();
+  const id = String(serviceId || "").trim();
+  const favorite = Boolean(id && isFavorited(id));
 
-  const handleFavoriteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleFavoriteClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!id) return;
 
-    const nextState = !favorite;
-    setFavorite(nextState);
-    onFavoriteToggle?.(serviceId, nextState);
+    const nextState = !isFavorited(id);
+    try {
+      await toggleFavorite(id, nextState);
+      onFavoriteToggle?.(id, nextState);
+    } catch {
+      // Hook / API error — heart state stays driven by isFavorited()
+    }
   };
 
   const handleDotClick = (
