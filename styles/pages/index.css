@@ -31,6 +31,8 @@
 .slide-2 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('/images/index/hero-2.webp'); }
 .slide-3 { background-image: linear-gradient(to right, rgba(0,0,0,0.85) 15%, transparent 85%), url('/images/index/hero-3.webp'); }
 
+
+
 @keyframes heroMasterSlider {
   0%, 30% { transform: translateX(0); }
   33.33%, 63.33% { transform: translateX(-33.33%); }
@@ -485,10 +487,10 @@
 .bg-lifestyle { background-color: #ff2d55; }
 .bg-graphics { background-color: #5856d6; }
 .bg-music { background-color: #8b5cf6; }
-.bg-photography { background-color: #ffeb2a; }
+.bg-photography { background-color: #cc0000; }
 .bg-programming { background-color: #1d1d1f; }
 .bg-travelling { background-color: #5ac8fa; }
-.bg-video { background-color: #cc0000; }
+.bg-video { background-color: #ffeb2a; }
 .bg-writing { background-color: #007aff; }
 .bg-misc { background-color: #8e8e93; }
 
