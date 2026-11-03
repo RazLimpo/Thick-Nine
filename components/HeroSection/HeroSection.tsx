@@ -65,7 +65,7 @@ export default function HeroSection() {
   }, []);
 
   return (
-    <section className="hero-section" id="hero-slider" style={{ position: 'relative', overflow: 'hidden', height: '450px' }}>
+    <section className="hero-section" id="hero-slider">
       
       {/* Content Overlay */}
       <div className="hero-overlay" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }}>
@@ -95,12 +95,6 @@ export default function HeroSection() {
           <div
             key={slide.id}
             className={`hero-slide ${slide.className}`}
-            style={{
-              flex: 1,
-              height: '100%',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}
           >
             {/* Maintained inside the track layout loop to preserve your eye-catching sliding transitions */}
             <div className="slide-category-bar">
