@@ -718,6 +718,19 @@ promoLog: [
         default: false
     },
     
+    /** Hashed 6-digit login OTP — never return to client */
+twoFactorCodeHash: {
+  type: String,
+  default: null,
+  select: false,
+},
+
+twoFactorCodeExpires: {
+  type: Date,
+  default: null,
+  select: false,
+},
+    
     clientPreferences: {
         preferredSkills: [{ type: String }],
         projectTypes: [{ type: String }],

@@ -16,6 +16,33 @@ try {
   clientRoutes = null;
 }
 
+
+function hashOtp(code) {
+  return crypto.createHash("sha256").update(String(code)).digest("hex");
+}
+
+async function sendLoginOtpEmail(email, code) {
+  try {
+    if (typeof emailService.sendTwoFactorCode === "function") {
+      await emailService.sendTwoFactorCode(email, code);
+      return;
+    }
+    if (typeof emailService.sendEmail === "function") {
+      await emailService.sendEmail({
+        to: email,
+        subject: "Your Thick 9 login code",
+        text: `Your verification code is ${code}. It expires in 10 minutes.`,
+        html: `<p>Your verification code is <strong>${code}</strong>.</p><p>It expires in 10 minutes. If you did not try to sign in, ignore this email.</p>`,
+      });
+      return;
+    }
+    console.warn("[2FA] No email sender configured. OTP for", email, "→", code);
+  } catch (err) {
+    console.error("[2FA] email send failed:", err.message);
+  }
+}
+
+
 /**
  * COMPATIBILITY HELPER: formatUserPayload
  * Ensures every auth response consistently delivers complete user metadata required
@@ -309,7 +336,6 @@ exports.login = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      // Optional: log failed attempt
       if (
         clientRoutes &&
         typeof clientRoutes.recordLoginActivity === "function"
@@ -319,11 +345,32 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid Credentials" });
     }
 
+    // ----- 2FA challenge (email OTP) when enabled -----
+    if (user.twoFactorEnabled) {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      user.twoFactorCodeHash = hashOtp(code);
+      user.twoFactorCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+      await user.save();
+
+      await sendLoginOtpEmail(user.email, code);
+
+      const pendingToken = jwt.sign(
+        { id: user._id, purpose: "2fa" },
+        process.env.JWT_SECRET,
+        { expiresIn: "10m" }
+      );
+
+      return res.json({
+        requires2FA: true,
+        pendingToken,
+        message: "Enter the 6-digit code we sent to your email.",
+      });
+    }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
 
-    // Client Settings → Security → Activity Log
     if (
       clientRoutes &&
       typeof clientRoutes.recordLoginActivity === "function"
@@ -340,6 +387,135 @@ exports.login = async (req, res) => {
     return res.status(500).json({ message: "Server Error during login" });
   }
 };
+
+/**
+ * @route   POST /api/auth/verify-2fa
+ * @body    { pendingToken, code }
+ */
+exports.verify2FA = async (req, res) => {
+  try {
+    const { pendingToken, code } = req.body || {};
+    if (!pendingToken || !code) {
+      return res
+        .status(400)
+        .json({ message: "pendingToken and code are required." });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(pendingToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({
+        message: "Code session expired. Please log in again.",
+      });
+    }
+
+    if (payload.purpose !== "2fa" || !payload.id) {
+      return res.status(401).json({ message: "Invalid 2FA session." });
+    }
+
+    const user = await User.findById(payload.id).select(
+      "+twoFactorCodeHash +twoFactorCodeExpires"
+    );
+    if (!user || !user.twoFactorEnabled) {
+      return res
+        .status(400)
+        .json({ message: "2FA is not active for this account." });
+    }
+
+    if (
+      !user.twoFactorCodeHash ||
+      !user.twoFactorCodeExpires ||
+      new Date(user.twoFactorCodeExpires).getTime() < Date.now()
+    ) {
+      return res.status(400).json({
+        message: "Code expired. Please log in again to receive a new code.",
+      });
+    }
+
+    const incoming = hashOtp(String(code).trim());
+    if (incoming !== user.twoFactorCodeHash) {
+      if (
+        clientRoutes &&
+        typeof clientRoutes.recordLoginActivity === "function"
+      ) {
+        await clientRoutes.recordLoginActivity(user._id, req, false);
+      }
+      return res.status(400).json({ message: "Invalid verification code." });
+    }
+
+    user.twoFactorCodeHash = null;
+    user.twoFactorCodeExpires = null;
+    await user.save();
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    if (
+      clientRoutes &&
+      typeof clientRoutes.recordLoginActivity === "function"
+    ) {
+      await clientRoutes.recordLoginActivity(user._id, req, true);
+    }
+
+    return res.json({
+      token,
+      user: formatUserPayload(user),
+    });
+  } catch (err) {
+    console.error("verify2FA Error:", err.message);
+    return res
+      .status(500)
+      .json({ message: "Server error during 2FA verification." });
+  }
+};
+
+/**
+ * @route   POST /api/auth/resend-2fa
+ * @body    { pendingToken }
+ */
+exports.resend2FA = async (req, res) => {
+  try {
+    const { pendingToken } = req.body || {};
+    if (!pendingToken) {
+      return res.status(400).json({ message: "pendingToken is required." });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(pendingToken, process.env.JWT_SECRET);
+    } catch {
+      return res
+        .status(401)
+        .json({ message: "Session expired. Please log in again." });
+    }
+
+    if (payload.purpose !== "2fa" || !payload.id) {
+      return res.status(401).json({ message: "Invalid 2FA session." });
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user || !user.twoFactorEnabled) {
+      return res.status(400).json({ message: "2FA is not active." });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    user.twoFactorCodeHash = hashOtp(code);
+    user.twoFactorCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+    await sendLoginOtpEmail(user.email, code);
+
+    return res.json({
+      success: true,
+      message: "A new code was sent to your email.",
+    });
+  } catch (err) {
+    console.error("resend2FA Error:", err.message);
+    return res.status(500).json({ message: "Could not resend code." });
+  }
+};
+
 
 /**
  * @route   POST /api/auth/verify-email

@@ -69,6 +69,12 @@ const [isNotifOpen, setIsNotifOpen] = useState(false);
     message: '', 
     icon: '' 
   });
+
+  // 2FA login challenge (email OTP)
+  const [authStep, setAuthStep] = useState<"login" | "register" | "2fa">("login");
+  const [pending2FAToken, setPending2FAToken] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [resendBusy, setResendBusy] = useState(false);
     
     
     
@@ -92,6 +98,9 @@ const [isNotifOpen, setIsNotifOpen] = useState(false);
   const openAuthModal = useCallback((tab: 'login' | 'register' = 'login') => {
     closeAllUI();
     setAuthTab(tab);
+    setAuthStep(tab);
+    setPending2FAToken(null);
+    setOtpCode("");
     setIsModalOpen(true);
   }, [closeAllUI]);
 
@@ -670,6 +679,77 @@ try {
     }
   };
 
+
+  const completeLoginSession = async (data: {
+    token: string;
+    user: {
+      role?: string;
+      accountStrength?: number;
+      isEmailVerified?: boolean;
+      isProfileComplete?: boolean;
+      fullName?: string;
+    };
+  }) => {
+    const userRole = data.user.role || "client";
+    const token = data.token;
+
+    localStorage.setItem("isLoggedIn", "true");
+    localStorage.setItem("token", token);
+    localStorage.setItem("userRole", userRole);
+    localStorage.setItem(
+      "accountStrength",
+      (data.user.accountStrength || 0).toString()
+    );
+    localStorage.setItem(
+      "isEmailVerified",
+      (data.user.isEmailVerified ?? false).toString()
+    );
+    localStorage.setItem(
+      "isProfileComplete",
+      (data.user.isProfileComplete ?? false).toString()
+    );
+
+    localStorage.removeItem("adminRole");
+    if (isAdminRole(userRole)) {
+      try {
+        const meRes = await fetch("/api/admin/me", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        });
+        const meData = await meRes.json().catch(() => ({}));
+        if (meRes.ok && meData?.admin?.role) {
+          localStorage.setItem("adminRole", String(meData.admin.role));
+        }
+      } catch (err) {
+        console.error("Failed to load admin profile:", err);
+      }
+    }
+
+    setIsLoggedIn(true);
+    setUserRole(userRole);
+    setIsEmailVerified(data.user.isEmailVerified ?? false);
+    setIsProfileComplete(data.user.isProfileComplete ?? false);
+    setAuthStep("login");
+    setPending2FAToken(null);
+    setOtpCode("");
+
+    closeAllUI();
+    showToast(
+      `Welcome back, ${data.user.fullName || "User"}!`,
+      "fa-sign-in-alt"
+    );
+
+    setTimeout(() => {
+      if (isAdminRole(userRole)) router.push("/admin/dashboard");
+      else if (userRole === "freelancer") router.push("/freelancer-dashboard");
+      else if (userRole === "affiliate") router.push("/affiliate-dashboard");
+      else router.push("/client-dashboard");
+    }, 1200);
+  };
+
  // Login Endpoint Pipeline
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -696,63 +776,26 @@ try {
       const data = await response.json();
 
       if (response.ok) {
-  const userRole = data.user.role || "client";
-  const token = data.token as string;
+        // 2FA required — show OTP step (do not issue session yet)
+        if (data.requires2FA && data.pendingToken) {
+          setPending2FAToken(data.pendingToken);
+          setAuthStep("2fa");
+          setOtpCode("");
+          showToast(
+            data.message || "Enter the code sent to your email.",
+            "fa-shield-alt"
+          );
+          return;
+        }
 
-  localStorage.setItem("isLoggedIn", "true");
-  localStorage.setItem("token", token);
-  localStorage.setItem("userRole", userRole);
-  localStorage.setItem(
-    "accountStrength",
-    (data.user.accountStrength || 0).toString()
-  );
-  localStorage.setItem(
-    "isEmailVerified",
-    (data.user.isEmailVerified ?? false).toString()
-  );
-  localStorage.setItem(
-    "isProfileComplete",
-    (data.user.isProfileComplete ?? false).toString()
-  );
+        if (!data.token || !data.user) {
+          showToast(data.msg || data.message || "Login failed", "fa-lock");
+          return;
+        }
 
-  // Resolve Admin.role for Team / Audit menu (User stays "admin")
-  localStorage.removeItem("adminRole");
-  if (isAdminRole(userRole)) {
-    try {
-      const meRes = await fetch("/api/admin/me", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
-      const meData = await meRes.json().catch(() => ({}));
-      if (meRes.ok && meData?.admin?.role) {
-        localStorage.setItem("adminRole", String(meData.admin.role));
-      }
-    } catch (err) {
-      console.error("Failed to load admin profile:", err);
-    }
-  }
-
-  setIsLoggedIn(true);
-  setUserRole(userRole);
-  setIsEmailVerified(data.user.isEmailVerified ?? false);
-  setIsProfileComplete(data.user.isProfileComplete ?? false);
-
-  closeAllUI();
-  showToast(`Welcome back, ${data.user.fullName || "User"}!`, "fa-sign-in-alt");
-
-  setTimeout(() => {
-    if (isAdminRole(userRole)) router.push("/admin/dashboard");
-    else if (userRole === "freelancer") router.push("/freelancer-dashboard");
-    else if (userRole === "affiliate") router.push("/affiliate-dashboard");
-    else router.push("/client-dashboard");
-  }, 1200);
-
-
+        await completeLoginSession(data);
       } else {
-        showToast(data.msg || "Invalid credentials", "fa-lock");
+        showToast(data.msg || data.message || "Invalid credentials", "fa-lock");
       }
     } catch (err) {
       showToast("Server connection failed", "fa-wifi");
@@ -762,6 +805,63 @@ try {
   };
 
 
+
+
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otpCode.trim();
+    if (!pending2FAToken) {
+      showToast("Session expired. Please log in again.", "fa-lock");
+      setAuthStep("login");
+      return;
+    }
+    if (code.length < 6) {
+      showToast("Enter the 6-digit code from your email.", "fa-exclamation-triangle");
+      return;
+    }
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/auth/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingToken: pending2FAToken, code }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.token && data.user) {
+        await completeLoginSession(data);
+      } else {
+        showToast(data.message || data.msg || "Invalid code", "fa-lock");
+      }
+    } catch {
+      showToast("Server connection failed", "fa-wifi");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend2FA = async () => {
+    if (!pending2FAToken || resendBusy) return;
+    setResendBusy(true);
+    try {
+      const response = await fetch("/api/auth/resend-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingToken: pending2FAToken }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        showToast(data.message || "A new code was sent.", "fa-paper-plane");
+      } else {
+        showToast(data.message || "Could not resend code.", "fa-exclamation-triangle");
+      }
+    } catch {
+      showToast("Server connection failed", "fa-wifi");
+    } finally {
+      setResendBusy(false);
+    }
+  };
 
 
 // ====================== PRODUCTION RENDER ASSURANCE ======================
@@ -1060,13 +1160,15 @@ try {
             </div>
 
             <div className="modal-form-side">
+              {authStep !== "2fa" && (
               <div className="modal-tabs">
-                <button className={`tab-btn ${authTab === 'login' ? 'active' : ''}`} onClick={() => setAuthTab('login')}>Login</button>
-                <button className={`tab-btn ${authTab === 'register' ? 'active' : ''}`} onClick={() => setAuthTab('register')}>Register</button>
+                <button className={`tab-btn ${authTab === 'login' ? 'active' : ''}`} onClick={() => { setAuthTab('login'); setAuthStep('login'); }}>Login</button>
+                <button className={`tab-btn ${authTab === 'register' ? 'active' : ''}`} onClick={() => { setAuthTab('register'); setAuthStep('register'); }}>Register</button>
               </div>
+              )}
 
              {/* Login Form Layout View */}
-<div id="login-view" className={`auth-view ${authTab === 'login' ? 'active' : ''}`}>
+<div id="login-view" className={`auth-view ${authTab === 'login' && authStep !== '2fa' ? 'active' : ''}`}>
   <h3>Welcome Back</h3>
   <div className="social-auth">
     <button className="btn-social google" onClick={() => handleSocialAuth('google')}>
@@ -1099,11 +1201,14 @@ try {
 </div>
              
               {/* Registration Form Layout View */}
-              <div id="register-view" className={`auth-view ${authTab === 'register' ? 'active' : ''}`}>
+              <div id="register-view" className={`auth-view ${authTab === 'register' && authStep !== '2fa' ? 'active' : ''}`}>
                 <h3>Create Account</h3>
                 <div className="social-auth">
                   <button className="btn-social google" onClick={() => handleSocialAuth('google')}>
                     <i className="fab fa-google color-google"></i> Sign up with Google
+                  </button>
+                  <button className="btn-social facebook" onClick={() => handleSocialAuth('facebook')}>
+                    <i className="fab fa-facebook-f color-facebook"></i> Sign up with Facebook
                   </button>
                 </div>
                 
@@ -1144,7 +1249,58 @@ try {
 </p>
                 </form>
               </div>
-              
+
+              {/* 2FA OTP step */}
+              <div id="twofa-view" className={`auth-view ${authStep === '2fa' ? 'active' : ''}`}>
+                <h3>Two-factor verification</h3>
+                <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: 16 }}>
+                  We sent a 6-digit code to your email. Enter it below to finish signing in.
+                </p>
+                <form onSubmit={handleVerify2FA}>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="6-digit code"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="btn-primary full-width-btn" disabled={isLoading}>
+                    {isLoading ? (
+                      <div className="dots-spinner">
+                        <div className="dot"></div>
+                        <div className="dot"></div>
+                        <div className="dot"></div>
+                      </div>
+                    ) : (
+                      "Verify & continue"
+                    )}
+                  </button>
+                </form>
+                <p style={{ marginTop: 14, textAlign: 'center', fontSize: '0.85rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleResend2FA}
+                    disabled={resendBusy}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary-color, #d96464)', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {resendBusy ? "Sending…" : "Resend code"}
+                  </button>
+                  {" · "}
+                  <button
+                    type="button"
+                    onClick={() => { setAuthStep('login'); setPending2FAToken(null); setOtpCode(''); }}
+                    style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}
+                  >
+                    Back to login
+                  </button>
+                </p>
+              </div>
+
 
             </div>
           </div>
