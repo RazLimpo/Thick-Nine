@@ -642,3 +642,143 @@ button.close-modal:not(.btn-outline):hover {
 
 
 
+
+
+
+/* --- Analytics: views + clicks twin grids --- */
+.analytics-detail-section {
+  margin-bottom: 40px;
+}
+
+.analytics-main-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+  margin-bottom: 20px;
+}
+
+.analytics-main-grid:last-of-type {
+  margin-bottom: 0;
+}
+
+.analytics-clicks-grid {
+  margin-top: 4px;
+}
+
+.chart-container.glass-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+}
+
+.chart-container.glass-card h4 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: #1a202c;
+}
+
+.visual-chart-placeholder {
+  flex-grow: 1;
+  min-height: 180px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 30px;
+}
+
+.analytics-footnote {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.analytics-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.glass-card.small-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+.glass-card.small-stat h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .analytics-main-grid {
+      grid-template-columns: 1fr;
+  }
+}
+
+/* --- Media modal: zebra URL lines --- */
+.media-modal-body {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.media-modal-help {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+
+.media-modal-help code {
+  font-size: 0.8em;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.media-url-group {
+  margin-bottom: 14px;
+}
+
+.media-url-group:last-child {
+  margin-bottom: 0;
+}
+
+.media-url-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+/* Line-height aligned stripes so each URL row reads as a zebra band */
+.media-url-textarea {
+  line-height: 1.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  background-color: #fff;
+  background-image: repeating-linear-gradient(
+      to bottom,
+      #ffffff 0,
+      #ffffff 1.75rem,
+      #f1f5f9 1.75rem,
+      #f1f5f9 3.5rem
+  );
+  background-attachment: local;
+  padding: 0.35rem 12px;
+  min-height: 7rem;
+}
+
+.media-url-textarea:focus {
+  background-image: repeating-linear-gradient(
+      to bottom,
+      #ffffff 0,
+      #ffffff 1.75rem,
+      #fef2f2 1.75rem,
+      #fef2f2 3.5rem
+  );
+}

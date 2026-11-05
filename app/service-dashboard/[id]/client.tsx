@@ -1026,6 +1026,7 @@ export default function ServiceDashboardClient({
   const clicks = service.clicks ?? 0;
   const ordersCount = service.orders ?? 0;
   const chartBars = buildChartBars(analytics?.series);
+  const clickChartBars = buildChartBars(analytics?.clickSeries);
 
   /* ------------------------------------------------------------------ */
   /* Render                                                             */
@@ -1170,7 +1171,7 @@ export default function ServiceDashboardClient({
                 ))}
               </div>
             </div>
-            <p style={{ fontSize: "0.8rem", color: "#888", marginTop: 8 }}>
+            <p className="analytics-footnote">
               {analytics?.totalViewsInRange != null
                 ? `${analytics.totalViewsInRange} views in the selected period`
                 : "No view data in this period yet"}
@@ -1219,68 +1220,62 @@ export default function ServiceDashboardClient({
             </div>
           </div>
 
-          {/* Click depth */}
-          <div className="analytics-row" style={{ marginTop: 20 }}>
-            <div className="stat-card" style={{ flex: 1 }}>
-              <h4>
-                <i className="fas fa-mouse-pointer" /> Clicks (
-                {analyticsDays}d)
-              </h4>
-              <p style={{ fontSize: "1.4rem", fontWeight: 700, margin: "8px 0" }}>
-                {(analytics?.totalClicksInRange ?? 0).toLocaleString()}
-                <span style={{ fontSize: "0.8rem", color: "#888", fontWeight: 500 }}>
-                  {" "}
-                  in range · {(analytics?.allTimeClicks ?? clicks).toLocaleString()} all-time
-                </span>
-              </p>
-              <div className="chart-container" style={{ height: 80, display: "flex", alignItems: "flex-end", gap: 4 }}>
-                {buildChartBars(analytics?.clickSeries).map((bar, i) => (
+        </div>
+
+        {/* Clicks — same grid as views overview */}
+        <div className="analytics-main-grid analytics-clicks-grid">
+          <div className="chart-container glass-card">
+            <h4>Clicks overview</h4>
+            <div className="visual-chart-placeholder">
+              <div className="chart-bars">
+                {clickChartBars.map((bar, i) => (
                   <div
-                    key={`click-bar-${i}`}
-                    title={`${bar.label}: ${bar.count}`}
-                    style={{
-                      flex: 1,
-                      height: `${bar.height}%`,
-                      minHeight: 4,
-                      background: bar.active ? "var(--primary-color, #d96464)" : "#cbd5e1",
-                      borderRadius: 4,
-                    }}
-                  />
+                    key={`click-${bar.label}-${i}`}
+                    className={`bar${bar.active ? " active" : ""}`}
+                    style={{ height: `${bar.height}%` }}
+                    title={`${bar.label}: ${bar.count ?? 0} clicks`}
+                  >
+                    <span>{bar.label}</span>
+                  </div>
                 ))}
               </div>
-              {analytics?.clickTypes && (
-                <p style={{ fontSize: "0.8rem", color: "#666", marginTop: 8 }}>
-                  Continue: {analytics.clickTypes.continue ?? 0}
-                  {" · "}Package: {analytics.clickTypes.package ?? 0}
-                  {" · "}Other: {analytics.clickTypes.other ?? 0}
-                </p>
-              )}
             </div>
-            <div className="stat-card">
-              <h4>
-                <i className="fas fa-share-alt" /> Click Sources
-              </h4>
+            <p className="analytics-footnote">
+              {(analytics?.totalClicksInRange ?? 0).toLocaleString()} clicks in
+              the selected period
+              {analytics?.allTimeClicks != null
+                ? ` · ${Number(analytics.allTimeClicks).toLocaleString()} all-time`
+                : ""}
+              {analytics?.clickTypes
+                ? ` · Continue ${analytics.clickTypes.continue ?? 0} · Package ${analytics.clickTypes.package ?? 0}`
+                : ""}
+            </p>
+          </div>
+
+          <div className="analytics-sidebar">
+            <div className="glass-card small-stat">
+              <h4>Click Sources</h4>
               {analytics?.clickSources && analytics.clickSources.length > 0 ? (
                 <ul className="source-list">
                   {analytics.clickSources.map((s) => (
                     <li key={`csrc-${s.key}`}>
                       <span>{s.label}</span>
-                      <strong>
-                        {s.percent}% ({s.count})
-                      </strong>
+                      <strong>{s.percent}%</strong>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
-                  No clicks in this range yet.
-                </p>
+                <ul className="source-list">
+                  <li>
+                    <span>No data yet</span>
+                    <strong>—</strong>
+                  </li>
+                </ul>
               )}
             </div>
-            <div className="stat-card">
-              <h4>
-                <i className="fas fa-mobile-alt" /> Click Devices
-              </h4>
+
+            <div className="glass-card small-stat">
+              <h4>Click Devices</h4>
               <div className="device-icons">
                 <span>
                   <i className="fas fa-desktop" />{" "}
@@ -1984,85 +1979,50 @@ export default function ServiceDashboardClient({
           )}
 
           {modalMode === "media" && (
-            <div
-              id="section-media"
-              className="action-section"
-              style={{ maxHeight: 400, overflowY: "auto" }}
-            >
-              <p
-                style={{
-                  fontSize: "0.85rem",
-                  color: "#666",
-                  marginBottom: 12,
-                }}
-              >
-                Paste <strong>one URL per line</strong> in the fields below
-                (blank lines are ignored). Use{" "}
-                <code style={{ fontSize: "0.8em" }}>https://…</code> links
-                (Cloudinary/CDN). For device upload / Cloudinary picker, use{" "}
+            <div id="section-media" className="action-section media-modal-body">
+              <p className="media-modal-help">
+                Paste <strong>one URL per line</strong> below (blank lines are
+                ignored). Use <code>https://…</code> Cloudinary/CDN links. For
+                device upload, use{" "}
                 <Link href={`/post-service?draftId=${service._id}`}>
                   Edit Full Service Details
                 </Link>
                 .
               </p>
-              <div className="input-group" style={{ marginBottom: 14 }}>
-                <label
-                  htmlFor="edit-images"
-                  style={{
-                    display: "block",
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}
-                >
-                  Image URLs
-                </label>
+              <div className="input-group media-url-group">
+                <label htmlFor="edit-images">Image URLs</label>
                 <textarea
                   id="edit-images"
-                  className="modal-textarea"
+                  className="modal-textarea media-url-textarea"
                   value={editImagesText}
                   onChange={(e) => setEditImagesText(e.target.value)}
                   rows={4}
+                  spellCheck={false}
                   placeholder={"https://cdn.example.com/gallery-1.jpg\nhttps://cdn.example.com/gallery-2.jpg"}
                 />
               </div>
-              <div className="input-group" style={{ marginBottom: 14 }}>
-                <label
-                  htmlFor="edit-videos"
-                  style={{
-                    display: "block",
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}
-                >
-                  Video URLs
-                </label>
+              <div className="input-group media-url-group">
+                <label htmlFor="edit-videos">Video URLs</label>
                 <textarea
                   id="edit-videos"
-                  className="modal-textarea"
+                  className="modal-textarea media-url-textarea"
                   value={editVideosText}
                   onChange={(e) => setEditVideosText(e.target.value)}
                   rows={3}
-                  placeholder={"https://cdn.example.com/preview.mp4\n"}
+                  spellCheck={false}
+                  placeholder={"https://cdn.example.com/preview.mp4"}
                 />
               </div>
-              <div className="input-group">
-                <label
-                  htmlFor="edit-audio"
-                  style={{
-                    display: "block",
-                    fontWeight: 600,
-                    marginBottom: 6,
-                  }}
-                >
-                  Audio URLs
-                </label>
+              <div className="input-group media-url-group">
+                <label htmlFor="edit-audio">Audio URLs</label>
                 <textarea
                   id="edit-audio"
-                  className="modal-textarea"
+                  className="modal-textarea media-url-textarea"
                   value={editAudioText}
                   onChange={(e) => setEditAudioText(e.target.value)}
                   rows={3}
-                  placeholder={"https://cdn.example.com/sample.mp3\n"}
+                  spellCheck={false}
+                  placeholder={"https://cdn.example.com/sample.mp3"}
                 />
               </div>
             </div>
