@@ -61,6 +61,25 @@ type AnalyticsPayload = {
     tablet: { count: number; percent: number };
   };
   series?: Array<{ date: string; count: number }>;
+  totalClicksInRange?: number;
+  allTimeClicks?: number;
+  clickSources?: Array<{
+    key: string;
+    label: string;
+    count: number;
+    percent: number;
+  }>;
+  clickDevices?: {
+    desktop: { count: number; percent: number };
+    mobile: { count: number; percent: number };
+    tablet: { count: number; percent: number };
+  };
+  clickSeries?: Array<{ date: string; count: number }>;
+  clickTypes?: {
+    continue?: number;
+    package?: number;
+    other?: number;
+  };
 };
 
 type DashboardOrder = {
@@ -545,9 +564,17 @@ export default function ServiceDashboardClient({
 
   const openMediaModal = () => {
     if (!service) return;
-    setEditImagesText((service.images || []).join("\n"));
-    setEditVideosText((service.videos || []).join("\n"));
-    setEditAudioText((service.audio || []).join("\n"));
+    const imgs = (service.images || []).filter(
+      (u) => u && u !== "/default-service.png"
+    );
+    const vids = service.videos || [];
+    const aud = service.audio || [];
+    // Show existing URLs; if empty, leave blank lines so paste targets are clear
+    setEditImagesText(
+      imgs.length > 0 ? imgs.join("\n") : "\n\n"
+    );
+    setEditVideosText(vids.length > 0 ? vids.join("\n") : "\n");
+    setEditAudioText(aud.length > 0 ? aud.join("\n") : "\n");
     setModalMode("media");
     setModalTitle("Media Management");
     setModalOpen(true);
@@ -1187,6 +1214,85 @@ export default function ServiceDashboardClient({
                 <span>
                   <i className="fas fa-tablet-alt" />{" "}
                   {analytics?.devices?.tablet?.percent ?? 0}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Click depth */}
+          <div className="analytics-row" style={{ marginTop: 20 }}>
+            <div className="stat-card" style={{ flex: 1 }}>
+              <h4>
+                <i className="fas fa-mouse-pointer" /> Clicks (
+                {analyticsDays}d)
+              </h4>
+              <p style={{ fontSize: "1.4rem", fontWeight: 700, margin: "8px 0" }}>
+                {(analytics?.totalClicksInRange ?? 0).toLocaleString()}
+                <span style={{ fontSize: "0.8rem", color: "#888", fontWeight: 500 }}>
+                  {" "}
+                  in range · {(analytics?.allTimeClicks ?? clicks).toLocaleString()} all-time
+                </span>
+              </p>
+              <div className="chart-container" style={{ height: 80, display: "flex", alignItems: "flex-end", gap: 4 }}>
+                {buildChartBars(analytics?.clickSeries).map((bar, i) => (
+                  <div
+                    key={`click-bar-${i}`}
+                    title={`${bar.label}: ${bar.count}`}
+                    style={{
+                      flex: 1,
+                      height: `${bar.height}%`,
+                      minHeight: 4,
+                      background: bar.active ? "var(--primary-color, #d96464)" : "#cbd5e1",
+                      borderRadius: 4,
+                    }}
+                  />
+                ))}
+              </div>
+              {analytics?.clickTypes && (
+                <p style={{ fontSize: "0.8rem", color: "#666", marginTop: 8 }}>
+                  Continue: {analytics.clickTypes.continue ?? 0}
+                  {" · "}Package: {analytics.clickTypes.package ?? 0}
+                  {" · "}Other: {analytics.clickTypes.other ?? 0}
+                </p>
+              )}
+            </div>
+            <div className="stat-card">
+              <h4>
+                <i className="fas fa-share-alt" /> Click Sources
+              </h4>
+              {analytics?.clickSources && analytics.clickSources.length > 0 ? (
+                <ul className="source-list">
+                  {analytics.clickSources.map((s) => (
+                    <li key={`csrc-${s.key}`}>
+                      <span>{s.label}</span>
+                      <strong>
+                        {s.percent}% ({s.count})
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
+                  No clicks in this range yet.
+                </p>
+              )}
+            </div>
+            <div className="stat-card">
+              <h4>
+                <i className="fas fa-mobile-alt" /> Click Devices
+              </h4>
+              <div className="device-icons">
+                <span>
+                  <i className="fas fa-desktop" />{" "}
+                  {analytics?.clickDevices?.desktop?.percent ?? 0}%
+                </span>
+                <span>
+                  <i className="fas fa-mobile-alt" />{" "}
+                  {analytics?.clickDevices?.mobile?.percent ?? 0}%
+                </span>
+                <span>
+                  <i className="fas fa-tablet-alt" />{" "}
+                  {analytics?.clickDevices?.tablet?.percent ?? 0}%
                 </span>
               </div>
             </div>
@@ -1890,8 +1996,10 @@ export default function ServiceDashboardClient({
                   marginBottom: 12,
                 }}
               >
-                Paste media <strong>URLs</strong> (one per line). For device
-                upload, use{" "}
+                Paste <strong>one URL per line</strong> in the fields below
+                (blank lines are ignored). Use{" "}
+                <code style={{ fontSize: "0.8em" }}>https://…</code> links
+                (Cloudinary/CDN). For device upload / Cloudinary picker, use{" "}
                 <Link href={`/post-service?draftId=${service._id}`}>
                   Edit Full Service Details
                 </Link>
@@ -1914,7 +2022,7 @@ export default function ServiceDashboardClient({
                   value={editImagesText}
                   onChange={(e) => setEditImagesText(e.target.value)}
                   rows={4}
-                  placeholder="https://…/image1.jpg"
+                  placeholder={"https://cdn.example.com/gallery-1.jpg\nhttps://cdn.example.com/gallery-2.jpg"}
                 />
               </div>
               <div className="input-group" style={{ marginBottom: 14 }}>
@@ -1934,7 +2042,7 @@ export default function ServiceDashboardClient({
                   value={editVideosText}
                   onChange={(e) => setEditVideosText(e.target.value)}
                   rows={3}
-                  placeholder="https://…/video.mp4"
+                  placeholder={"https://cdn.example.com/preview.mp4\n"}
                 />
               </div>
               <div className="input-group">
@@ -1954,7 +2062,7 @@ export default function ServiceDashboardClient({
                   value={editAudioText}
                   onChange={(e) => setEditAudioText(e.target.value)}
                   rows={3}
-                  placeholder="https://…/sample.mp3"
+                  placeholder={"https://cdn.example.com/sample.mp3\n"}
                 />
               </div>
             </div>

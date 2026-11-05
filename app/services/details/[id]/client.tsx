@@ -425,10 +425,50 @@ export default function ServiceDetailsClient({
 
     if (clientId) params.set("clientId", clientId);
 
+    // Match view-tracking attribution for click analytics
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    let device: "desktop" | "mobile" | "tablet" | "unknown" = "desktop";
+    if (/Mobi|Android.*Mobile|iPhone|iPod/i.test(ua)) device = "mobile";
+    else if (/iPad|Android(?!.*Mobile)|Tablet/i.test(ua)) device = "tablet";
+
+    const ref = typeof document !== "undefined" ? document.referrer || "" : "";
+    let source: "direct" | "social" | "external" | "search" | "unknown" =
+      "direct";
+    if (!ref) {
+      source = "direct";
+    } else {
+      try {
+        const host = new URL(ref).hostname.toLowerCase();
+        if (/google\.|bing\.|yahoo\.|duckduckgo\.|baidu\./.test(host)) {
+          source = "search";
+        } else if (
+          /facebook\.|instagram\.|twitter\.|x\.com|linkedin\.|tiktok\.|pinterest\./.test(
+            host
+          )
+        ) {
+          source = "social";
+        } else if (
+          typeof window !== "undefined" &&
+          host === window.location.hostname
+        ) {
+          source = "direct";
+        } else {
+          source = "external";
+        }
+      } catch {
+        source = "unknown";
+      }
+    }
+
     fetch(`/api/services/${serviceId}/click`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "continue" }),
+      body: JSON.stringify({
+        type: "continue",
+        source,
+        device,
+        referrer: ref.slice(0, 500),
+      }),
     }).catch(() => {});
 
     window.location.href = `/client-checkout?${params.toString()}`;

@@ -1150,6 +1150,104 @@ router.get("/:id/analytics", authMiddleware, async (req, res) => {
       series.push({ date: key, count: dayMap[key] || 0 });
     }
 
+    // ---- Clicks in same window (ServiceClick events) ----
+    const ServiceClick = require("../models/ServiceClick");
+    const clicks = await ServiceClick.find({
+      serviceId: id,
+      createdAt: { $gte: since },
+    })
+      .select("source device type createdAt")
+      .lean();
+
+    const clickTotal = clicks.length;
+    const fullService = await Service.findById(id).select("clicks").lean();
+
+    const clickSourceCounts = {
+      direct: 0,
+      social: 0,
+      external: 0,
+      search: 0,
+      unknown: 0,
+    };
+    clicks.forEach((c) => {
+      const s = c.source || "unknown";
+      if (clickSourceCounts[s] !== undefined) clickSourceCounts[s] += 1;
+      else clickSourceCounts.unknown += 1;
+    });
+
+    const clickSources = Object.entries(clickSourceCounts)
+      .filter(([, count]) => count > 0)
+      .map(([key, count]) => ({
+        key,
+        label:
+          key === "direct"
+            ? "Direct"
+            : key === "social"
+              ? "Social Media"
+              : key === "external"
+                ? "External Links"
+                : key === "search"
+                  ? "Search"
+                  : "Other",
+        count,
+        percent: clickTotal ? Math.round((count / clickTotal) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    const clickDeviceCounts = {
+      desktop: 0,
+      mobile: 0,
+      tablet: 0,
+      unknown: 0,
+    };
+    clicks.forEach((c) => {
+      const d = c.device || "unknown";
+      if (clickDeviceCounts[d] !== undefined) clickDeviceCounts[d] += 1;
+      else clickDeviceCounts.unknown += 1;
+    });
+
+    const clickDevices = {
+      desktop: {
+        count: clickDeviceCounts.desktop,
+        percent: clickTotal
+          ? Math.round((clickDeviceCounts.desktop / clickTotal) * 100)
+          : 0,
+      },
+      mobile: {
+        count: clickDeviceCounts.mobile,
+        percent: clickTotal
+          ? Math.round((clickDeviceCounts.mobile / clickTotal) * 100)
+          : 0,
+      },
+      tablet: {
+        count: clickDeviceCounts.tablet,
+        percent: clickTotal
+          ? Math.round((clickDeviceCounts.tablet / clickTotal) * 100)
+          : 0,
+      },
+    };
+
+    const clickDayMap = {};
+    clicks.forEach((c) => {
+      const day = new Date(c.createdAt).toISOString().slice(0, 10);
+      clickDayMap[day] = (clickDayMap[day] || 0) + 1;
+    });
+
+    const clickSeries = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      clickSeries.push({ date: key, count: clickDayMap[key] || 0 });
+    }
+
+    const typeCounts = { continue: 0, package: 0, other: 0 };
+    clicks.forEach((c) => {
+      const t = c.type || "continue";
+      if (typeCounts[t] !== undefined) typeCounts[t] += 1;
+      else typeCounts.other += 1;
+    });
+
     return res.status(200).json({
       success: true,
       days,
@@ -1158,6 +1256,13 @@ router.get("/:id/analytics", authMiddleware, async (req, res) => {
       sources,
       devices,
       series,
+      // Click depth
+      totalClicksInRange: clickTotal,
+      allTimeClicks: fullService?.clicks || 0,
+      clickSources,
+      clickDevices,
+      clickSeries,
+      clickTypes: typeCounts,
     });
   } catch (error) {
     console.error("GET /api/services/:id/analytics error:", error);
@@ -1251,7 +1356,8 @@ router.get("/:id/orders", authMiddleware, async (req, res) => {
 
 // =====================================================
 // 13. PATCH /api/services/:id — owner partial update
-// Media fields are NOT allowed here (use draft update flow).
+// Non-file fields + optional media URL lists (plan limits enforced).
+// Binary uploads still go through draft/update (Cloudinary form).
 // =====================================================
 router.patch("/:id", authMiddleware, async (req, res) => {
   try {
@@ -1275,7 +1381,6 @@ router.patch("/:id", authMiddleware, async (req, res) => {
       });
     }
 
-    // Non-media fields only — prevents plan-limit bypass
     const allowed = [
       "title",
       "description",
@@ -1293,24 +1398,89 @@ router.patch("/:id", authMiddleware, async (req, res) => {
 
     const body = req.body || {};
 
-    // Explicitly reject media mutation via this endpoint
-    if (
-      body.images !== undefined ||
-      body.videos !== undefined ||
-      body.audio !== undefined
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Media cannot be updated via this endpoint. Use the draft update flow.",
-      });
-    }
-
     allowed.forEach((key) => {
       if (body[key] !== undefined) {
         service[key] = body[key];
       }
     });
+
+    // ---- Optional media URL lists (dashboard Media Management modal) ----
+    const wantsMedia =
+      body.images !== undefined ||
+      body.videos !== undefined ||
+      body.audio !== undefined;
+
+    if (wantsMedia) {
+      const normalizeUrls = (value) => {
+        if (value === undefined) return null;
+        if (!Array.isArray(value)) {
+          return { error: "images/videos/audio must be arrays of URL strings." };
+        }
+        const urls = value
+          .map((u) => (typeof u === "string" ? u.trim() : ""))
+          .filter(Boolean)
+          // allow relative paths already on the service or absolute http(s)
+          .filter(
+            (u) =>
+              u.startsWith("/") ||
+              u.startsWith("http://") ||
+              u.startsWith("https://")
+          );
+        return { urls };
+      };
+
+      let nextImages =
+        body.images !== undefined
+          ? normalizeUrls(body.images)
+          : { urls: service.images || [] };
+      let nextVideos =
+        body.videos !== undefined
+          ? normalizeUrls(body.videos)
+          : { urls: service.videos || [] };
+      let nextAudio =
+        body.audio !== undefined
+          ? normalizeUrls(body.audio)
+          : { urls: service.audio || [] };
+
+      for (const block of [nextImages, nextVideos, nextAudio]) {
+        if (block && block.error) {
+          return res.status(400).json({ success: false, message: block.error });
+        }
+      }
+
+      let images = nextImages.urls;
+      const videos = nextVideos.urls;
+      const audio = nextAudio.urls;
+
+      // Keep at least a placeholder if images wiped
+      if (!images.length) {
+        images = ["/default-service.png"];
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res
+          .status(401)
+          .json({ success: false, message: "User not found." });
+      }
+
+      const plan = service.selectedPlan || "free";
+      const effectivePlan = getEffectiveMediaPlan(user, plan);
+      const mediaError = checkMediaLimits(
+        user,
+        countRealMedia(images),
+        countRealMedia(videos),
+        countRealMedia(audio),
+        effectivePlan
+      );
+      if (mediaError) {
+        return res.status(422).json({ success: false, message: mediaError });
+      }
+
+      service.images = images;
+      service.videos = videos;
+      service.audio = audio;
+    }
 
     await service.save();
 
@@ -1330,6 +1500,7 @@ router.patch("/:id", authMiddleware, async (req, res) => {
 
 // =====================================================
 // 14. POST /api/services/:id/click
+// Body: { type?, source?, device?, referrer? }
 // =====================================================
 router.post("/:id/click", async (req, res) => {
   try {
@@ -1355,7 +1526,29 @@ router.post("/:id/click", async (req, res) => {
       ? req.body.type
       : "continue";
 
-    await ServiceClick.create({ serviceId: id, type });
+    const allowedSources = [
+      "direct",
+      "social",
+      "external",
+      "search",
+      "unknown",
+    ];
+    const allowedDevices = ["desktop", "mobile", "tablet", "unknown"];
+    const source = allowedSources.includes(req.body?.source)
+      ? req.body.source
+      : "unknown";
+    const device = allowedDevices.includes(req.body?.device)
+      ? req.body.device
+      : "unknown";
+    const referrer = String(req.body?.referrer || "").slice(0, 500);
+
+    await ServiceClick.create({
+      serviceId: id,
+      type,
+      source,
+      device,
+      referrer,
+    });
 
     await Service.updateOne({ _id: id }, { $inc: { clicks: 1 } }).catch(
       () => {}
