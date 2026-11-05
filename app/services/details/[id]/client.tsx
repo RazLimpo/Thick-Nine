@@ -48,6 +48,37 @@ function cleanText(value?: string | null, max = 0): string {
   return s;
 }
 
+
+/** YouTube / Vimeo → embed URL; else null (use native <video>) */
+function getVideoEmbedUrl(raw: string): string | null {
+  if (!raw) return null;
+  const url = raw.trim();
+  try {
+    // youtu.be/ID
+    const short = url.match(/(?:youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if (short) return `https://www.youtube.com/embed/${short[1]}`;
+
+    // youtube.com/watch?v=ID | /embed/ID | /shorts/ID
+    const yt = url.match(
+      /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtube-nocookie\.com\/embed\/)([A-Za-z0-9_-]{6,})/
+    );
+    if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+
+    // vimeo.com/123456 or player.vimeo.com/video/123
+    const vim = url.match(
+      /(?:vimeo\.com\/(?:video\/)?|player\.vimeo\.com\/video\/)(\d+)/
+    );
+    if (vim) return `https://player.vimeo.com/video/${vim[1]}`;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function isDirectVideoFile(url: string): boolean {
+  return /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url.trim());
+}
+
 function showToast(message: string, type: "info" | "success" | "error" = "info") {
   if (typeof document === "undefined") return;
   let root = document.getElementById("toast-container");
@@ -678,16 +709,41 @@ export default function ServiceDetailsClient({
                   <h3 className="media-subheading">
                     <i className="fas fa-play-circle" /> Video
                   </h3>
-                  {service.videos.map((url, i) => (
-                    <video
-                      key={`video-${i}`}
-                      controls
-                      width="100%"
-                      style={{ marginBottom: 12 }}
-                    >
-                      <source src={url} />
-                    </video>
-                  ))}
+                  {service.videos.map((url, i) => {
+                    const embed = getVideoEmbedUrl(url);
+                    if (embed) {
+                      return (
+                        <div
+                          key={`video-embed-${i}`}
+                          className="video-embed-wrap"
+                        >
+                          <iframe
+                            src={embed}
+                            title={`Service video ${i + 1}`}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            loading="lazy"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                          />
+                        </div>
+                      );
+                    }
+                    // Direct file (Cloudinary mp4, etc.) or unknown URL
+                    return (
+                      <video
+                        key={`video-file-${i}`}
+                        className="service-direct-video"
+                        controls
+                        playsInline
+                        preload="metadata"
+                      >
+                        <source src={url} />
+                        {isDirectVideoFile(url)
+                          ? null
+                          : "This browser cannot play this video URL. Prefer a direct .mp4 link or a YouTube/Vimeo URL."}
+                      </video>
+                    );
+                  })}
                 </div>
               )}
 

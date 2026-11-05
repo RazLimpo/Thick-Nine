@@ -1981,9 +1981,9 @@ export default function ServiceDashboardClient({
           {modalMode === "media" && (
             <div id="section-media" className="action-section media-modal-body">
               <p className="media-modal-help">
-                Paste <strong>one URL per line</strong> below (blank lines are
-                ignored). Use <code>https://…</code> Cloudinary/CDN links. For
-                device upload, use{" "}
+                Paste <strong>one URL per line</strong> (blank lines ignored).
+                Videos: YouTube / Vimeo links, or a direct <code>.mp4</code>{" "}
+                (Cloudinary). Images/audio need direct file URLs. Device upload:{" "}
                 <Link href={`/post-service?draftId=${service._id}`}>
                   Edit Full Service Details
                 </Link>
