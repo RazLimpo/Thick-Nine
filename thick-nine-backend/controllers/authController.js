@@ -22,24 +22,25 @@ function hashOtp(code) {
 }
 
 async function sendLoginOtpEmail(email, code) {
-  try {
-    if (typeof emailService.sendTwoFactorCode === "function") {
-      await emailService.sendTwoFactorCode(email, code);
-      return;
-    }
-    if (typeof emailService.sendEmail === "function") {
-      await emailService.sendEmail({
-        to: email,
-        subject: "Your Thick 9 login code",
-        text: `Your verification code is ${code}. It expires in 10 minutes.`,
-        html: `<p>Your verification code is <strong>${code}</strong>.</p><p>It expires in 10 minutes. If you did not try to sign in, ignore this email.</p>`,
-      });
-      return;
-    }
-    console.warn("[2FA] No email sender configured. OTP for", email, "→", code);
-  } catch (err) {
-    console.error("[2FA] email send failed:", err.message);
+  if (typeof emailService.sendTwoFactorCode === "function") {
+    await emailService.sendTwoFactorCode(email, code);
+    return;
   }
+  if (typeof emailService.sendEmail === "function") {
+    await emailService.sendEmail({
+      to: email,
+      subject: "Your Thick 9 login code",
+      text: `Your verification code is ${code}. It expires in 10 minutes.`,
+      html: `<p>Your verification code is <strong>${code}</strong>.</p><p>It expires in 10 minutes. If you did not try to sign in, ignore this email.</p>`,
+    });
+    return;
+  }
+  // No silent success — force a real sender
+  const err = new Error(
+    "2FA email is not configured (sendTwoFactorCode missing on emailService)."
+  );
+  console.error("[2FA]", err.message, "OTP was NOT emailed for", email);
+  throw err;
 }
 
 
@@ -352,7 +353,20 @@ exports.login = async (req, res) => {
       user.twoFactorCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
       await user.save();
 
-      await sendLoginOtpEmail(user.email, code);
+      try {
+        await sendLoginOtpEmail(user.email, code);
+      } catch (mailErr) {
+        console.error("[2FA] login email failed:", mailErr.message);
+        // Clear OTP so a half-open challenge is not left active
+        user.twoFactorCodeHash = null;
+        user.twoFactorCodeExpires = null;
+        await user.save().catch(() => {});
+        return res.status(503).json({
+          message:
+            mailErr.message ||
+            "Could not send the verification code. Try again or contact support.",
+        });
+      }
 
       const pendingToken = jwt.sign(
         { id: user._id, purpose: "2fa" },
@@ -504,7 +518,17 @@ exports.resend2FA = async (req, res) => {
     user.twoFactorCodeHash = hashOtp(code);
     user.twoFactorCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
-    await sendLoginOtpEmail(user.email, code);
+
+    try {
+      await sendLoginOtpEmail(user.email, code);
+    } catch (mailErr) {
+      console.error("[2FA] resend email failed:", mailErr.message);
+      return res.status(503).json({
+        message:
+          mailErr.message ||
+          "Could not send a new code. Try again shortly.",
+      });
+    }
 
     return res.json({
       success: true,

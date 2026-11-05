@@ -13,6 +13,10 @@ router.post('/finalize-account', authController.finalizeAccount);
 // 2. Account Login
 router.post('/login', authController.login);
 
+// 2b. Two-factor login challenge
+router.post('/verify-2fa', authController.verify2FA);
+router.post('/resend-2fa', authController.resend2FA);
+
 // 3. Email Verification Link Handler (Triggered by the inbox button click)
 router.post('/verify-email', authController.verifyEmail);
 
