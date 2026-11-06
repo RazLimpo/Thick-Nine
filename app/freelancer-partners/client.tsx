@@ -173,8 +173,9 @@ export default function FreelancerPartnersClient() {
           <div>
             <h1>Marketing partners</h1>
             <p>
-              Affiliate Groups can promote your services. Accept invites, pause
-              when you are overbooked, or request to join a group by id.
+              Affiliate Groups (created by affiliates) can promote your services.
+              Accept invites, pause when overbooked, or request to join a group by
+              id. Freelancers cannot create groups.
             </p>
           </div>
           <div className="fp-actions">
@@ -182,7 +183,7 @@ export default function FreelancerPartnersClient() {
               <i className="fas fa-cog" /> Settings
             </Link>
             <Link href="/affiliate-teams" className="fp-btn fp-btn-ghost">
-              <i className="fas fa-search" /> Browse groups
+              <i className="fas fa-search" /> My group invites
             </Link>
           </div>
         </div>

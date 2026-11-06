@@ -103,6 +103,7 @@ export default function AffiliateTeamsClient() {
   const [createDesc, setCreateDesc] = useState("");
   const [createVis, setCreateVis] = useState<"private" | "public">("private");
   const [creating, setCreating] = useState(false);
+  const [canCreateGroup, setCanCreateGroup] = useState(false);
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteFreelancerId, setInviteFreelancerId] = useState("");
@@ -192,6 +193,17 @@ export default function AffiliateTeamsClient() {
       router.replace("/?auth=login");
       return;
     }
+    // Group creation is affiliate-only (admins allowed)
+    const role = String(
+      localStorage.getItem("userRole") ||
+        localStorage.getItem("role") ||
+        ""
+    ).toLowerCase();
+    setCanCreateGroup(
+      role === "affiliate" ||
+        role === "admin" ||
+        role.includes("affiliate")
+    );
     loadTeams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
@@ -206,6 +218,10 @@ export default function AffiliateTeamsClient() {
 
   const createTeam = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateGroup) {
+      showToast("Only affiliate accounts can create groups.");
+      return;
+    }
     if (createName.trim().length < 3) {
       showToast("Name must be at least 3 characters.");
       return;
@@ -474,28 +490,35 @@ export default function AffiliateTeamsClient() {
           <div>
             <h1>Affiliate Groups</h1>
             <p>
-              Promotion teams are separate from your Referral Network. Invite
-              affiliates, partner with freelancers, and use the group chat when
-              you are an active member.
+              Promotion teams are separate from your Referral Network. Affiliates
+              who meet growth goals can create groups; freelancers join as
+              marketing partners. Members use tracking links and group chat when
+              active.
             </p>
           </div>
           <div className="agt-actions">
             <Link href="/affiliate-dashboard?tab=referrals" className="agt-btn agt-btn-ghost">
               <i className="fas fa-sitemap" /> Referral Network
             </Link>
-            <button
-              type="button"
-              className="agt-btn agt-btn-primary"
-              onClick={() => setShowCreate((v) => !v)}
-            >
-              <i className="fas fa-plus" /> Create group
-            </button>
+            {canCreateGroup ? (
+              <button
+                type="button"
+                className="agt-btn agt-btn-primary"
+                onClick={() => setShowCreate((v) => !v)}
+              >
+                <i className="fas fa-plus" /> Create group
+              </button>
+            ) : (
+              <span className="agt-muted">
+                Group creation is for active affiliates who meet growth goals.
+              </span>
+            )}
           </div>
         </div>
 
         {error && <div className="agt-error">{error}</div>}
 
-        {showCreate && (
+        {showCreate && canCreateGroup && (
           <div className="agt-card">
             <h3 className="agt-section-title">New group</h3>
             <form className="agt-form" onSubmit={createTeam}>

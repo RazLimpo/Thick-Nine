@@ -191,6 +191,89 @@ const userId = uid(req);
 if (!userId) {
 return res.status(401).json({ success: false, message: "Unauthorized." });
 }
+
+// Group creation: affiliate (or admin) + minimum growth
+// Role switch alone is not enough — reduces drive-by group spam
+const creator = await User.findById(userId)
+  .select(
+    "role affiliateProfile wallet metrics referralCount"
+  )
+  .lean();
+const role = String(creator?.role || "").toLowerCase();
+const isAdmin =
+  role === "admin" ||
+  role === "super_admin" ||
+  role.includes("admin");
+const isAffiliate =
+  role === "affiliate" || role.includes("affiliate");
+
+if (!isAdmin && !isAffiliate) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "Only affiliate accounts can create Affiliate Groups. Freelancers join as partners; use Marketing partners instead.",
+  });
+}
+
+if (!isAdmin) {
+  // Thresholds — tune later without schema changes
+  const MIN_LIFETIME_EARNINGS = 50; // USD
+  const MIN_REFERRALS = 3;
+  const MIN_PRESTIGE_POINTS = 100;
+  const TIER_OK = new Set([
+    "silver",
+    "gold",
+    "platinum",
+    "diamond",
+  ]);
+
+  const ap = creator.affiliateProfile || {};
+  const wallet = creator.wallet || {};
+  const metrics = creator.metrics || {};
+
+  const lifetime = Number(
+    wallet.lifetimeEarnings ??
+      ap.lifetimeEarnings ??
+      ap.totalEarnings ??
+      metrics.totalEarnings ??
+      0
+  );
+  const referrals = Number(
+    metrics.referralCount ??
+      creator.referralCount ??
+      ap.referralCount ??
+      0
+  );
+  const prestige = Number(ap.prestigePoints ?? 0);
+  const tier = String(ap.currentTier || "Bronze").toLowerCase();
+
+  const qualifies =
+    lifetime >= MIN_LIFETIME_EARNINGS ||
+    referrals >= MIN_REFERRALS ||
+    prestige >= MIN_PRESTIGE_POINTS ||
+    TIER_OK.has(tier);
+
+  if (!qualifies) {
+    return res.status(403).json({
+      success: false,
+      message:
+        "Grow your affiliate account before creating a group. Need at least one of: $50 lifetime earnings, 3 referrals, Silver tier, or 100 prestige points.",
+      requirements: {
+        minLifetimeEarnings: MIN_LIFETIME_EARNINGS,
+        minReferrals: MIN_REFERRALS,
+        minPrestigePoints: MIN_PRESTIGE_POINTS,
+        minTier: "Silver",
+        yours: {
+          lifetimeEarnings: lifetime,
+          referrals,
+          prestigePoints: prestige,
+          tier: ap.currentTier || "Bronze",
+        },
+      },
+    });
+  }
+}
+
 const name = String(req.body?.name || "").trim();
 if (name.length < 3) {
 return res.status(400).json({
