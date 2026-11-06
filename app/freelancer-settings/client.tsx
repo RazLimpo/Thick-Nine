@@ -637,6 +637,19 @@ export default function FreelancerSettingsClient() {
                     <i className="fas fa-file-contract" /> Legal & Tax Info
                   </a>
                 </li>
+                
+                   <li>
+                  <a
+                    href="/freelancer-partners"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      router.push("/freelancer-partners");
+                    }}
+                  >
+                    <i className="fas fa-handshake" /> Marketing partners
+                  </a>
+                </li>
+                
               </ul>
 
               <button

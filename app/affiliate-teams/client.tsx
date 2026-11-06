@@ -96,7 +96,7 @@ export default function AffiliateTeamsClient() {
   const [teams, setTeams] = useState<TeamListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string>(teamFromUrl);
   const [detail, setDetail] = useState<TeamDetail | null>(null);
-  const [panel, setPanel] = useState<"members" | "partners" | "pending">("members");
+  const [panel, setPanel] = useState<"members" | "partners" | "pending" | "tracking">("members");
 
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
@@ -107,6 +107,27 @@ export default function AffiliateTeamsClient() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteFreelancerId, setInviteFreelancerId] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Tracking links (Step 6)
+  const [trackingLinks, setTrackingLinks] = useState<
+    Array<{
+      _id: string;
+      code: string;
+      name?: string;
+      status: string;
+      clicks?: number;
+      uniqueClicks?: number;
+      serviceId?: string | null;
+      freelancerId?: string;
+      partnershipId?: string;
+      publicUrl?: string;
+      destinationPreview?: string;
+    }>
+  >([]);
+  const [trackPartnershipId, setTrackPartnershipId] = useState("");
+  const [trackServiceId, setTrackServiceId] = useState("");
+  const [trackName, setTrackName] = useState("");
+  const [loadingLinks, setLoadingLinks] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -323,6 +344,88 @@ export default function AffiliateTeamsClient() {
     }
   };
 
+  const loadTrackingLinks = async (teamId: string) => {
+    setLoadingLinks(true);
+    try {
+      const res = await fetch(`/api/affiliate/teams/${teamId}/tracking-links`, {
+        headers: authHeaders(),
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not load links.");
+      setTrackingLinks(Array.isArray(data.links) ? data.links : []);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : "Could not load links.");
+      setTrackingLinks([]);
+    } finally {
+      setLoadingLinks(false);
+    }
+  };
+
+  const createTrackingLink = async () => {
+    if (!selectedId || !trackPartnershipId.trim()) {
+      showToast("Select an active partnership.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/affiliate/teams/${selectedId}/tracking-links`, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          partnershipId: trackPartnershipId.trim(),
+          serviceId: trackServiceId.trim() || undefined,
+          name: trackName.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Could not create link.");
+      showToast("Tracking link created.");
+      setTrackServiceId("");
+      setTrackName("");
+      await loadTrackingLinks(selectedId);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : "Could not create link.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const patchTrackingLink = async (linkId: string, status: "active" | "paused") => {
+    if (!selectedId) return;
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/affiliate/teams/${selectedId}/tracking-links/${linkId}`,
+        {
+          method: "PATCH",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ status }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Update failed.");
+      showToast(status === "paused" ? "Link paused." : "Link active.");
+      await loadTrackingLinks(selectedId);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : "Update failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied.");
+    } catch {
+      showToast("Could not copy.");
+    }
+  };
+
   const leaveGroup = async () => {
     if (!selectedId) return;
     if (!window.confirm("Leave this group?")) return;
@@ -352,6 +455,13 @@ export default function AffiliateTeamsClient() {
 
   const isLeader = detail?.myMembership?.role === "leader";
   const isActiveMember = detail?.myMembership?.status === "active";
+
+  useEffect(() => {
+    if (selectedId && panel === "tracking" && detail?.myMembership?.status === "active") {
+      loadTrackingLinks(selectedId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, panel, detail?.myMembership?.status]);
   const myPendingInvite = teams.find(
     (t) =>
       t.team._id === selectedId && t.membershipStatus === "pending_invite"
@@ -564,6 +674,15 @@ export default function AffiliateTeamsClient() {
                   >
                     Freelancer partners
                   </button>
+                  {isActiveMember && (
+                    <button
+                      type="button"
+                      className={`agt-tab${panel === "tracking" ? " is-on" : ""}`}
+                      onClick={() => setPanel("tracking")}
+                    >
+                      Tracking links
+                    </button>
+                  )}
                   {isLeader && (
                     <button
                       type="button"
@@ -651,8 +770,8 @@ export default function AffiliateTeamsClient() {
                       </div>
                     )}
                     <p className="agt-muted" style={{ marginTop: 0 }}>
-                      Tracking links for partners land in a later step. For now
-                      manage partnership status only.
+                      After a partnership is active, open the Tracking links tab
+                      to create shareable promo URLs for that freelancer.
                     </p>
                     {detail.partnerships.filter((p) =>
                       ["active", "paused"].includes(p.status)
@@ -675,6 +794,107 @@ export default function AffiliateTeamsClient() {
                             </div>
                           </div>
                         ))
+                    )}
+                  </>
+                )}
+
+
+                {panel === "tracking" && isActiveMember && (
+                  <>
+                    <p className="agt-muted" style={{ marginTop: 0 }}>
+                      Share these links when promoting a partnered freelancer.
+                      Clicks are counted; order commissions come later.
+                    </p>
+                    <div className="agt-form" style={{ marginBottom: 16 }}>
+                      <label htmlFor="agt-track-partnership">Active partnership</label>
+                      <select
+                        id="agt-track-partnership"
+                        value={trackPartnershipId}
+                        onChange={(e) => setTrackPartnershipId(e.target.value)}
+                      >
+                        <option value="">Select partner…</option>
+                        {(detail.partnerships || [])
+                          .filter((p) => p.status === "active")
+                          .map((p) => (
+                            <option key={p._id} value={p._id}>
+                              {p.freelancer?.name || p._id}
+                            </option>
+                          ))}
+                      </select>
+                      <label htmlFor="agt-track-service">Service id (optional)</label>
+                      <input
+                        id="agt-track-service"
+                        type="text"
+                        value={trackServiceId}
+                        onChange={(e) => setTrackServiceId(e.target.value)}
+                        placeholder="Leave empty for profile page"
+                      />
+                      <label htmlFor="agt-track-name">Label (optional)</label>
+                      <input
+                        id="agt-track-name"
+                        type="text"
+                        value={trackName}
+                        onChange={(e) => setTrackName(e.target.value)}
+                        placeholder="e.g. IG story — logo pack"
+                      />
+                      <button
+                        type="button"
+                        className="agt-btn agt-btn-primary agt-btn-sm"
+                        disabled={busy || !trackPartnershipId}
+                        onClick={createTrackingLink}
+                      >
+                        Create link
+                      </button>
+                    </div>
+
+                    {loadingLinks ? (
+                      <div className="agt-empty">Loading links…</div>
+                    ) : trackingLinks.length === 0 ? (
+                      <div className="agt-empty">No tracking links yet.</div>
+                    ) : (
+                      trackingLinks.map((l) => (
+                        <div className="agt-member" key={l._id}>
+                          <div className="agt-member-meta">
+                            <strong>
+                              {l.name || l.code}{" "}
+                              <span
+                                className={`agt-badge ${
+                                  l.status === "active" ? "active" : "pending"
+                                }`}
+                              >
+                                {l.status}
+                              </span>
+                            </strong>
+                            <span>
+                              {l.clicks ?? 0} clicks · {l.uniqueClicks ?? 0} unique
+                              {l.serviceId ? " · service" : " · profile"}
+                            </span>
+                            <span className="agt-muted">{l.publicUrl}</span>
+                          </div>
+                          <div className="agt-row">
+                            <button
+                              type="button"
+                              className="agt-btn agt-btn-primary agt-btn-sm"
+                              onClick={() => l.publicUrl && copyLink(l.publicUrl)}
+                            >
+                              Copy
+                            </button>
+                            <button
+                              type="button"
+                              className="agt-btn agt-btn-ghost agt-btn-sm"
+                              disabled={busy}
+                              onClick={() =>
+                                patchTrackingLink(
+                                  l._id,
+                                  l.status === "active" ? "paused" : "active"
+                                )
+                              }
+                            >
+                              {l.status === "active" ? "Pause" : "Resume"}
+                            </button>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </>
                 )}
