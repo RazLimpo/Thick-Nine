@@ -1175,10 +1175,22 @@ export default function AffiliateDashboardClient() {
           setActiveTab("referrals");
         }}
       >
-        <i className="fas fa-users"></i> My Team
+        <i className="fas fa-sitemap"></i> Referral Network
       </a>
+      
+        <a 
+          href="/affiliate-teams"
+          onClick={(e) => {
+            e.preventDefault();
+            router.push("/affiliate-teams");
+          }}
+        >
+          <i className="fas fa-people-group"></i> Affiliate Groups
+        </a>
+      
     </nav>
   </div>
+  
 
   {/* PARTNER GROWTH WIDGET */}
 <div className="aff-card glass-promo-widget">
@@ -1934,6 +1946,12 @@ export default function AffiliateDashboardClient() {
       <div className="hero-content">
         <h1>Network Intelligence</h1>
         <p>You earn from these partners and customers for the lifetime of their accounts.</p>
+        
+        <p style={{ marginTop: 12 }}>
+          <a href="/affiliate-teams" style={{ color: "#fff", fontWeight: 700 }}>
+            Manage Affiliate Groups →
+          </a>
+        </p>
         
         <div className="custom-select-wrapper">
           <select
