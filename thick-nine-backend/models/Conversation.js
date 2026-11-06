@@ -1,9 +1,27 @@
 // models/Conversation.js
+// Direct (1:1) + Affiliate Group chats (type: affiliate_team)
 
 const mongoose = require("mongoose");
 
 const ConversationSchema = new mongoose.Schema(
   {
+    /**
+     * direct — existing buyer/seller (or general) DM
+     * affiliate_team — one group room per AffiliateTeam
+     */
+    type: {
+      type: String,
+      enum: ["direct", "affiliate_team"],
+      default: "direct",
+      index: true,
+    },
+    /** Set when type === "affiliate_team" */
+    teamId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AffiliateTeam",
+      default: null,
+      index: true,
+    },
     participants: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -37,22 +55,26 @@ const ConversationSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
-    // Per-user flags (ObjectId of the user who starred / archived / blocked)
-    starredBy: [
-      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    ],
-    archivedBy: [
-      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    ],
-    blockedBy: [
-      { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    ],
+    starredBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    archivedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    blockedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );
 
 ConversationSchema.index({ participants: 1 });
 ConversationSchema.index({ lastMessageAt: -1 });
+// At most one open group conversation per team
+ConversationSchema.index(
+  { teamId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      teamId: { $type: "objectId" },
+      type: "affiliate_team",
+    },
+  }
+);
 
 module.exports =
   mongoose.models && mongoose.models.Conversation

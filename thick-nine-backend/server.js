@@ -41,6 +41,7 @@ const clientSettingsRoutes = require("./routes/clientSettingsRoutes");
 const affiliateSettingsRoutes = require("./routes/affiliateSettingsRoutes");
 const freelancerWithdrawalRoutes = require("./routes/freelancerWithdrawalRoutes");
 const freelancerAnalyticsRoutes = require("./routes/freelancerAnalyticsRoutes");
+const affiliateTeamRoutes = require("./routes/affiliateTeamRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -154,6 +155,7 @@ app.use("/api/client", clientSettingsRoutes);
 app.use("/api/affiliate-settings", require("./routes/affiliateSettingsRoutes"));
 app.use("/api/freelancer", freelancerWithdrawalRoutes);
 app.use("/api/freelancer", require("./routes/freelancerAnalyticsRoutes"));
+app.use("/api/affiliate/teams", affiliateTeamRoutes);
 
 app.get("/", (req, res) => {
   res.send(
