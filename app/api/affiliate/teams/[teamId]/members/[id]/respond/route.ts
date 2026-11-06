@@ -16,19 +16,25 @@ function forwardHeaders(request: NextRequest): Record<string, string> {
   return headers;
 }
 
+/**
+ * POST /api/affiliate/teams/:teamId/members/:id/respond
+ * id = membershipId (AffiliateTeamMembership._id)
+ */
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ teamId: string; membershipId: string }> | { teamId: string; membershipId: string } }
+  context: {
+    params: Promise<{ teamId: string; id: string }> | { teamId: string; id: string };
+  }
 ) {
   try {
-    const { teamId, membershipId } = await Promise.resolve(context.params);
+    const { teamId, id } = await Promise.resolve(context.params);
     const body = await request.json().catch(() => ({}));
     const headers = {
       ...forwardHeaders(request),
       "Content-Type": "application/json",
     };
     const res = await fetch(
-      `${BACKEND_URL}/api/affiliate/teams/${teamId}/members/${membershipId}/respond`,
+      `${BACKEND_URL}/api/affiliate/teams/${teamId}/members/${id}/respond`,
       {
         method: "POST",
         headers,
