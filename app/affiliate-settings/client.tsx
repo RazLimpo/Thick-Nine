@@ -138,6 +138,12 @@ export default function AffiliateSettingsClient() {
   const [tierProgress, setTierProgress] = useState(10);
   const [earnings, setEarnings] = useState(0);
   const [nextTierGap, setNextTierGap] = useState(0);
+  /** Solo commission rate (90-day) — separate from Authority rank badge */
+  const [commissionRatePercent, setCommissionRatePercent] = useState(25);
+  const [commissionTierLabel, setCommissionTierLabel] = useState("Starter");
+  const [sales90d, setSales90d] = useState(0);
+  const [nextRatePercent, setNextRatePercent] = useState<number | null>(30);
+  const [nextSalesTarget, setNextSalesTarget] = useState<number | null>(500);
 
   // Overview batch
   const [referralLink, setReferralLink] = useState("");
@@ -253,12 +259,29 @@ export default function AffiliateSettingsClient() {
         const tier = a.tierInfo || {};
         setTierLabel(tier.currentTier || a.affiliateProfile?.currentTier || "Bronze");
         setEarnings(Number(tier.currentEarnings) || 0);
-        const target = Number(tier.tierTargetEarnings) || 1000;
+        const target = Number(tier.tierTargetEarnings) || 100;
         const cur = Number(tier.currentEarnings) || 0;
         setNextTierGap(Math.max(0, target - cur));
-        const pct = target > 0 ? Math.min(100, Math.round((cur / target) * 100)) : 10;
+        const pct =
+          target > 0 ? Math.min(100, Math.round((cur / Math.max(target, 1)) * 100)) : 0;
         setTierProgress(pct);
         if (a.referralCode) setReferralCode(a.referralCode);
+
+        if (a.commissionRateInfo) {
+          const cri = a.commissionRateInfo;
+          setCommissionRatePercent(
+            Number(cri.ratePercent) ||
+              Math.round((Number(cri.rate) || 0.25) * 100)
+          );
+          setCommissionTierLabel(cri.tierLabel || "Starter");
+          setSales90d(Number(cri.sales90d) || 0);
+          setNextRatePercent(
+            cri.nextRatePercent != null ? Number(cri.nextRatePercent) : null
+          );
+          setNextSalesTarget(
+            cri.nextMinSales90d != null ? Number(cri.nextMinSales90d) : null
+          );
+        }
       }
 
       // Overview: referral, earnings, conversions
@@ -887,15 +910,47 @@ export default function AffiliateSettingsClient() {
               </div>
               <div className="intro-text">
                 <h2>Growth &amp; Financials</h2>
-                <p>Track your commission tiers and manage how you receive earnings.</p>
+                <p>Your pay rate (90-day) and Authority rank (lifetime) are separate. Manage payouts below.</p>
               </div>
             </div>
 
             <div className="aff-card settings-island">
               <div className="island-header">
-                <h3>Reward Progression</h3>
+                <h3>Your commission rate</h3>
+                <span className="badge-tier platinum">
+                  {commissionRatePercent}% · {commissionTierLabel}
+                </span>
+              </div>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Based on attributed service sales completed in the last 90 days.
+                Rate applies to the <strong>freelancer platform fee only</strong>{" "}
+                (not the buyer fee). Group-tracked sales also pay the freelancer
+                promo pool on top of this rate.
+              </p>
+              <div className="tier-footer-note">
+                <p>
+                  <i className="fas fa-chart-line" /> 90-day sales:{" "}
+                  <strong>${sales90d.toLocaleString()}</strong>
+                  {nextSalesTarget != null && nextRatePercent != null ? (
+                    <>
+                      {" "}
+                      — next <strong>{nextRatePercent}%</strong> at{" "}
+                      <strong>${Number(nextSalesTarget).toLocaleString()}</strong>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+
+            <div className="aff-card settings-island">
+              <div className="island-header">
+                <h3>Authority rank</h3>
                 <span className="badge-tier platinum">{tierLabel} Status</span>
               </div>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Badge from lifetime <strong>confirmed</strong> affiliate
+                commissions — separate from your commission %.
+              </p>
               <div className="tier-progress-container">
                 <div className="progress-track-wrapper">
                   <div
@@ -905,20 +960,19 @@ export default function AffiliateSettingsClient() {
                 </div>
                 <div className="tier-footer-note">
                   <p>
-                    <i className="fas fa-rocket" /> Lifetime earnings:{" "}
+                    <i className="fas fa-rocket" /> Lifetime confirmed:{" "}
                     <strong>${earnings.toLocaleString()}</strong>
                     {nextTierGap > 0 && (
                       <>
                         {" "}
                         — <strong>${nextTierGap.toLocaleString()}</strong> to next
-                        tier target
+                        rank
                       </>
                     )}
                   </p>
                 </div>
               </div>
             </div>
-
 
             <div className="aff-card settings-island">
               <div className="island-header">
