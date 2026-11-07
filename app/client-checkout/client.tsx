@@ -18,10 +18,88 @@ interface OrderPayload {
   selectedAddons: AddonItem[];
   requirements: string;
   affiliateCode: string | null;
+  /** Group tracking code from ?tg= / session (Affiliate Team link) */
+  teamTrackingCode?: string | null;
+  tg?: string | null;
   paymentMethod: 'card';
   deliveryTimeDays: number;
   offerId?: string | null;
   couponCode?: string | null;
+}
+
+const TG_STORAGE_KEY = 'teamTrackingCode';
+const REF_STORAGE_KEY = 'affiliateCode';
+
+/** Persist attribution from URL so it survives navigation to checkout */
+function captureAttributionFromSearch(search: string): {
+  ref: string | null;
+  tg: string | null;
+} {
+  const urlParams = new URLSearchParams(search);
+  const ref =
+    urlParams.get('ref') ||
+    urlParams.get('affiliateCode') ||
+    urlParams.get('affiliate') ||
+    null;
+  const tg =
+    urlParams.get('tg') ||
+    urlParams.get('teamTrackingCode') ||
+    urlParams.get('trackingCode') ||
+    null;
+
+  if (typeof window !== 'undefined') {
+    try {
+      if (ref) {
+        localStorage.setItem(REF_STORAGE_KEY, ref);
+        sessionStorage.setItem(REF_STORAGE_KEY, ref);
+      }
+      if (tg) {
+        localStorage.setItem(TG_STORAGE_KEY, tg);
+        sessionStorage.setItem(TG_STORAGE_KEY, tg);
+      }
+    } catch {
+      /* private mode */
+    }
+  }
+  return { ref, tg };
+}
+
+function readStoredRef(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return (
+      sessionStorage.getItem(REF_STORAGE_KEY) ||
+      localStorage.getItem(REF_STORAGE_KEY) ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function readStoredTg(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return (
+      sessionStorage.getItem(TG_STORAGE_KEY) ||
+      localStorage.getItem(TG_STORAGE_KEY) ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function clearStoredAttribution(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(REF_STORAGE_KEY);
+    sessionStorage.removeItem(REF_STORAGE_KEY);
+    localStorage.removeItem(TG_STORAGE_KEY);
+    sessionStorage.removeItem(TG_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 interface ToastMessage {
@@ -90,6 +168,9 @@ export default function ClientCheckout() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
+
+    // Keep ref + tg across the checkout hop (and earlier service page)
+    captureAttributionFromSearch(window.location.search);
 
     let parsedAddons: AddonItem[] = [];
     try {
@@ -229,11 +310,17 @@ export default function ClientCheckout() {
     setIsProcessing(true);
 
     const urlParams = new URLSearchParams(window.location.search);
+    captureAttributionFromSearch(window.location.search);
+
     const affiliateCode =
       urlParams.get('ref') ||
-      (typeof window !== 'undefined'
-        ? localStorage.getItem('affiliateCode')
-        : null);
+      urlParams.get('affiliateCode') ||
+      readStoredRef();
+
+    const teamTrackingCode =
+      urlParams.get('tg') ||
+      urlParams.get('teamTrackingCode') ||
+      readStoredTg();
 
     let clientId = urlParams.get('clientId') || '';
     if (!clientId && typeof window !== 'undefined') {
@@ -255,7 +342,9 @@ export default function ClientCheckout() {
       basePackagePrice: serviceData.basePrice,
       selectedAddons: serviceData.addons,
       requirements: instructions,
-      affiliateCode,
+      affiliateCode: affiliateCode || null,
+      teamTrackingCode: teamTrackingCode || null,
+      tg: teamTrackingCode || null,
       paymentMethod: 'card',
       deliveryTimeDays: serviceData.deliveryTimeDays,
       offerId: offerId || null,
@@ -286,9 +375,8 @@ export default function ClientCheckout() {
 
       showToast('Order created successfully! Redirecting...', 'success');
 
-      if (affiliateCode && typeof window !== 'undefined') {
-        localStorage.removeItem('affiliateCode');
-      }
+      // Attribution consumed for this order
+      clearStoredAttribution();
 
       const orderId = data.orderId || data.order?._id || data._id;
       setTimeout(() => {

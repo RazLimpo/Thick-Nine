@@ -198,6 +198,32 @@ export default function ServiceDetailsClient({
   const isDraft = serviceStatus === "draft";
   const isPubliclyListed = serviceStatus === "active";
 
+  // Persist group tracking (?tg=) and referral (?ref=) from team links
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const ref =
+        urlParams.get("ref") ||
+        urlParams.get("affiliateCode") ||
+        urlParams.get("affiliate");
+      const tg =
+        urlParams.get("tg") ||
+        urlParams.get("teamTrackingCode") ||
+        urlParams.get("trackingCode");
+      if (ref) {
+        localStorage.setItem("affiliateCode", ref);
+        sessionStorage.setItem("affiliateCode", ref);
+      }
+      if (tg) {
+        localStorage.setItem("teamTrackingCode", tg);
+        sessionStorage.setItem("teamTrackingCode", tg);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       setIsOwner(false);
@@ -455,6 +481,28 @@ export default function ServiceDetailsClient({
     });
 
     if (clientId) params.set("clientId", clientId);
+
+    // Forward referral + group tracking into checkout URL
+    try {
+      const pageQ = new URLSearchParams(window.location.search);
+      const ref =
+        pageQ.get("ref") ||
+        pageQ.get("affiliateCode") ||
+        sessionStorage.getItem("affiliateCode") ||
+        localStorage.getItem("affiliateCode");
+      const tg =
+        pageQ.get("tg") ||
+        pageQ.get("teamTrackingCode") ||
+        sessionStorage.getItem("teamTrackingCode") ||
+        localStorage.getItem("teamTrackingCode");
+      if (ref) params.set("ref", ref);
+      if (tg) {
+        params.set("tg", tg);
+        params.set("teamTrackingCode", tg);
+      }
+    } catch {
+      /* ignore */
+    }
 
     // Match view-tracking attribution for click analytics
     const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";

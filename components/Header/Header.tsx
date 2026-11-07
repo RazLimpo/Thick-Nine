@@ -32,6 +32,68 @@ const Header = () => {
   const router = useRouter();
   const currentPath = usePathname();
 
+  const searchParams = useSearchParams();
+
+
+  // Persist affiliate ref + group tracking (tg) on every page
+
+  useEffect(() => {
+
+    if (typeof window === "undefined") return;
+
+    try {
+
+      const q = searchParams;
+
+      const ref =
+
+        q?.get("ref") ||
+
+        q?.get("affiliateCode") ||
+
+        q?.get("affiliate") ||
+
+        null;
+
+      const tg =
+
+        q?.get("tg") ||
+
+        q?.get("teamTrackingCode") ||
+
+        q?.get("trackingCode") ||
+
+        null;
+
+      if (ref && String(ref).trim()) {
+
+        const v = String(ref).trim();
+
+        sessionStorage.setItem("affiliateCode", v);
+
+        localStorage.setItem("affiliateCode", v);
+
+      }
+
+      if (tg && String(tg).trim()) {
+
+        const v = String(tg).trim();
+
+        sessionStorage.setItem("teamTrackingCode", v);
+
+        localStorage.setItem("teamTrackingCode", v);
+
+      }
+
+    } catch {
+
+      /* ignore */
+
+    }
+
+  }, [searchParams, currentPath]);
+
+
   // ====================== AUTHENTICATION & PROFILE STATES ======================
   // All auth states are initialized with safe server-side defaults to eliminate hydration mismatches.
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -79,8 +141,7 @@ const [isNotifOpen, setIsNotifOpen] = useState(false);
     
     
     // ====================== URL SEARCH PARAMS ======================
-  const searchParams = useSearchParams();
-  const currentTab = searchParams.get('tab');
+    const currentTab = searchParams.get('tab');
   const sourceParam = searchParams.get('source') || 'direct';
     
     
