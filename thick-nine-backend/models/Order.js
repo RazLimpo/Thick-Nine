@@ -42,6 +42,67 @@ const OrderSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Solo commission snapshots (seller fee × tier rate)
+    commissionRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 1,
+    },
+    commissionableFee: {
+      type: Number,
+      default: 0,
+    },
+    commissionTierId: {
+      type: String,
+      default: null,
+    },
+    commissionTierLabel: {
+      type: String,
+      default: null,
+    },
+    soloAffiliateCreditedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Group tracking (stacks with full solo rate on complete)
+    teamTrackingCode: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    teamId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AffiliateTeam",
+      default: null,
+      index: true,
+    },
+    teamMemberUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    partnershipId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FreelancerTeamPartnership",
+      default: null,
+    },
+    groupPromoRate: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 1,
+    },
+    groupPromoPool: {
+      type: Number,
+      default: 0,
+    },
+    groupCommissionCreditedAt: {
+      type: Date,
+      default: null,
+    },
+
     requirements: {
       type: String,
       default: "",

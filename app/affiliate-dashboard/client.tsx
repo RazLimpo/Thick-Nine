@@ -258,14 +258,20 @@ export default function AffiliateDashboardClient() {
   const [prestigeLevel, setPrestigeLevel] = useState<number>(1);
   const [prestigePoints, setPrestigePoints] = useState<number>(0);
   const [currentEarnings, setCurrentEarnings] = useState<number>(0);
-  const [tierTargetEarnings, setTierTargetEarnings] = useState<number>(1000);
+  const [tierTargetEarnings, setTierTargetEarnings] = useState<number>(100);
   const [tiers, setTiers] = useState<{ name: string; target: number; badge: string }[]>([
     { name: 'Bronze', target: 0, badge: 'Rising Marketer' },
-    { name: 'Silver', target: 1000, badge: 'Network Builder' },
-    { name: 'Gold', target: 5000, badge: 'Influence Partner' },
-    { name: 'Platinum', target: 15000, badge: 'Authority Leader' },
-    { name: 'Diamond', target: 50000, badge: 'Elite Strategist' },
+    { name: 'Silver', target: 100, badge: 'Proven Promoter' },
+    { name: 'Gold', target: 500, badge: 'Growth Catalyst' },
+    { name: 'Platinum', target: 2500, badge: 'Authority Partner' },
+    { name: 'Diamond', target: 10000, badge: 'Apex Affiliate' },
   ]);
+  /** Solo rate % of seller platform fee (separate from Authority rank badge) */
+  const [commissionRatePercent, setCommissionRatePercent] = useState<number>(25);
+  const [commissionTierLabel, setCommissionTierLabel] = useState<string>('Starter');
+  const [sales90d, setSales90d] = useState<number>(0);
+  const [nextRatePercent, setNextRatePercent] = useState<number | null>(30);
+  const [nextSalesTarget, setNextSalesTarget] = useState<number | null>(500);
   const [progression, setProgression] = useState({
     monthlySales: 0,
     targetSales: 5000,
@@ -339,10 +345,11 @@ export default function AffiliateDashboardClient() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          if (data.user?.wallet) {
-            setAvailableBalance(data.user.wallet.availableBalance || 0);
-            setPendingBalance(data.user.wallet.pendingBalance || 0);
-            setTotalPaidOut(data.user.wallet.lifetimeWithdrawals || 0);
+          const wallet = data.wallet || data.user?.wallet;
+          if (wallet) {
+            setAvailableBalance(wallet.availableBalance || 0);
+            setPendingBalance(wallet.pendingBalance || 0);
+            setTotalPaidOut(wallet.lifetimeWithdrawals || 0);
           }
 
           if (data.affiliateProfile?.storeConfig) {
@@ -356,7 +363,7 @@ export default function AffiliateDashboardClient() {
             setCurrentTier(data.tierInfo.currentTier || 'Bronze');
             setNextTier(data.tierInfo.nextTier || 'Silver');
             setPrestigeBadge(data.tierInfo.prestigeBadge || 'Rising Marketer');
-            setTierTargetEarnings(data.tierInfo.tierTargetEarnings || 1000);
+            setTierTargetEarnings(data.tierInfo.tierTargetEarnings || 100);
             setCurrentEarnings(data.tierInfo.currentEarnings || 0);
           }
 
@@ -364,6 +371,22 @@ export default function AffiliateDashboardClient() {
             setTiers(data.tierInfo.tiers);
           } else if (Array.isArray(data.tiers) && data.tiers.length > 0) {
             setTiers(data.tiers);
+          }
+
+          if (data.commissionRateInfo) {
+            const cri = data.commissionRateInfo;
+            setCommissionRatePercent(
+              Number(cri.ratePercent) ||
+                Math.round((Number(cri.rate) || 0.25) * 100)
+            );
+            setCommissionTierLabel(cri.tierLabel || 'Starter');
+            setSales90d(Number(cri.sales90d) || 0);
+            setNextRatePercent(
+              cri.nextRatePercent != null ? Number(cri.nextRatePercent) : null
+            );
+            setNextSalesTarget(
+              cri.nextMinSales90d != null ? Number(cri.nextMinSales90d) : null
+            );
           }
 
           if (data.affiliateProfile) {
@@ -2296,9 +2319,31 @@ export default function AffiliateDashboardClient() {
       
       {/* TIER ROADMAP */}
       <div className="aff-card prestige-roadmap-card">
+        {/* Active commission rate (90-day) — separate from rank badge */}
+        <div className="glass-panel island-card commission-rate-card">
+          <h3 className="island-title">Your commission rate</h3>
+          <p className="muted">
+            Based on attributed service sales completed in the last 90 days.
+            Rate applies to the <strong>freelancer platform fee only</strong> — not the buyer fee.
+            Group-tracked sales also pay the freelancer promo pool on top of this rate.
+          </p>
+          <div className="rate-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'baseline' }}>
+            <div>
+              <span style={{ fontSize: '2rem', fontWeight: 700 }}>{commissionRatePercent}%</span>
+              <span className="muted"> · {commissionTierLabel}</span>
+            </div>
+            <div className="muted">
+              90-day sales: <strong>${(sales90d || 0).toLocaleString()}</strong>
+              {nextSalesTarget != null && nextRatePercent != null ? (
+                <> · Next {nextRatePercent}% at ${Number(nextSalesTarget).toLocaleString()}</>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
         <h3 className="island-title">Authority Roadmap</h3>
         <p className="section-desc">
-          Climb the ranks by increasing your lifetime earnings and network performance.
+          Your badge is based on lifetime confirmed affiliate commissions (separate from your commission %).
         </p>
 
         <div className="roadmap-timeline">
@@ -2339,7 +2384,7 @@ export default function AffiliateDashboardClient() {
             <i className="fas fa-percentage"></i>
             <div>
               <strong>Higher Commissions</strong>
-              <p>Unlock increased commission rates as you rank up.</p>
+              <p>Rank is a prestige badge. Your pay rate is driven by 90-day sales volume above.</p>
             </div>
           </div>
           <div className="perk-item">

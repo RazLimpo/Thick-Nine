@@ -1,6 +1,8 @@
 // lib/commissionHelper.ts
+// Affiliate commission base = SELLER platform fee only (buyer fee excluded).
+// Rate is passed in from checkout (90-day tier via affiliateRewards / API).
 
-import { MARKETPLACE_FEE_PERCENTAGE } from './constants';
+import { MARKETPLACE_FEE_PERCENTAGE } from "./constants";
 
 export interface FeeBreakdown {
   subtotal: number;
@@ -9,45 +11,54 @@ export interface FeeBreakdown {
   sellerPlatformFee: number;
   sellerEarnings: number;
   grossAdminRevenue: number;
+  /** Solo affiliate commission = sellerPlatformFee × affiliateCutRate */
   affiliateCommission: number;
   netAdminProfit: number;
+  /** Snapshot fields */
+  commissionRate: number;
+  commissionableFee: number;
 }
 
 /**
- * Calculates marketplace buyer/seller fees and affiliate cuts.
- * 
- * @param subtotal - Base package price + selected add-ons
- * @param buyerFeeRate - Buyer processing rate (defaults to 0.05 for 5%)
- * @param affiliateCutRate - Rate taken out of gross admin revenue (defaults to 0.10 for 10%)
- * @param overridePlatformFeeRate - Optional seller fee override (defaults to MARKETPLACE_FEE_PERCENTAGE / 0.15)
+ * Calculates marketplace fees and solo affiliate commission.
+ *
+ * @param subtotal - Package + add-ons − discounts
+ * @param buyerFeeRate - Buyer fee fraction (default 0.05)
+ * @param affiliateCutRate - Affiliate share of SELLER fee only (0–0.5 tiered)
+ * @param overridePlatformFeeRate - Seller fee fraction (default MARKETPLACE_FEE_PERCENTAGE)
  */
 export function calculateOrderFees(
   subtotal: number,
   buyerFeeRate: number = 0.05,
-  affiliateCutRate: number = 0.10,
+  affiliateCutRate: number = 0,
   overridePlatformFeeRate?: number
 ): FeeBreakdown {
-  const sellerFeeRate = overridePlatformFeeRate ?? MARKETPLACE_FEE_PERCENTAGE;
+  const sellerFeeRate =
+    overridePlatformFeeRate ?? MARKETPLACE_FEE_PERCENTAGE ?? 0.15;
 
-  // 1. Line Item Calculations
-  const buyerServiceFee = Number((subtotal * buyerFeeRate).toFixed(2));
-  const grandTotal = Number((subtotal + buyerServiceFee).toFixed(2));
+  const sub = Math.max(0, Number(subtotal) || 0);
+  const bRate = Math.min(1, Math.max(0, Number(buyerFeeRate) || 0));
+  const sRate = Math.min(1, Math.max(0, Number(sellerFeeRate) || 0.15));
+  const aRate = Math.min(1, Math.max(0, Number(affiliateCutRate) || 0));
 
-  // 2. Seller Earnings & Fee (15% deducted from subtotal)
-  const sellerPlatformFee = Number((subtotal * sellerFeeRate).toFixed(2));
-  const sellerEarnings = Number((subtotal - sellerPlatformFee).toFixed(2));
+  const buyerServiceFee = Number((sub * bRate).toFixed(2));
+  const grandTotal = Number((sub + buyerServiceFee).toFixed(2));
 
-  // 3. Gross Admin Revenue (Seller 15% Fee + Buyer 5% Fee)
-  const grossAdminRevenue = Number((sellerPlatformFee + buyerServiceFee).toFixed(2));
+  const sellerPlatformFee = Number((sub * sRate).toFixed(2));
+  const sellerEarnings = Number((sub - sellerPlatformFee).toFixed(2));
 
-  // 4. Affiliate Cut (Deducted strictly out of Gross Admin Revenue)
-  const affiliateCommission = Number((grossAdminRevenue * affiliateCutRate).toFixed(2));
+  const grossAdminRevenue = Number(
+    (sellerPlatformFee + buyerServiceFee).toFixed(2)
+  );
 
-  // 5. Net Admin Profit
-  const netAdminProfit = Number((grossAdminRevenue - affiliateCommission).toFixed(2));
+  // Solo commission from SELLER fee only — not gross admin / not buyer fee
+  const affiliateCommission = Number((sellerPlatformFee * aRate).toFixed(2));
+  const netAdminProfit = Number(
+    (grossAdminRevenue - affiliateCommission).toFixed(2)
+  );
 
   return {
-    subtotal,
+    subtotal: sub,
     buyerServiceFee,
     grandTotal,
     sellerPlatformFee,
@@ -55,5 +66,7 @@ export function calculateOrderFees(
     grossAdminRevenue,
     affiliateCommission,
     netAdminProfit,
+    commissionRate: aRate,
+    commissionableFee: sellerPlatformFee,
   };
 }

@@ -1,4 +1,5 @@
 // app/api/checkout/service/route.ts
+// Snapshots solo rate (seller-fee base) + optional group tg fields. Does NOT credit wallet.
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import Order from "@/thick-nine-backend/models/Order";
@@ -21,6 +22,54 @@ async function connectDB() {
   }
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(MONGODB_URI);
+}
+
+/** 90-day attributed completed subtotals for tier rate */
+async function getAffiliateSales90d(affiliateId: string): Promise<number> {
+  if (!isValidObjectId(affiliateId) || mongoose.connection.readyState !== 1) {
+    return 0;
+  }
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 90);
+    const rows = await Order.aggregate([
+      {
+        $match: {
+          affiliateId: new mongoose.Types.ObjectId(affiliateId),
+          status: "completed",
+          updatedAt: { $gte: since },
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$subtotal" } } },
+    ]);
+    return Number(rows[0]?.total) || 0;
+  } catch (e) {
+    console.error("getAffiliateSales90d:", e);
+    return 0;
+  }
+}
+
+/** Tier rate 25%–50% from sales volume (mirrors utils/affiliateRewards.js) */
+function rateFromSales90d(sales90d: number): {
+  rate: number;
+  tierId: string;
+  tierLabel: string;
+} {
+  const tiers = [
+    { id: "starter", label: "Starter", min: 0, rate: 0.25 },
+    { id: "growth", label: "Growth", min: 500, rate: 0.3 },
+    { id: "pro", label: "Pro", min: 2000, rate: 0.35 },
+    { id: "elite", label: "Elite", min: 5000, rate: 0.4 },
+    { id: "top", label: "Top", min: 15000, rate: 0.5 },
+  ];
+  let tier = tiers[0];
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    if (sales90d >= tiers[i].min) {
+      tier = tiers[i];
+      break;
+    }
+  }
+  return { rate: tier.rate, tierId: tier.id, tierLabel: tier.label };
 }
 
 async function resolveDeliveryDays(
@@ -51,7 +100,6 @@ function computeDueAt(days: number): Date {
   return d;
 }
 
-/** Apply coupon discount against subtotal (mirrors /api/coupons/validate rules lightly) */
 async function applyCouponDiscount(
   code: string | null | undefined,
   serviceId: string,
@@ -97,7 +145,6 @@ async function applyCouponDiscount(
     discount = Math.min(discount, orderAmount);
     discount = Math.round(discount * 100) / 100;
 
-    // increment usage
     coupon.usedCount = (coupon.usedCount || 0) + 1;
     if (userId) {
       const redemptions = coupon.redemptions || [];
@@ -117,6 +164,70 @@ async function applyCouponDiscount(
   }
 }
 
+/** Resolve group tracking code → snapshots if partnership/member active */
+async function resolveGroupTracking(tg: string | null | undefined): Promise<{
+  teamTrackingCode: string | null;
+  teamId: string | null;
+  teamMemberUserId: string | null;
+  partnershipId: string | null;
+  groupPromoRate: number | null;
+  groupPromoPool: number;
+  affiliateUserIdFromTg: string | null;
+} | null> {
+  const code = String(tg || "").trim();
+  if (!code || mongoose.connection.readyState !== 1) return null;
+
+  try {
+    const LinkMod = await import(
+      "@/thick-nine-backend/models/AffiliateTeamTrackingLink"
+    );
+    const AffiliateTeamTrackingLink =
+      (LinkMod as any).default || LinkMod;
+    const PartnershipMod = await import(
+      "@/thick-nine-backend/models/FreelancerTeamPartnership"
+    );
+    const FreelancerTeamPartnership =
+      (PartnershipMod as any).default || PartnershipMod;
+
+    const link = await AffiliateTeamTrackingLink.findOne({
+      code,
+      status: "active",
+    }).lean();
+    if (!link) return null;
+
+    const partnership = await FreelancerTeamPartnership.findById(
+      link.partnershipId
+    ).lean();
+    if (!partnership || partnership.status !== "active") return null;
+
+    let promoRate = 0.08;
+    if (partnership.promoRate != null) {
+      let r = Number(partnership.promoRate);
+      if (r > 1) r = r / 100;
+      promoRate = Math.min(0.1, Math.max(0.05, r));
+    }
+
+    return {
+      teamTrackingCode: link.code,
+      teamId: link.teamId ? String(link.teamId) : null,
+      teamMemberUserId: link.memberUserId
+        ? String(link.memberUserId)
+        : null,
+      partnershipId: link.partnershipId
+        ? String(link.partnershipId)
+        : null,
+      groupPromoRate: promoRate,
+      groupPromoPool: 0, // filled after subtotal known
+      affiliateUserIdFromTg: link.memberUserId
+        ? String(link.memberUserId)
+        : null,
+    };
+  } catch (e) {
+    console.error("resolveGroupTracking:", e);
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
@@ -130,6 +241,8 @@ export async function POST(req: NextRequest) {
       selectedAddons = [],
       requirements = "",
       affiliateCode = null,
+      teamTrackingCode = null,
+      tg = null,
       paymentMethod = "card",
       deliveryTimeDays,
       offerId = null,
@@ -143,13 +256,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Prefer auth-derived client if body clientId is missing/invalid
     let resolvedClientId = clientId;
-    if (!resolvedClientId || !isValidObjectId(String(resolvedClientId))) {
-      // leave as-is; will generate if still invalid (legacy)
-      resolvedClientId = clientId;
-    }
-
     const validClientId = isValidObjectId(String(resolvedClientId || ""))
       ? resolvedClientId
       : new mongoose.Types.ObjectId();
@@ -166,15 +273,23 @@ export async function POST(req: NextRequest) {
     );
     const dueAt = computeDueAt(days);
 
-    // If paying a custom offer, prefer offer price/days when available
     let offerPrice: number | null = null;
     let offerDays: number | null = null;
-    if (offerId && isValidObjectId(String(offerId)) && mongoose.connection.readyState === 1) {
+    if (
+      offerId &&
+      isValidObjectId(String(offerId)) &&
+      mongoose.connection.readyState === 1
+    ) {
       try {
-        const OfferMod = await import("@/thick-nine-backend/models/CustomOffer");
+        const OfferMod = await import(
+          "@/thick-nine-backend/models/CustomOffer"
+        );
         const CustomOffer = (OfferMod as any).default || OfferMod;
         const offer = await CustomOffer.findById(offerId);
-        if (offer && (offer.status === "accepted" || offer.status === "pending")) {
+        if (
+          offer &&
+          (offer.status === "accepted" || offer.status === "pending")
+        ) {
           offerPrice = Number(offer.price) || null;
           offerDays = Number(offer.deliveryDays) || null;
         }
@@ -204,19 +319,27 @@ export async function POST(req: NextRequest) {
     subtotal = Math.max(0, subtotal - discount);
 
     let buyerFeeRate = 0.05;
-    let affiliateCutRate = 0.1;
     let sellerFeeRate = 0.15;
+    let useTiered = true;
+    let fallbackCut = 0.25;
 
     if (mongoose.connection.readyState === 1) {
-      const config = await AffiliateCommissionConfig.findOne({ isActive: true });
+      const config = await AffiliateCommissionConfig.findOne({
+        isActive: true,
+      });
       if (config) {
         buyerFeeRate = config.buyerFeePercentage ?? 0.05;
-        affiliateCutRate = config.defaultAffiliateCutRate ?? 0.1;
         sellerFeeRate = config.platformFeePercentage ?? 0.15;
+        useTiered = config.useTieredAffiliateRates !== false;
+        fallbackCut = config.defaultAffiliateCutRate ?? 0.25;
       }
     }
 
-    let affiliateUserId = null;
+    // Group tracking (tg) may also identify the promoting affiliate
+    const tgCode = teamTrackingCode || tg || null;
+    const group = await resolveGroupTracking(tgCode);
+
+    let affiliateUserId: string | null = null;
     if (affiliateCode && mongoose.connection.readyState === 1) {
       const affiliate = await User.findOne({
         $or: [
@@ -224,7 +347,30 @@ export async function POST(req: NextRequest) {
           { affiliateCode: String(affiliateCode).trim() },
         ],
       });
-      if (affiliate) affiliateUserId = affiliate._id;
+      if (affiliate) affiliateUserId = String(affiliate._id);
+    }
+    // Prefer explicit ref; else member from tg
+    if (!affiliateUserId && group?.affiliateUserIdFromTg) {
+      affiliateUserId = group.affiliateUserIdFromTg;
+    }
+
+    let affiliateCutRate = 0;
+    let tierId: string | null = null;
+    let tierLabel: string | null = null;
+    let sales90d = 0;
+
+    if (affiliateUserId) {
+      sales90d = await getAffiliateSales90d(affiliateUserId);
+      if (useTiered) {
+        const t = rateFromSales90d(sales90d);
+        affiliateCutRate = t.rate;
+        tierId = t.tierId;
+        tierLabel = t.tierLabel;
+      } else {
+        affiliateCutRate = fallbackCut;
+        tierId = "legacy";
+        tierLabel = "Legacy";
+      }
     }
 
     const fees = calculateOrderFees(
@@ -233,6 +379,14 @@ export async function POST(req: NextRequest) {
       affiliateUserId ? affiliateCutRate : 0,
       sellerFeeRate
     );
+
+    let groupPromoPool = 0;
+    let groupPromoRate: number | null = null;
+    if (group?.groupPromoRate != null) {
+      groupPromoRate = group.groupPromoRate;
+      groupPromoPool =
+        Math.round(subtotal * group.groupPromoRate * 100) / 100;
+    }
 
     const finalDueAt =
       offerDays != null ? computeDueAt(offerDays) : dueAt;
@@ -247,6 +401,8 @@ export async function POST(req: NextRequest) {
         dueAt: finalDueAt.toISOString(),
         discount,
         couponCode: appliedCode,
+        commissionRate: fees.commissionRate,
+        affiliateCommission: fees.affiliateCommission,
       });
     }
 
@@ -254,8 +410,8 @@ export async function POST(req: NextRequest) {
       clientId: validClientId,
       serviceId: validServiceId,
       sellerId: validSellerId,
-      affiliateId: affiliateUserId,
-      affiliateCode: affiliateCode || null,
+      affiliateId: affiliateUserId || null,
+      affiliateCode: affiliateCode || group?.teamTrackingCode || null,
       requirements,
       basePackagePrice: base,
       selectedAddons: offerPrice != null ? [] : selectedAddons,
@@ -267,10 +423,19 @@ export async function POST(req: NextRequest) {
       grossAdminRevenue: fees.grossAdminRevenue,
       affiliateCommission: fees.affiliateCommission,
       netAdminProfit: fees.netAdminProfit,
+      commissionRate: fees.commissionRate,
+      commissionableFee: fees.commissionableFee,
+      commissionTierId: tierId,
+      commissionTierLabel: tierLabel,
+      teamTrackingCode: group?.teamTrackingCode || null,
+      teamId: group?.teamId || null,
+      teamMemberUserId: group?.teamMemberUserId || null,
+      partnershipId: group?.partnershipId || null,
+      groupPromoRate,
+      groupPromoPool,
       paymentMethod,
       status: "pending",
       dueAt: finalDueAt,
-      // optional fields if schema allows
       couponCode: appliedCode || undefined,
       discountAmount: discount || undefined,
       offerId:
@@ -279,17 +444,18 @@ export async function POST(req: NextRequest) {
 
     await newOrder.save();
 
-    // Mark offer accepted/paid if linked
     if (offerId && isValidObjectId(String(offerId))) {
       try {
-        const OfferMod = await import("@/thick-nine-backend/models/CustomOffer");
+        const OfferMod = await import(
+          "@/thick-nine-backend/models/CustomOffer"
+        );
         const CustomOffer = (OfferMod as any).default || OfferMod;
         await CustomOffer.findByIdAndUpdate(offerId, {
           status: "accepted",
           orderId: newOrder._id,
         });
       } catch {
-        /* optional orderId field on offer */
+        /* optional */
       }
     }
 
@@ -301,6 +467,10 @@ export async function POST(req: NextRequest) {
       dueAt: newOrder.dueAt,
       discount,
       couponCode: appliedCode,
+      commissionRate: newOrder.commissionRate,
+      affiliateCommission: newOrder.affiliateCommission,
+      teamTrackingCode: newOrder.teamTrackingCode,
+      groupPromoPool: newOrder.groupPromoPool,
     });
   } catch (error: any) {
     console.error("Service Checkout Error:", error);

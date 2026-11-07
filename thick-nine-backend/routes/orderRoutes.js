@@ -8,6 +8,16 @@ const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const authMiddleware = require("../middleware/auth");
 
+let creditAffiliateForOrder;
+try {
+  ({ creditAffiliateForOrder } = require("../utils/creditAffiliateForOrder"));
+} catch (e) {
+  creditAffiliateForOrder = null;
+  console.warn(
+    "creditAffiliateForOrder util missing — affiliate pay on complete disabled until utils/creditAffiliateForOrder.js is deployed."
+  );
+}
+
 function uid(req) {
   return req.user?.id || req.user?._id;
 }
@@ -493,9 +503,11 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
     order.ratedAt = new Date();
 
     // Optional: mark completed when buyer rates after delivery
+    let becameCompleted = false;
     if (order.status === "in_escrow" || order.status === "revision_requested") {
       if (order.deliveredAt) {
         order.status = "completed";
+        becameCompleted = true;
         if (!order.escrowReleaseDate) {
           const release = new Date();
           release.setDate(release.getDate() + 14);
@@ -505,6 +517,14 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
     }
 
     await order.save();
+
+    if (becameCompleted && typeof creditAffiliateForOrder === "function") {
+      try {
+        await creditAffiliateForOrder(order);
+      } catch (creditErr) {
+        console.error("creditAffiliateForOrder (rate) error:", creditErr);
+      }
+    }
 
     try {
       const Notification = require("../models/Notification");
@@ -721,6 +741,16 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
     }
     await order.save();
 
+    // Affiliate: solo (seller-fee × rate) + optional group promo pool
+    let affiliateCredit = null;
+    if (typeof creditAffiliateForOrder === "function") {
+      try {
+        affiliateCredit = await creditAffiliateForOrder(order);
+      } catch (creditErr) {
+        console.error("creditAffiliateForOrder error:", creditErr);
+      }
+    }
+
     try {
       const Notification = require("../models/Notification");
       const short = String(order._id).slice(-6).toUpperCase();
@@ -746,6 +776,7 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
         escrowReleaseDate: order.escrowReleaseDate,
         deliveredAt: order.deliveredAt,
       },
+      affiliateCredit,
     });
   } catch (error) {
     console.error("POST /api/orders/:id/complete error:", error);

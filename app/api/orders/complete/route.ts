@@ -1,15 +1,18 @@
 // app/api/orders/complete/route.ts
+// Moves paid order into escrow / in_progress.
+// Affiliate commission is NOT credited here — only when status becomes "completed"
+// via Express POST /api/orders/:id/complete (buyer accept) or rate-to-complete.
 
-import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
-import Order from '@/thick-nine-backend/models/Order';
-import User from '@/thick-nine-backend/models/User';
-import Transaction from '@/thick-nine-backend/models/Transaction';
+import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
+import Order from "@/thick-nine-backend/models/Order";
+import User from "@/thick-nine-backend/models/User";
 
-const MONGODB_URI = process.env.MONGODB_URI || '';
+const MONGODB_URI = process.env.MONGODB_URI || "";
 
 async function connectDB() {
   if (mongoose.connection.readyState === 1) return;
+  if (!MONGODB_URI) return;
   await mongoose.connect(MONGODB_URI);
 }
 
@@ -22,73 +25,74 @@ export async function POST(req: NextRequest) {
 
     if (!orderId) {
       return NextResponse.json(
-        { error: 'Order ID is required.' },
+        { error: "Order ID is required." },
         { status: 400 }
       );
     }
 
-    // 1. Fetch Order
     const order = await Order.findById(orderId);
     if (!order) {
-      return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
+      return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
 
-    if (order.status === 'completed' || order.status === 'in_escrow') {
+    // Already past pending — idempotent for payment webhook retries
+    if (order.status === "completed") {
+      return NextResponse.json({
+        success: true,
+        message: "Order already completed.",
+        status: order.status,
+        escrowReleaseDate: order.escrowReleaseDate,
+      });
+    }
+
+    if (order.status === "in_escrow" || order.status === "revision_requested") {
+      return NextResponse.json({
+        success: true,
+        message: "Order already in progress / escrow.",
+        status: order.status,
+        escrowReleaseDate: order.escrowReleaseDate,
+      });
+    }
+
+    if (order.status !== "pending") {
       return NextResponse.json(
-        { error: 'Order has already been processed.' },
+        {
+          error: `Cannot move order with status "${order.status}" into escrow.`,
+        },
         { status: 400 }
       );
     }
 
-    // 2. Calculate 14-Day Escrow Release Date
     const escrowDays = 14;
     const releaseDate = new Date();
     releaseDate.setDate(releaseDate.getDate() + escrowDays);
 
-    // 3. Update Order Status to Escrow
-    order.status = 'in_escrow';
+    order.status = "in_escrow";
     order.escrowReleaseDate = releaseDate;
     await order.save();
 
-    // 4. Update Seller Wallet (Funds held in pending balance for 14 days)
-    await User.findByIdAndUpdate(order.sellerId, {
-      $inc: { 'wallet.pendingBalance': order.sellerEarnings },
-    });
-
-    // 5. Credit Affiliate Commission & Create Transaction Record (if referred)
-    if (order.affiliateId && order.affiliateCommission > 0) {
-      // Credit affiliate available balance immediately
-      await User.findByIdAndUpdate(order.affiliateId, {
-        $inc: { 'wallet.availableBalance': order.affiliateCommission },
+    // Seller earnings held as pending until completion / release policy
+    if (order.sellerId && Number(order.sellerEarnings) > 0) {
+      await User.findByIdAndUpdate(order.sellerId, {
+        $inc: { "wallet.pendingBalance": order.sellerEarnings },
       });
-
-      // Log Transaction for Affiliate Dashboard Analytics
-      const commissionTransaction = new Transaction({
-        affiliateId: order.affiliateId,
-        orderId: order._id,
-        type: 'commission',
-        amount: order.affiliateCommission,
-        orderTotal: order.grandTotal,
-        commissionRate: order.grossAdminRevenue > 0 
-          ? Number((order.affiliateCommission / order.grossAdminRevenue).toFixed(2)) 
-          : 0,
-        status: 'completed',
-        description: `Affiliate commission from Order #${order._id}`,
-        referenceId: order._id.toString(),
-      });
-
-      await commissionTransaction.save();
     }
+
+    // NOTE: Affiliate commission is intentionally NOT credited here.
+    // Credit runs on true completion: Express POST /api/orders/:id/complete
+    // (utils/creditAffiliateForOrder.js) — solo rate + optional group pool.
 
     return NextResponse.json({
       success: true,
-      message: 'Order status updated to escrow. Affiliate commission credited.',
+      message:
+        "Order moved to escrow. Affiliate commission will credit when the order is completed.",
+      status: order.status,
       escrowReleaseDate: releaseDate,
     });
   } catch (error: any) {
-    console.error('Order Completion Error:', error);
+    console.error("Order escrow/complete Error:", error);
     return NextResponse.json(
-      { error: error.message || 'Failed to complete order.' },
+      { error: error.message || "Failed to process order." },
       { status: 500 }
     );
   }

@@ -1,35 +1,150 @@
 // controllers/userController.js
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
 
 /* ===========================================================
-   TIER & PRESTIGE GAMIFICATION LOGIC
+   AFFILIATE REWARDS (rank badge + 90-day commission rate)
+   Prefer utils/affiliateRewards.js; fallbacks if missing.
    =========================================================== */
-const TIER_THRESHOLDS = [
-  { tier: "Bronze", targetEarnings: 1000, badge: "Rising Marketer" },
-  { tier: "Silver", targetEarnings: 5000, badge: "Proven Promoter" },
-  { tier: "Gold", targetEarnings: 15000, badge: "Growth Catalyst" },
-  { tier: "Platinum", targetEarnings: 50000, badge: "Authority Partner" },
-  { tier: "Diamond", targetEarnings: 100000, badge: "Apex Affiliate" },
+let rewards = null;
+try {
+  rewards = require("../utils/affiliateRewards");
+} catch (_) {
+  rewards = null;
+}
+
+/** Authority rank — lifetime confirmed commissions (badge only) */
+const FALLBACK_RANK_THRESHOLDS = [
+  { rank: "Bronze", minLifetime: 0, badge: "Rising Marketer" },
+  { rank: "Silver", minLifetime: 100, badge: "Proven Promoter" },
+  { rank: "Gold", minLifetime: 500, badge: "Growth Catalyst" },
+  { rank: "Platinum", minLifetime: 2500, badge: "Authority Partner" },
+  { rank: "Diamond", minLifetime: 10000, badge: "Apex Affiliate" },
 ];
 
-const calculateTierProgress = (totalEarnings) => {
-  let currentTier = TIER_THRESHOLDS[0];
-  let nextTier = TIER_THRESHOLDS[1];
+/** @deprecated kept name for any external require of calculateTierProgress */
+const TIER_THRESHOLDS = FALLBACK_RANK_THRESHOLDS.map((t) => ({
+  tier: t.rank,
+  targetEarnings: t.minLifetime,
+  badge: t.badge,
+}));
 
-  for (let i = TIER_THRESHOLDS.length - 1; i >= 0; i--) {
-    if (totalEarnings >= TIER_THRESHOLDS[i].targetEarnings) {
-      currentTier = TIER_THRESHOLDS[i];
-      nextTier = TIER_THRESHOLDS[i + 1] || TIER_THRESHOLDS[i];
+function getRankFromLifetime(lifetime) {
+  if (rewards && typeof rewards.getRank === "function") {
+    return rewards.getRank(lifetime);
+  }
+  const value = Math.max(0, Number(lifetime) || 0);
+  let current = FALLBACK_RANK_THRESHOLDS[0];
+  let next = FALLBACK_RANK_THRESHOLDS[1] || FALLBACK_RANK_THRESHOLDS[0];
+  for (let i = FALLBACK_RANK_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (value >= FALLBACK_RANK_THRESHOLDS[i].minLifetime) {
+      current = FALLBACK_RANK_THRESHOLDS[i];
+      next = FALLBACK_RANK_THRESHOLDS[i + 1] || FALLBACK_RANK_THRESHOLDS[i];
       break;
     }
   }
-
   return {
-    currentTier: currentTier.tier,
-    prestigeBadge: currentTier.badge,
-    tierTargetEarnings: nextTier.targetEarnings,
-    nextTier: nextTier.tier,
+    rank: current.rank,
+    badge: current.badge,
+    nextRank: next.rank,
+    nextMinLifetime: next.minLifetime,
+    lifetimeConfirmed: value,
+    progressToNext:
+      next.minLifetime <= current.minLifetime
+        ? 1
+        : Math.min(
+            1,
+            Math.max(
+              0,
+              (value - current.minLifetime) /
+                (next.minLifetime - current.minLifetime)
+            )
+          ),
+  };
+}
+
+function ranksForUi() {
+  if (rewards && Array.isArray(rewards.RANK_THRESHOLDS)) {
+    return rewards.RANK_THRESHOLDS.map((t) => ({
+      name: t.rank,
+      target: t.minLifetime,
+      badge: t.badge,
+    }));
+  }
+  return FALLBACK_RANK_THRESHOLDS.map((t) => ({
+    name: t.rank,
+    target: t.minLifetime,
+    badge: t.badge,
+  }));
+}
+
+/** 90-day attributed completed subtotals for rate tier */
+async function sales90dFor(affiliateId) {
+  if (!mongoose.Types.ObjectId.isValid(String(affiliateId))) return 0;
+  try {
+    const Order = require("../models/Order");
+    const since = new Date();
+    since.setDate(since.getDate() - 90);
+    const rows = await Order.aggregate([
+      {
+        $match: {
+          affiliateId: new mongoose.Types.ObjectId(String(affiliateId)),
+          status: "completed",
+          updatedAt: { $gte: since },
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$subtotal" } } },
+    ]);
+    return Number(rows[0]?.total) || 0;
+  } catch (e) {
+    console.error("sales90dFor:", e.message);
+    return 0;
+  }
+}
+
+function rateFromSales90d(sales90d) {
+  if (rewards && typeof rewards.getCommissionRate === "function") {
+    return rewards.getCommissionRate(sales90d);
+  }
+  const sales = Math.max(0, Number(sales90d) || 0);
+  const tiers = [
+    { id: "starter", label: "Starter", min: 0, rate: 0.25 },
+    { id: "growth", label: "Growth", min: 500, rate: 0.3 },
+    { id: "pro", label: "Pro", min: 2000, rate: 0.35 },
+    { id: "elite", label: "Elite", min: 5000, rate: 0.4 },
+    { id: "top", label: "Top", min: 15000, rate: 0.5 },
+  ];
+  let tier = tiers[0];
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    if (sales >= tiers[i].min) {
+      tier = tiers[i];
+      break;
+    }
+  }
+  const idx = tiers.findIndex((t) => t.id === tier.id);
+  const next = tiers[idx + 1] || null;
+  return {
+    rate: tier.rate,
+    tierId: tier.id,
+    tierLabel: tier.label,
+    minSales90d: tier.min,
+    sales90d: sales,
+    nextTierId: next?.id || null,
+    nextTierLabel: next?.label || null,
+    nextMinSales90d: next?.min || null,
+    nextRate: next?.rate || null,
+  };
+}
+
+/** Legacy helper — rank only (not commission %) */
+const calculateTierProgress = (totalEarnings) => {
+  const r = getRankFromLifetime(totalEarnings);
+  return {
+    currentTier: r.rank,
+    prestigeBadge: r.badge,
+    tierTargetEarnings: r.nextMinLifetime,
+    nextTier: r.nextRank,
   };
 };
 
@@ -81,7 +196,6 @@ const formatUserPayload = (user) => {
     memberSince: userObj.memberSince,
     source: userObj.affiliateProfile?.source || "direct",
 
-    // Client-settings (flattened for app/client-settings)
     clientPreferences: cp,
     preferredSkills: cp.preferredSkills || [],
     projectTypes: cp.projectTypes || [],
@@ -157,7 +271,6 @@ exports.updateUserProfile = async (req, res) => {
       return res.status(401).json({ message: "Unauthorized." });
     }
 
-    // +password only when changing password
     const needsPassword = !!(req.body && req.body.newPassword);
     const user = needsPassword
       ? await User.findById(userId).select("+password")
@@ -169,7 +282,6 @@ exports.updateUserProfile = async (req, res) => {
 
     const body = req.body || {};
 
-    // --- Identity / basic ---
     if (body.fullName != null) user.fullName = String(body.fullName).trim();
     if (body.displayName != null) {
       user.displayName = String(body.displayName).trim();
@@ -180,7 +292,6 @@ exports.updateUserProfile = async (req, res) => {
       user.referralCode = String(body.referralCode).trim();
     }
 
-    // --- Profile content ---
     if (body.professionalTitle != null) {
       user.professionalTitle = String(body.professionalTitle).trim();
     }
@@ -224,7 +335,6 @@ exports.updateUserProfile = async (req, res) => {
       user.education = body.education;
     }
 
-    // --- Location: object or "City, Country" string ---
     if (body.location != null) {
       if (typeof body.location === "string") {
         const parts = body.location
@@ -252,7 +362,6 @@ exports.updateUserProfile = async (req, res) => {
       }
     }
 
-    // --- Client preferences (client-settings page) ---
     if (!user.clientPreferences) user.clientPreferences = {};
     const cp = user.clientPreferences;
 
@@ -300,7 +409,6 @@ exports.updateUserProfile = async (req, res) => {
     }
     user.clientPreferences = cp;
 
-    // --- Legal ---
     if (body.legalBusinessName != null) {
       user.legalBusinessName = String(body.legalBusinessName).trim();
     }
@@ -308,7 +416,6 @@ exports.updateUserProfile = async (req, res) => {
       user.taxId = String(body.taxId).trim();
     }
 
-    // --- Payout (payoutDetails or payout alias) ---
     const pay = body.payoutDetails || body.payout;
     if (pay && typeof pay === "object") {
       if (!user.payoutDetails) user.payoutDetails = {};
@@ -354,7 +461,6 @@ exports.updateUserProfile = async (req, res) => {
       }
     }
 
-    // --- Settings / notifications / visibility ---
     if (!user.settings) user.settings = {};
 
     if (body.profileVisibility != null) {
@@ -404,7 +510,6 @@ exports.updateUserProfile = async (req, res) => {
       }
     }
 
-    // --- Portfolio ---
     if (Array.isArray(body.portfolio)) {
       user.portfolio = body.portfolio
         .map((item) => ({
@@ -416,7 +521,6 @@ exports.updateUserProfile = async (req, res) => {
         .slice(0, 30);
     }
 
-    // --- Skill media ---
     if (Array.isArray(body.skillMedia)) {
       user.skillMedia = body.skillMedia
         .map((item) => ({
@@ -430,12 +534,10 @@ exports.updateUserProfile = async (req, res) => {
         .slice(0, 20);
     }
 
-    // --- 2FA flag (full TOTP challenge wired at login later) ---
     if (typeof body.twoFactorEnabled === "boolean") {
       user.twoFactorEnabled = body.twoFactorEnabled;
     }
 
-    // --- Password change (client-settings security modal) ---
     if (body.newPassword) {
       if (!body.currentPassword) {
         return res
@@ -443,9 +545,9 @@ exports.updateUserProfile = async (req, res) => {
           .json({ message: "Current password is required." });
       }
       if (!user.password) {
-        return res
-          .status(400)
-          .json({ message: "Password change is not available for this account." });
+        return res.status(400).json({
+          message: "Password change is not available for this account.",
+        });
       }
       const ok = await bcrypt.compare(
         String(body.currentPassword),
@@ -464,7 +566,6 @@ exports.updateUserProfile = async (req, res) => {
       user.password = await bcrypt.hash(String(body.newPassword), 10);
     }
 
-    // Profile complete flag
     if (
       user.bio ||
       user.professionalTitle ||
@@ -503,6 +604,8 @@ exports.updateUserProfile = async (req, res) => {
 
 /**
  * @route   GET /api/users/affiliate/me
+ * Rank (badge) = lifetime confirmed commissions
+ * Rate (%) = 90-day attributed sales → share of seller platform fee only
  */
 exports.getAffiliateProfile = async (req, res) => {
   try {
@@ -511,15 +614,17 @@ exports.getAffiliateProfile = async (req, res) => {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    const earnings =
+    const lifetime =
       user.wallet?.lifetimeEarnings || user.metrics?.totalEarnings || 0;
-    const tierData = calculateTierProgress(earnings);
+    const rankInfo = getRankFromLifetime(lifetime);
+    const sales90d = await sales90dFor(user._id);
+    const rateInfo = rateFromSales90d(sales90d);
+    const tiersForUi = ranksForUi();
 
     if (!user.affiliateProfile) user.affiliateProfile = {};
-    user.affiliateProfile.currentTier = tierData.currentTier;
-    user.affiliateProfile.tierTargetEarnings = tierData.tierTargetEarnings;
-    user.affiliateProfile.prestigeBadge = tierData.prestigeBadge;
-
+    user.affiliateProfile.currentTier = rankInfo.rank;
+    user.affiliateProfile.tierTargetEarnings = rankInfo.nextMinLifetime;
+    user.affiliateProfile.prestigeBadge = rankInfo.badge;
     await user.save();
 
     res.json({
@@ -528,13 +633,36 @@ exports.getAffiliateProfile = async (req, res) => {
       referralCode: user.referralCode,
       role: user.role,
       tierInfo: {
-        currentTier: tierData.currentTier,
-        nextTier: tierData.nextTier,
-        tierTargetEarnings: tierData.tierTargetEarnings,
-        prestigeBadge: tierData.prestigeBadge,
-        currentEarnings: earnings,
+        currentTier: rankInfo.rank,
+        nextTier: rankInfo.nextRank,
+        tierTargetEarnings: rankInfo.nextMinLifetime,
+        prestigeBadge: rankInfo.badge,
+        currentEarnings: lifetime,
+        progressToNext: rankInfo.progressToNext,
+        tiers: tiersForUi,
+      },
+      tiers: tiersForUi,
+      commissionRateInfo: {
+        rate: rateInfo.rate,
+        ratePercent: Math.round((rateInfo.rate || 0) * 100),
+        tierId: rateInfo.tierId,
+        tierLabel: rateInfo.tierLabel,
+        sales90d: rateInfo.sales90d,
+        nextTierLabel: rateInfo.nextTierLabel,
+        nextMinSales90d: rateInfo.nextMinSales90d,
+        nextRatePercent: rateInfo.nextRate
+          ? Math.round(rateInfo.nextRate * 100)
+          : null,
+        base: "seller_platform_fee",
+        note:
+          "Your commission rate is a share of the freelancer platform fee only (not the buyer fee). Group-tracked sales also pay the freelancer promo pool on top of this rate.",
       },
       affiliateProfile: user.affiliateProfile,
+      wallet: {
+        availableBalance: user.wallet?.availableBalance || 0,
+        pendingBalance: user.wallet?.pendingBalance || 0,
+        lifetimeEarnings: lifetime,
+      },
     });
   } catch (err) {
     console.error("Error fetching affiliate profile:", err);
@@ -552,12 +680,19 @@ exports.getAffiliateStats = async (req, res) => {
       return res.status(404).json({ msg: "User not found" });
     }
 
+    const sales90d = await sales90dFor(user._id);
+    const rateInfo = rateFromSales90d(sales90d);
+
     res.json({
       success: true,
       metrics: user.metrics || {},
       analytics: user.analytics || {},
       lifetimeClicks: user.affiliateProfile?.lifetimeClicks || 0,
       conversionRate: user.affiliateProfile?.conversionRate || 0,
+      sales90d: rateInfo.sales90d ?? sales90d,
+      commissionRate: rateInfo.rate,
+      commissionRatePercent: Math.round((rateInfo.rate || 0) * 100),
+      commissionTierLabel: rateInfo.tierLabel,
     });
   } catch (err) {
     console.error("Error fetching affiliate stats:", err);
@@ -653,6 +788,10 @@ exports.getPublicAffiliateStore = async (req, res) => {
         .json({ success: false, msg: "Affiliate store not found" });
     }
 
+    const lifetime =
+      user.wallet?.lifetimeEarnings || user.metrics?.totalEarnings || 0;
+    const rankInfo = getRankFromLifetime(lifetime);
+
     res.json({
       success: true,
       storeOwner: {
@@ -665,8 +804,10 @@ exports.getPublicAffiliateStore = async (req, res) => {
         referralCode: user.referralCode,
       },
       storeConfig: user.affiliateProfile?.storeConfig || {},
-      prestigeBadge: user.affiliateProfile?.prestigeBadge || "Rising Marketer",
-      currentTier: user.affiliateProfile?.currentTier || "Bronze",
+      prestigeBadge:
+        user.affiliateProfile?.prestigeBadge || rankInfo.badge || "Rising Marketer",
+      currentTier:
+        user.affiliateProfile?.currentTier || rankInfo.rank || "Bronze",
     });
   } catch (err) {
     console.error("Error fetching public store config:", err);

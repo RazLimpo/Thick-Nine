@@ -1326,17 +1326,41 @@ router.post(
       );
 
       // Outcome + buyer refund ledger (provider refund hooks when paymentIntentId exists)
+      // Affiliate helpers (optional if util not deployed yet)
+      let reverseAffiliateForOrder = null;
+      let creditAffiliateForOrder = null;
+      try {
+        ({
+          reverseAffiliateForOrder,
+          creditAffiliateForOrder,
+        } = require("../utils/creditAffiliateForOrder"));
+      } catch (_) {}
+
       if (resolution === 'refund_buyer') {
         order.status = 'cancelled';
         order.refundAmount = paidTotal;
         order.refundStatus = 'pending';
         order.refundedAt = new Date();
         order.refundNote = note || 'Full refund to buyer (dispute).';
+        if (typeof reverseAffiliateForOrder === "function") {
+          try {
+            await reverseAffiliateForOrder(order, "dispute_refund_buyer");
+          } catch (e) {
+            console.error("reverseAffiliateForOrder refund_buyer:", e);
+          }
+        }
       } else if (resolution === 'withdrawn') {
         order.status = 'cancelled';
         if (!order.refundStatus || order.refundStatus === 'none') {
           order.refundAmount = 0;
           order.refundStatus = 'none';
+        }
+        if (typeof reverseAffiliateForOrder === "function") {
+          try {
+            await reverseAffiliateForOrder(order, "dispute_withdrawn");
+          } catch (e) {
+            console.error("reverseAffiliateForOrder withdrawn:", e);
+          }
         }
       } else if (resolution === 'pay_seller') {
         order.status = 'completed';
@@ -1346,6 +1370,19 @@ router.post(
           const release = new Date();
           release.setDate(release.getDate() + 14);
           order.escrowReleaseDate = release;
+        }
+        try {
+          const { creditSellerBalance } = require('../utils/creditSellerBalance');
+          await creditSellerBalance(order);
+        } catch (e) {
+          console.error('creditSellerBalance pay_seller:', e);
+        }
+        if (typeof creditAffiliateForOrder === "function") {
+          try {
+            await creditAffiliateForOrder(order);
+          } catch (e) {
+            console.error("creditAffiliateForOrder pay_seller:", e);
+          }
         }
       } else if (resolution === 'partial') {
         const buyerRefund = Math.min(
@@ -1368,6 +1405,24 @@ router.post(
           const release = new Date();
           release.setDate(release.getDate() + 14);
           order.escrowReleaseDate = release;
+        }
+        try {
+          const { creditSellerBalance } = require('../utils/creditSellerBalance');
+          const creditAmt =
+            Number(order.sellerEarnings) > 0 && paidTotal > 0
+              ? Number(order.sellerEarnings) * (sellerPortion / paidTotal)
+              : sellerPortion;
+          await creditSellerBalance(order, { amount: creditAmt });
+        } catch (e) {
+          console.error('creditSellerBalance partial:', e);
+        }
+        // v1: full snapshotted affiliate credit when sale completes for seller portion
+        if (typeof creditAffiliateForOrder === "function") {
+          try {
+            await creditAffiliateForOrder(order);
+          } catch (e) {
+            console.error("creditAffiliateForOrder partial:", e);
+          }
         }
       }
 
@@ -1912,6 +1967,217 @@ router.patch(
       return res.status(500).json({
         success: false,
         message: 'Failed to process payout.',
+      });
+    }
+  }
+);
+
+
+// ==================================================================
+// SELLER PAYOUT QUEUE (Transaction payoutType: seller_escrow)
+// ==================================================================
+
+/**
+ * GET /api/admin/seller-payouts
+ * Query: ?status=pending_payoneer|completed|rejected|all
+ */
+router.get(
+  '/seller-payouts',
+  auth,
+  adminContext,
+  requirePermission('payouts:read'),
+  async (req, res) => {
+    try {
+      const statusQ = String(req.query.status || 'pending_payoneer').toLowerCase();
+      const filter = {
+        type: 'payout',
+        payoutType: 'seller_escrow',
+      };
+      if (statusQ && statusQ !== 'all') {
+        if (statusQ === 'pending') {
+          filter.status = { $in: ['pending_payoneer', 'pending'] };
+        } else {
+          filter.status = statusQ;
+        }
+      }
+
+      const rows = await Transaction.find(filter)
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .populate('userId', 'fullName displayName email username sellerAvailableBalance payoutDetails')
+        .lean();
+
+      const pendingCount = await Transaction.countDocuments({
+        type: 'payout',
+        payoutType: 'seller_escrow',
+        status: { $in: ['pending_payoneer', 'pending'] },
+      });
+      const pendingSumAgg = await Transaction.aggregate([
+        {
+          $match: {
+            type: 'payout',
+            payoutType: 'seller_escrow',
+            status: { $in: ['pending_payoneer', 'pending'] },
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]);
+
+      return res.json({
+        success: true,
+        payouts: rows.map((t) => ({
+          _id: t._id,
+          amount: t.amount,
+          fee: t.fee || 0,
+          net: t.net != null ? t.net : Number(t.amount || 0) - Number(t.fee || 0),
+          method: t.payoutMethod || 'payoneer',
+          status: t.status,
+          payoneerEmail: t.payoneerEmail || '',
+          note: t.note || '',
+          createdAt: t.createdAt,
+          user: t.userId,
+        })),
+        summary: {
+          pendingCount,
+          pendingAmount: pendingSumAgg[0]?.total || 0,
+        },
+      });
+    } catch (err) {
+      console.error('GET seller-payouts:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to load seller payouts.',
+      });
+    }
+  }
+);
+
+/**
+ * PATCH /api/admin/seller-payouts/:id
+ * body: { action: 'paid' | 'reject', adminNote? }
+ * paid   — mark completed (admin already sent Payoneer/bank)
+ * reject — restore sellerAvailableBalance, status rejected
+ */
+router.patch(
+  '/seller-payouts/:id',
+  auth,
+  adminContext,
+  requirePermission('payouts:read'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const action = String(req.body?.action || '').toLowerCase();
+      const adminNote = String(req.body?.adminNote || '')
+        .trim()
+        .slice(0, 500);
+
+      if (!['paid', 'reject'].includes(action)) {
+        return res.status(400).json({
+          success: false,
+          message: "action must be 'paid' or 'reject'.",
+        });
+      }
+
+      const txn = await Transaction.findById(id);
+      if (!txn) {
+        return res.status(404).json({
+          success: false,
+          message: 'Payout transaction not found.',
+        });
+      }
+      if (txn.payoutType !== 'seller_escrow' && txn.payoutType !== 'seller') {
+        return res.status(400).json({
+          success: false,
+          message: 'Not a seller payout transaction.',
+        });
+      }
+      if (['completed', 'paid', 'rejected', 'failed'].includes(txn.status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Transaction already ${txn.status}.`,
+        });
+      }
+
+      const user = await User.findById(txn.userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Seller user not found.',
+        });
+      }
+
+      const amount = Number(txn.amount) || 0;
+
+      if (action === 'paid') {
+        txn.status = 'completed';
+        if (adminNote) txn.note = `${txn.note || ''}\nAdmin: ${adminNote}`.trim();
+        txn.processedAt = new Date();
+        await txn.save();
+      } else {
+        // Reject: restore balance
+        user.sellerAvailableBalance =
+          Number(user.sellerAvailableBalance || 0) + amount;
+        await user.save();
+        txn.status = 'rejected';
+        if (adminNote) txn.note = `${txn.note || ''}\nRejected: ${adminNote}`.trim();
+        txn.processedAt = new Date();
+        await txn.save();
+      }
+
+      try {
+        await AuditLog.create({
+          actor: {
+            id: req.admin?.id || req.user?.id,
+            name: req.admin?.name || '',
+            email: req.admin?.email || '',
+            role: req.admin?.role || 'admin',
+          },
+          target: {
+            id: txn._id,
+            name: `Seller payout $${amount}`,
+            email: user.email || '',
+            role: 'freelancer',
+          },
+          action: `seller_payout_${action}`,
+          oldPermissions: [],
+          newPermissions: [],
+          details: `${action} seller payout ${txn._id}. ${adminNote}`.trim(),
+        });
+      } catch (_) {}
+
+      try {
+        const Notification = require('../models/Notification');
+        await Notification.create({
+          userId: user._id,
+          type: 'seller_payout',
+          title: 'Withdrawal update',
+          message:
+            action === 'paid'
+              ? `Your withdrawal of $${amount.toFixed(2)} was marked paid.`
+              : `Your withdrawal of $${amount.toFixed(2)} was rejected. Funds returned to available balance.`,
+          link: '/freelancer-withdrawals',
+          read: false,
+        });
+      } catch (_) {}
+
+      return res.json({
+        success: true,
+        message:
+          action === 'paid'
+            ? 'Seller payout marked paid.'
+            : 'Seller payout rejected; balance restored.',
+        payout: {
+          _id: txn._id,
+          status: txn.status,
+          amount: txn.amount,
+        },
+        sellerAvailableBalance: user.sellerAvailableBalance,
+      });
+    } catch (err) {
+      console.error('PATCH seller-payouts:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to process seller payout.',
       });
     }
   }
