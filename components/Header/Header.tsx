@@ -989,11 +989,16 @@ try {
 
             {userRole === 'affiliate' && (
               <>
-                {/* 1. CAMPAIGNS */}
+                {/* 1. CAMPAIGNS (canonical tab=links; campaigns is legacy alias) */}
 <li>
   <Link 
-    href="/affiliate-dashboard?tab=campaigns" 
-    className={`nav-link ${currentPath === '/affiliate-dashboard' && currentTab === 'campaigns' ? 'active' : ''}`}
+    href="/affiliate-dashboard?tab=links" 
+    className={`nav-link ${
+      currentPath === '/affiliate-dashboard' &&
+      (currentTab === 'links' || currentTab === 'campaigns' || !currentTab)
+        ? 'active'
+        : ''
+    }`}
   >
     Campaigns
   </Link>

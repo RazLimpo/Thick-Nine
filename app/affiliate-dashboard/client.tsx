@@ -100,6 +100,56 @@ const TAB_COLORS: Record<string, string> = {
   "prestige-roadmap": "var(--primary-color, #ff2d55)",
 };
 
+type DashboardTab =
+  | 'dashboard'
+  | 'links'
+  | 'payouts'
+  | 'referrals'
+  | 'store-management'
+  | 'prestige-roadmap';
+
+const VALID_TABS = new Set<DashboardTab>([
+  'dashboard',
+  'links',
+  'payouts',
+  'referrals',
+  'store-management',
+  'prestige-roadmap',
+]);
+
+function normalizeTab(value: string | null | undefined): DashboardTab {
+  if (value === 'campaigns') return 'links'; // legacy header URL
+  if (value && VALID_TABS.has(value as DashboardTab)) {
+    return value as DashboardTab;
+  }
+  return 'dashboard';
+}
+
+async function fetchJson<T extends Record<string, unknown>>(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<T> {
+  const response = await fetch(input, init);
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message =
+      payload &&
+      typeof payload === 'object' &&
+      'message' in payload &&
+      typeof (payload as { message?: unknown }).message === 'string'
+        ? (payload as { message: string }).message
+        : `Request failed (HTTP ${response.status})`;
+    throw new Error(message);
+  }
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('The server returned an invalid response.');
+  }
+
+  return payload as T;
+}
+
 // =========================================================================
 // HELPER & UTILITY FUNCTIONS
 // =========================================================================
@@ -178,13 +228,6 @@ export default function AffiliateDashboardClient() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
 
-  const getInitialTab = (): string => {
-    if (tabParam === 'campaigns') return 'links';
-    if (tabParam === 'payouts') return 'payouts';
-    if (tabParam === 'referrals') return 'referrals';
-    return tabParam || 'dashboard';
-  };
-
   // --- 2. ALL STATE DECLARATIONS (GROUPED AT TOP) ---
 
   // Core Auth & Services State
@@ -194,8 +237,10 @@ export default function AffiliateDashboardClient() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [marketplaceServices, setMarketplaceServices] = useState<HandpickedService[]>([]);
 
-  // Application & Tab State
-  const [activeTab, setActiveTab] = useState<string>(getInitialTab());
+  // Application & Tab State (canonical names only)
+  const [activeTab, setActiveTab] = useState<DashboardTab>(() =>
+    normalizeTab(tabParam)
+  );
   const [networkView, setNetworkView] = useState<string>('view-partners');
   const [activeShareSheetId, setActiveShareSheetId] = useState<string | number | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -401,8 +446,10 @@ export default function AffiliateDashboardClient() {
         }
       })
       .finally(() => {
-        setIsAuthLoading(false);
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsAuthLoading(false);
+          setIsLoading(false);
+        }
       });
 
     return () => controller.abort();
@@ -410,17 +457,9 @@ export default function AffiliateDashboardClient() {
     
     
     
-  // Keep activeTab updated on tabParam URL changes
+  // Keep activeTab in sync with URL (?tab=); normalize legacy campaigns → links
   useEffect(() => {
-    if (tabParam === 'campaigns') {
-      setActiveTab('links');
-    } else if (tabParam === 'payouts') {
-      setActiveTab('payouts');
-    } else if (tabParam === 'referrals') {
-      setActiveTab('referrals');
-    } else if (tabParam) {
-      setActiveTab(tabParam);
-    }
+    setActiveTab(normalizeTab(tabParam));
   }, [tabParam]);
 
   // LocalStorage savedLinks hydration
@@ -499,7 +538,7 @@ export default function AffiliateDashboardClient() {
           console.warn('Link performance API offline or unavailable:', err);
         }
       } finally {
-        setLoadingPerformance(false);
+        if (!controller.signal.aborted) setLoadingPerformance(false);
       }
     }
 
@@ -533,7 +572,9 @@ export default function AffiliateDashboardClient() {
           console.warn('Partners network API offline or unavailable:', err);
         }
       })
-      .finally(() => setLoadingTeam(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingTeam(false);
+      });
 
     return () => controller.abort();
   }, [authToken]);
@@ -563,7 +604,7 @@ export default function AffiliateDashboardClient() {
           console.warn('Freelancers network API offline or unavailable:', err);
         }
       } finally {
-        setLoadingFreelancers(false);
+        if (!controller.signal.aborted) setLoadingFreelancers(false);
       }
     }
 
@@ -598,7 +639,7 @@ export default function AffiliateDashboardClient() {
           console.warn('Customers network API offline or unavailable:', err);
         }
       } finally {
-        setLoadingCustomers(false);
+        if (!controller.signal.aborted) setLoadingCustomers(false);
       }
     }
 
@@ -963,9 +1004,26 @@ export default function AffiliateDashboardClient() {
     }
   };
 
-  const copyToClipboard = (text: string, msg = "Link copied!") => {
-    navigator.clipboard.writeText(text);
-    triggerToast(msg);
+  const copyToClipboard = async (text: string, msg = 'Link copied!') => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        textarea.remove();
+        if (!copied) throw new Error('Clipboard copy was rejected');
+      }
+      triggerToast(msg);
+    } catch (error) {
+      console.error('Clipboard copy failed:', error);
+      triggerToast('Could not copy link. Please copy it manually.', 'removed');
+    }
   };
 
   const handleUpdateVideoFromLink = async () => {
@@ -1424,7 +1482,7 @@ export default function AffiliateDashboardClient() {
           </li>
         </ul>
         
-        <button className="btn-full-red" onClick={() => setIsMediaKitOpen(true)}>
+        <button type="button" className="btn-full-red" onClick={() => setIsMediaKitOpen(true)}>
           Browse Media Kit
         </button>
       </div>
@@ -1433,7 +1491,7 @@ export default function AffiliateDashboardClient() {
     <div className="aff-card table-island">
       <div className="island-header">
         <h3>Recent Link Activity</h3>
-        <button className="btn-outline">Export CSV</button>
+        <button type="button" className="btn-outline">Export CSV</button>
       </div>
       <table className="aff-modern-table">
         <thead>
@@ -1540,8 +1598,8 @@ export default function AffiliateDashboardClient() {
             placeholder="Paste YouTube link (e.g., https://www.youtube.com/watch?v=...)"
           />
           <div className="action-buttons-flex">
-            <button className="btn-action-primary" onClick={handleUpdateVideoFromLink}>Preview & Save</button>
-            <button className="btn-icon-delete" onClick={handleDeleteVideoData} title="Remove Video">
+            <button type="button" className="btn-action-primary" onClick={handleUpdateVideoFromLink}>Preview & Save</button>
+            <button type="button" className="btn-icon-delete" onClick={handleDeleteVideoData} title="Remove Video">
               <i className="fas fa-trash-alt"></i>
             </button>
           </div>
@@ -1567,13 +1625,13 @@ export default function AffiliateDashboardClient() {
             style={{ cursor: 'pointer' }}
           />
           <div className="action-buttons-flex">
-            <button
+            <button type="button"
               className="btn-action-primary"
               onClick={() => document.getElementById('video-file-input')?.click()}
             >
               Upload & Save
             </button>
-            <button className="btn-icon-delete" onClick={handleDeleteVideoData} title="Remove Video">
+            <button type="button" className="btn-icon-delete" onClick={handleDeleteVideoData} title="Remove Video">
               <i className="fas fa-trash-alt"></i>
             </button>
           </div>
@@ -1619,7 +1677,7 @@ export default function AffiliateDashboardClient() {
             onChange={(e) => setServiceSearch(e.target.value)}
             placeholder="Search services to add (e.g., 'Logo Design')..."
           />
-          <button className="btn-search-icon"><i className="fas fa-search"></i></button>
+          <button type="button" className="btn-search-icon"><i className="fas fa-search"></i></button>
         </div>
         
         {serviceSearch?.trim() && (
@@ -1643,7 +1701,7 @@ export default function AffiliateDashboardClient() {
                     <strong>{service.title}</strong>
                     <span>{service.category} • ${service.price}</span>
                   </div>
-                  <button className="btn-add-service"><i className="fas fa-plus"></i></button>
+                  <button type="button" className="btn-add-service"><i className="fas fa-plus"></i></button>
                 </div>
               ))
             ) : (
@@ -1692,7 +1750,7 @@ export default function AffiliateDashboardClient() {
                 <div className="btn-move" title="Drag to reorder" style={{ cursor: 'grab', color: '#a0aec0' }}>
                   <i className="fas fa-grip-vertical"></i>
                 </div>
-                <button
+                <button type="button"
                   className="btn-remove-service"
                   onClick={() => handleRemoveService(service.id || service._id)}
                   style={{ border: 'none', background: 'transparent', color: '#e53e3e', cursor: 'pointer' }}
@@ -1729,7 +1787,7 @@ export default function AffiliateDashboardClient() {
           value={`https://mymarketplace.com/join?ref=${affiliateId ?? ''}&type=freelancer`}
           readOnly
         />
-        <button
+        <button type="button"
           className="btn-main-red"
           onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${affiliateId ?? ''}&type=freelancer`, 'Recruitment link copied!')}
         >
@@ -1743,7 +1801,7 @@ export default function AffiliateDashboardClient() {
     <div className="aff-card generator-island">
       <div className="island-header">
         <h3><i className="fas fa-magic"></i> Deep Link Generator</h3>
-        <button className="btn-text-only" onClick={handleResetGenerator}>
+        <button type="button" className="btn-text-only" onClick={handleResetGenerator}>
           <i className="fas fa-undo"></i> Reset
         </button>
       </div>
@@ -1766,7 +1824,7 @@ export default function AffiliateDashboardClient() {
           onChange={(e) => setTargetUrl(e.target.value)}
           placeholder='"Paste product or service URL here..."'
         />
-        <button className="btn-main-red" onClick={handleGenerateLink}>Create Link</button>
+        <button type="button" className="btn-main-red" onClick={handleGenerateLink}>Create Link</button>
       </div>
 
       <small className="input-hint">Paste any marketplace URL to create a trackable affiliate link.</small>
@@ -1777,8 +1835,8 @@ export default function AffiliateDashboardClient() {
           <div className="gen-flex">
             <input type="text" value={generatedLink} readOnly style={{ background: '#eef2f7' }} />
             <div className="button-group-flex">
-              <button className="btn-outline" onClick={() => copyToClipboard(generatedLink)}>Copy</button>
-              <button className="btn-save" onClick={handleSaveLink}>Save</button>
+              <button type="button" className="btn-outline" onClick={() => copyToClipboard(generatedLink)}>Copy</button>
+              <button type="button" className="btn-save" onClick={handleSaveLink}>Save</button>
             </div>
           </div>
         </div>
@@ -1821,7 +1879,7 @@ export default function AffiliateDashboardClient() {
                   </div>
 
                   <div className="button-group-flex" style={{ display: 'flex', gap: '8px' }}>
-                    <button
+                    <button type="button"
                       className="btn-outline"
                       title="Share"
                       onClick={() => {
@@ -1832,10 +1890,10 @@ export default function AffiliateDashboardClient() {
                     >
                       <i className="fas fa-share-alt"></i>
                     </button>
-                    <button className="btn-outline" title="Copy" onClick={() => copyToClipboard(link.url)}>
+                    <button type="button" className="btn-outline" title="Copy" onClick={() => copyToClipboard(link.url)}>
                       <i className="fas fa-copy"></i>
                     </button>
-                    <button
+                    <button type="button"
                       className="btn-outline"
                       style={{ color: '#e53e3e' }}
                       title="Delete"
@@ -1883,7 +1941,7 @@ export default function AffiliateDashboardClient() {
         <div className="stat-content">
           <span className="s-label">Available for Withdrawal</span>
           <h2 className="s-value">${(availableBalance ?? 0).toFixed(2)}</h2>
-          <button className="btn-withdraw-small" onClick={() => setIsWithdrawModalOpen(true)}>
+          <button type="button" className="btn-withdraw-small" onClick={() => setIsWithdrawModalOpen(true)}>
             Withdraw Funds
           </button>
         </div>
@@ -2009,7 +2067,7 @@ export default function AffiliateDashboardClient() {
             value={`https://mymarketplace.com/join?ref=${affiliateId ?? ''}`}
             readOnly
           />
-          <button
+          <button type="button"
             className="btn-main-red"
             onClick={() => copyToClipboard(`https://mymarketplace.com/join?ref=${affiliateId ?? ''}`, 'Recruitment link copied!')}
           >
@@ -2438,8 +2496,8 @@ export default function AffiliateDashboardClient() {
       <h3>Delete Link?</h3>
       <p>This action cannot be undone. Are you sure you want to remove this link from your list?</p>
       <div className="modal-actions">
-        <button className="btn-cancel" onClick={() => setLinkToDelete(null)}>Cancel</button>
-        <button className="btn-confirm-delete" onClick={confirmDeleteSavedLink}>Delete</button>
+        <button type="button" className="btn-cancel" onClick={() => setLinkToDelete(null)}>Cancel</button>
+        <button type="button" className="btn-confirm-delete" onClick={confirmDeleteSavedLink}>Delete</button>
       </div>
     </div>
   </div>
@@ -2458,8 +2516,8 @@ export default function AffiliateDashboardClient() {
       <h3>Remove Media?</h3>
       <p>Are you sure you want to remove the featured video?</p>
       <div className="modal-actions">
-        <button className="btn-cancel" onClick={() => setIsDeleteVideoModalOpen(false)}>Cancel</button>
-        <button className="btn-confirm-delete" onClick={confirmDeleteVideo}>Remove</button>
+        <button type="button" className="btn-cancel" onClick={() => setIsDeleteVideoModalOpen(false)}>Cancel</button>
+        <button type="button" className="btn-confirm-delete" onClick={confirmDeleteVideo}>Remove</button>
       </div>
     </div>
   </div>
@@ -2478,8 +2536,8 @@ export default function AffiliateDashboardClient() {
       <h3>Remove Service?</h3>
       <p>Remove this service from your recommendations?</p>
       <div className="modal-actions">
-        <button className="btn-cancel" onClick={() => setServiceToRemove(null)}>Cancel</button>
-        <button className="btn-confirm-delete" onClick={confirmRemoveService}>Remove</button>
+        <button type="button" className="btn-cancel" onClick={() => setServiceToRemove(null)}>Cancel</button>
+        <button type="button" className="btn-confirm-delete" onClick={confirmRemoveService}>Remove</button>
       </div>
     </div>
   </div>
@@ -2504,7 +2562,7 @@ export default function AffiliateDashboardClient() {
             <p>Select and download assets to promote MyMarketplace</p>
           </div>
         </div>
-        <button onClick={() => setIsMediaKitOpen(false)} className="close-btn" aria-label="Close modal">&times;</button>
+        <button type="button" onClick={() => setIsMediaKitOpen(false)} className="close-btn" aria-label="Close modal">&times;</button>
       </div>
 
       {/* TIER 1: PRIMARY ASSET TABS */}
