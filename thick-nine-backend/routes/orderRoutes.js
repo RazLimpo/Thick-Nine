@@ -8,16 +8,6 @@ const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const authMiddleware = require("../middleware/auth");
 
-let creditAffiliateForOrder;
-try {
-  ({ creditAffiliateForOrder } = require("../utils/creditAffiliateForOrder"));
-} catch (e) {
-  creditAffiliateForOrder = null;
-  console.warn(
-    "creditAffiliateForOrder util missing — affiliate pay on complete disabled until utils/creditAffiliateForOrder.js is deployed."
-  );
-}
-
 function uid(req) {
   return req.user?.id || req.user?._id;
 }
@@ -503,11 +493,9 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
     order.ratedAt = new Date();
 
     // Optional: mark completed when buyer rates after delivery
-    let becameCompleted = false;
     if (order.status === "in_escrow" || order.status === "revision_requested") {
       if (order.deliveredAt) {
         order.status = "completed";
-        becameCompleted = true;
         if (!order.escrowReleaseDate) {
           const release = new Date();
           release.setDate(release.getDate() + 14);
@@ -517,14 +505,6 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
     }
 
     await order.save();
-
-    if (becameCompleted && typeof creditAffiliateForOrder === "function") {
-      try {
-        await creditAffiliateForOrder(order);
-      } catch (creditErr) {
-        console.error("creditAffiliateForOrder (rate) error:", creditErr);
-      }
-    }
 
     try {
       const Notification = require("../models/Notification");
@@ -739,17 +719,34 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
       release.setDate(release.getDate() + 14);
       order.escrowReleaseDate = release;
     }
-    await order.save();
 
-    // Affiliate: solo (seller-fee × rate) + optional group promo pool
-    let affiliateCredit = null;
-    if (typeof creditAffiliateForOrder === "function") {
-      try {
-        affiliateCredit = await creditAffiliateForOrder(order);
-      } catch (creditErr) {
-        console.error("creditAffiliateForOrder error:", creditErr);
-      }
+    // Platform receipt number (Download Invoice)
+    if (!order.invoiceNumber) {
+      const y = new Date().getFullYear();
+      const seq = String(order._id).slice(-6).toUpperCase();
+      order.invoiceNumber = `INV-${y}-${seq}`;
+      order.invoicedAt = new Date();
     }
+
+    // Credit seller wallet (sellerAvailableBalance) once
+    let creditResult = { credited: false, amount: 0 };
+    try {
+      const { creditSellerBalance } = require("../utils/creditSellerBalance");
+      creditResult = await creditSellerBalance(order);
+    } catch (e) {
+      console.error("creditSellerBalance on complete:", e);
+    }
+
+    // Affiliate solo + group pool (idempotent)
+    let affiliateCredit = null;
+    try {
+      const { creditAffiliateForOrder } = require("../utils/creditAffiliateForOrder");
+      affiliateCredit = await creditAffiliateForOrder(order);
+    } catch (e) {
+      console.error("creditAffiliateForOrder on complete:", e);
+    }
+
+    await order.save();
 
     try {
       const Notification = require("../models/Notification");
@@ -758,7 +755,9 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
         userId: order.sellerId,
         type: "order_completed",
         title: "Order completed",
-        message: `The buyer accepted delivery and completed order #${short}.`,
+        message: creditResult.credited
+          ? `Buyer completed order #${short}. $${Number(creditResult.amount).toFixed(2)} added to your available balance.`
+          : `The buyer accepted delivery and completed order #${short}.`,
         link: `/orders/${order._id}`,
         orderId: order._id,
         read: false,
@@ -775,7 +774,11 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
         status: order.status,
         escrowReleaseDate: order.escrowReleaseDate,
         deliveredAt: order.deliveredAt,
+        sellerBalanceCreditedAt: order.sellerBalanceCreditedAt,
+        invoiceNumber: order.invoiceNumber,
+        invoicedAt: order.invoicedAt,
       },
+      sellerCredit: creditResult,
       affiliateCredit,
     });
   } catch (error) {
@@ -933,12 +936,20 @@ router.get("/:id/invoice", authMiddleware, async (req, res) => {
 </body>
 </html>`;
 
+    const wantPrint = String(req.query.print || "") === "1";
+    const finalHtml = wantPrint
+      ? html.replace(
+          "</body>",
+          "<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),300));</script></body>"
+        )
+      : html;
+
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader(
       "Content-Disposition",
       `inline; filename="${order.invoiceNumber}.html"`
     );
-    return res.status(200).send(html);
+    return res.status(200).send(finalHtml);
   } catch (error) {
     console.error("GET /api/orders/:id/invoice error:", error);
     return res.status(500).json({

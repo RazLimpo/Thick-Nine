@@ -186,6 +186,14 @@ export default function AffiliateTeamsClient() {
     }
   }, []);
 
+  const [createGateMessage, setCreateGateMessage] = useState<string>("");
+  const [createGateYours, setCreateGateYours] = useState<{
+    lifetimeEarnings?: number;
+    referrals?: number;
+    prestigePoints?: number;
+    rank?: string;
+  } | null>(null);
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     const loggedIn = localStorage.getItem("isLoggedIn") === "true";
@@ -193,17 +201,42 @@ export default function AffiliateTeamsClient() {
       router.replace("/?auth=login");
       return;
     }
-    // Group creation is affiliate-only (admins allowed)
-    const role = String(
-      localStorage.getItem("userRole") ||
-        localStorage.getItem("role") ||
-        ""
-    ).toLowerCase();
-    setCanCreateGroup(
-      role === "affiliate" ||
-        role === "admin" ||
-        role.includes("affiliate")
-    );
+
+    (async () => {
+      try {
+        const res = await fetch("/api/affiliate/teams/create-eligibility", {
+          headers: authHeaders(),
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success !== false) {
+          setCanCreateGroup(Boolean(data.allowed));
+          setCreateGateMessage(String(data.message || ""));
+          setCreateGateYours(data.yours || null);
+        } else {
+          const role = String(
+            localStorage.getItem("userRole") ||
+              localStorage.getItem("role") ||
+              ""
+          ).toLowerCase();
+          setCanCreateGroup(role.includes("admin"));
+          setCreateGateMessage(String(data.message || ""));
+        }
+      } catch {
+        const role = String(
+          localStorage.getItem("userRole") ||
+            localStorage.getItem("role") ||
+            ""
+        ).toLowerCase();
+        setCanCreateGroup(
+          role === "affiliate" ||
+            role.includes("affiliate") ||
+            role.includes("admin")
+        );
+      }
+    })();
+
     loadTeams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
@@ -219,7 +252,7 @@ export default function AffiliateTeamsClient() {
   const createTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canCreateGroup) {
-      showToast("Only affiliate accounts can create groups.");
+      showToast(createGateMessage || "You are not eligible to create a group yet.");
       return;
     }
     if (createName.trim().length < 3) {
@@ -510,7 +543,22 @@ export default function AffiliateTeamsClient() {
               </button>
             ) : (
               <span className="agt-muted">
-                Group creation is for active affiliates who meet growth goals.
+                Need affiliate role plus one of: $50 lifetime confirmed commissions,
+                3 referrals, Silver Authority rank, or 100 prestige points.
+                {createGateMessage ? (
+                  <>
+                    <br />
+                    {createGateMessage}
+                  </>
+                ) : null}
+                {createGateYours ? (
+                  <>
+                    <br />
+                    Yours: rank {createGateYours.rank || "—"}, $
+                    {Number(createGateYours.lifetimeEarnings || 0).toLocaleString()}{" "}
+                    lifetime, {createGateYours.referrals ?? 0} referrals.
+                  </>
+                ) : null}
               </span>
             )}
           </div>

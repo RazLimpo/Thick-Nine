@@ -180,11 +180,139 @@ return res
 .json({ success: false, message: "Failed to list groups." });
 }
 });
+
 /**
-* POST /api/affiliate/teams
-* body: { name, description?, visibility?: "public"|"private" }
-* Creates team + leader membership + group Conversation
-*/
+ * Group create eligibility — rank/growth based (NOT 90-day commission rate tier).
+ * Tune thresholds here.
+ */
+const GROUP_CREATE = {
+  MIN_LIFETIME_EARNINGS: 50,
+  MIN_REFERRALS: 3,
+  MIN_PRESTIGE_POINTS: 100,
+  MIN_RANK: "Silver", // Bronze cannot create
+};
+
+const RANK_ORDER = ["bronze", "silver", "gold", "platinum", "diamond"];
+
+function evaluateGroupCreateEligibility(userLean) {
+  const role = String(userLean?.role || "").toLowerCase();
+  const isAdmin =
+    role === "admin" ||
+    role === "super_admin" ||
+    role.includes("admin");
+  const isAffiliate =
+    role === "affiliate" || role.includes("affiliate");
+
+  if (isAdmin) {
+    return {
+      allowed: true,
+      reason: "admin",
+      isAffiliate: true,
+      isAdmin: true,
+      requirements: GROUP_CREATE,
+      yours: {},
+    };
+  }
+  if (!isAffiliate) {
+    return {
+      allowed: false,
+      reason: "role",
+      isAffiliate: false,
+      isAdmin: false,
+      message:
+        "Only affiliate accounts can create Affiliate Groups. Freelancers join as partners; use Marketing partners instead.",
+      requirements: GROUP_CREATE,
+      yours: { role: userLean?.role || "unknown" },
+    };
+  }
+
+  const ap = userLean.affiliateProfile || {};
+  const wallet = userLean.wallet || {};
+  const metrics = userLean.metrics || {};
+
+  let lifetime = Number(
+    wallet.lifetimeEarnings ??
+      ap.lifetimeEarnings ??
+      ap.totalEarnings ??
+      metrics.totalEarnings ??
+      0
+  );
+
+  // Prefer live rank from affiliateRewards when available
+  let rankName = String(ap.currentTier || "Bronze");
+  try {
+    const rewards = require("../utils/affiliateRewards");
+    if (rewards && typeof rewards.getRank === "function") {
+      const r = rewards.getRank(lifetime);
+      rankName = r.rank || rankName;
+    }
+  } catch (_) {}
+
+  const referrals = Number(
+    metrics.referralCount ?? userLean.referralCount ?? ap.referralCount ?? 0
+  );
+  const prestige = Number(ap.prestigePoints ?? 0);
+  const tierLc = rankName.toLowerCase();
+  const minIdx = RANK_ORDER.indexOf(GROUP_CREATE.MIN_RANK.toLowerCase());
+  const rankIdx = RANK_ORDER.indexOf(tierLc);
+  const rankOk = rankIdx >= 0 && minIdx >= 0 && rankIdx >= minIdx;
+
+  const qualifies =
+    lifetime >= GROUP_CREATE.MIN_LIFETIME_EARNINGS ||
+    referrals >= GROUP_CREATE.MIN_REFERRALS ||
+    prestige >= GROUP_CREATE.MIN_PRESTIGE_POINTS ||
+    rankOk;
+
+  return {
+    allowed: qualifies,
+    reason: qualifies ? "growth" : "growth_insufficient",
+    isAffiliate: true,
+    isAdmin: false,
+    message: qualifies
+      ? "You can create an Affiliate Group."
+      : "Grow your affiliate account before creating a group. Need at least one of: $50 lifetime confirmed commissions, 3 referrals, Silver Authority rank, or 100 prestige points.",
+    requirements: {
+      minLifetimeEarnings: GROUP_CREATE.MIN_LIFETIME_EARNINGS,
+      minReferrals: GROUP_CREATE.MIN_REFERRALS,
+      minPrestigePoints: GROUP_CREATE.MIN_PRESTIGE_POINTS,
+      minRank: GROUP_CREATE.MIN_RANK,
+    },
+    yours: {
+      lifetimeEarnings: lifetime,
+      referrals,
+      prestigePoints: prestige,
+      rank: rankName,
+      tier: rankName,
+    },
+  };
+}
+
+/**
+ * GET /api/affiliate/teams/create-eligibility
+ * UI uses this to show/hide Create Group (rank/growth, not rate %).
+ */
+router.get("/create-eligibility", auth, async (req, res) => {
+  try {
+    const userId = uid(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    const user = await User.findById(userId)
+      .select("role affiliateProfile wallet metrics referralCount")
+      .lean();
+    const eligibility = evaluateGroupCreateEligibility(user || {});
+    return res.status(200).json({ success: true, ...eligibility });
+  } catch (e) {
+    console.error("GET create-eligibility:", e);
+    return res.status(500).json({ success: false, message: "Failed." });
+  }
+});
+
+/**
+ * POST /api/affiliate/teams
+ * body: { name, description?, visibility?: "public"|"private" }
+ * Creates team + leader membership + group Conversation
+ */
 router.post("/", auth, async (req, res) => {
 try {
 const userId = uid(req);
@@ -192,86 +320,17 @@ if (!userId) {
 return res.status(401).json({ success: false, message: "Unauthorized." });
 }
 
-// Group creation: affiliate (or admin) + minimum growth
-// Role switch alone is not enough — reduces drive-by group spam
 const creator = await User.findById(userId)
-  .select(
-    "role affiliateProfile wallet metrics referralCount"
-  )
+  .select("role affiliateProfile wallet metrics referralCount")
   .lean();
-const role = String(creator?.role || "").toLowerCase();
-const isAdmin =
-  role === "admin" ||
-  role === "super_admin" ||
-  role.includes("admin");
-const isAffiliate =
-  role === "affiliate" || role.includes("affiliate");
-
-if (!isAdmin && !isAffiliate) {
+const eligibility = evaluateGroupCreateEligibility(creator || {});
+if (!eligibility.allowed) {
   return res.status(403).json({
     success: false,
-    message:
-      "Only affiliate accounts can create Affiliate Groups. Freelancers join as partners; use Marketing partners instead.",
+    message: eligibility.message || "Not eligible to create a group.",
+    requirements: eligibility.requirements,
+    yours: eligibility.yours,
   });
-}
-
-if (!isAdmin) {
-  // Thresholds — tune later without schema changes
-  const MIN_LIFETIME_EARNINGS = 50; // USD
-  const MIN_REFERRALS = 3;
-  const MIN_PRESTIGE_POINTS = 100;
-  const TIER_OK = new Set([
-    "silver",
-    "gold",
-    "platinum",
-    "diamond",
-  ]);
-
-  const ap = creator.affiliateProfile || {};
-  const wallet = creator.wallet || {};
-  const metrics = creator.metrics || {};
-
-  const lifetime = Number(
-    wallet.lifetimeEarnings ??
-      ap.lifetimeEarnings ??
-      ap.totalEarnings ??
-      metrics.totalEarnings ??
-      0
-  );
-  const referrals = Number(
-    metrics.referralCount ??
-      creator.referralCount ??
-      ap.referralCount ??
-      0
-  );
-  const prestige = Number(ap.prestigePoints ?? 0);
-  const tier = String(ap.currentTier || "Bronze").toLowerCase();
-
-  const qualifies =
-    lifetime >= MIN_LIFETIME_EARNINGS ||
-    referrals >= MIN_REFERRALS ||
-    prestige >= MIN_PRESTIGE_POINTS ||
-    TIER_OK.has(tier);
-
-  if (!qualifies) {
-    return res.status(403).json({
-      success: false,
-      message:
-        "Grow your affiliate account before creating a group. Need at least one of: $50 lifetime earnings, 3 referrals, Silver tier, or 100 prestige points.",
-      requirements: {
-        minLifetimeEarnings: MIN_LIFETIME_EARNINGS,
-        minReferrals: MIN_REFERRALS,
-        minPrestigePoints: MIN_PRESTIGE_POINTS,
-        minTier: "Silver",
-        yours: {
-          lifetimeEarnings: lifetime,
-          referrals,
-          prestigePoints: prestige,
-          tier: ap.currentTier || "Bronze",
-        },
-      },
-    });
-  }
 }
 
 const name = String(req.body?.name || "").trim();
