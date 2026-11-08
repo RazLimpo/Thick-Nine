@@ -40,6 +40,7 @@ export async function GET(
         },
       });
     }
+    
 
     const data = await response.json().catch(() => ({}));
     return NextResponse.json(data, { status: response.status });
