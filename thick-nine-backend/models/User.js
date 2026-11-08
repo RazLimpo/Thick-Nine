@@ -632,10 +632,13 @@ affiliateProfile: {
 
 savedLinks: [
   {
-    name: { type: String, default: 'Untitled Link' },
+    name: { type: String, default: "Untitled Link" },
     url: { type: String, required: true },
-    date: { type: String }
-  }
+    date: { type: String, default: "" },
+    createdAt: { type: Date, default: Date.now },
+    clicks: { type: Number, default: 0 },
+    conversions: { type: Number, default: 0 },
+  },
 ],
 
 storeConfig: {

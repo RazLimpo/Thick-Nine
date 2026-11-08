@@ -582,11 +582,18 @@ router.post("/payouts", auth, async (req, res) => {
       });
     }
 
-    const method = user.payoutDetails?.method || "Payoneer";
+    // Prefer method chosen in the request; map UI labels to schema enum
+    let method = req.body?.method || user.payoutDetails?.method || "Payoneer";
+    const m = String(method).toLowerCase();
+    if (m.includes("payoneer") || m.includes("paypal")) method = "Payoneer";
+    else if (m.includes("bank")) method = "Bank";
+    else if (m === "none") method = "None";
+    else if (!["Payoneer", "Bank", "None"].includes(method)) method = "Payoneer";
+
     const doc = await AffiliatePayoutRequest.create({
       user: user._id,
       amount,
-      method: ["Payoneer", "Bank", "None"].includes(method) ? method : "Payoneer",
+      method,
       destination: {
         email: user.payoutDetails?.accountEmail || user.payoutDetails?.payoneerEmail || "",
         accountName: user.payoutDetails?.accountName || "",

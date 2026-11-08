@@ -970,8 +970,8 @@ export default function AffiliateDashboardClient() {
         credentials: 'include',
         body: JSON.stringify({
           amount: amountNum,
-          // method is stored on user.payoutDetails server-side; optional note only
-          note: withdrawMethod ? `Preferred method: ${withdrawMethod}` : undefined,
+          method: withdrawMethod || 'Payoneer',
+          note: withdrawMethod ? `Preferred method: ${withdrawMethod}` : '',
         }),
       });
 
