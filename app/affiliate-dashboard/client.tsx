@@ -30,6 +30,12 @@ export interface HandpickedService {
   img: string;
 }
 
+function serviceKey(s: { id?: string | number; _id?: string | number } | null | undefined): string {
+  if (!s) return "";
+  return String(s.id ?? s._id ?? "");
+}
+
+
 export interface ToastMessage {
   id: string | number;
   message: string;
@@ -321,6 +327,8 @@ export default function AffiliateDashboardClient() {
     monthlySales: 0,
     targetSales: 5000,
     progressPercentage: 0,
+    label: "This month",
+    metric: "referred_order_subtotal" as string,
   });
   const [loadingProgression, setLoadingProgression] = useState<boolean>(false);
 
@@ -670,6 +678,8 @@ export default function AffiliateDashboardClient() {
             monthlySales: json.monthlySales || 0,
             targetSales: json.targetSales || 5000,
             progressPercentage: json.progressPercentage || 0,
+            label: json.label || "This month",
+            metric: json.metric || "referred_order_subtotal",
           });
         }
       } catch (err) {
@@ -677,7 +687,7 @@ export default function AffiliateDashboardClient() {
           console.warn('Progression API offline or unavailable:', err);
         }
       } finally {
-        setLoadingProgression(false);
+        if (!controller.signal.aborted) setLoadingProgression(false);
       }
     }
 
@@ -712,7 +722,7 @@ export default function AffiliateDashboardClient() {
           console.warn('Analytics chart API offline or unavailable:', err);
         }
       } finally {
-        setLoadingChart(false);
+        if (!controller.signal.aborted) setLoadingChart(false);
       }
     }
 
@@ -1116,7 +1126,12 @@ export default function AffiliateDashboardClient() {
   : [];
 
   const handleAddHandpickedService = (service: HandpickedService) => {
-    if (selectedServices.find((s) => s.id === service.id)) {
+    const key = serviceKey(service);
+    if (!key) {
+      alert("This service is missing an id and cannot be pinned.");
+      return;
+    }
+    if (selectedServices.find((s) => serviceKey(s) === key)) {
       alert("This service is already in your list.");
       return;
     }
@@ -1136,7 +1151,8 @@ export default function AffiliateDashboardClient() {
 
   const confirmRemoveService = () => {
     if (serviceToRemove === null) return;
-    const updated = selectedServices.filter((s) => s.id !== serviceToRemove);
+    const removeKey = String(serviceToRemove);
+    const updated = selectedServices.filter((s) => serviceKey(s) !== removeKey);
     handleSavePinnedServices(updated);
     setServiceToRemove(null);
   };
@@ -1161,9 +1177,9 @@ export default function AffiliateDashboardClient() {
 
     try {
       const formattedServices = updatedServicesList.map((srv, idx) => ({
-        serviceId: srv.id,
+        serviceId: srv.id ?? srv._id,
         displayOrder: idx
-      }));
+      })).filter((s) => s.serviceId != null && s.serviceId !== "");
 
       const res = await fetch('/api/affiliate/store/services', {
         method: 'POST',
@@ -1276,7 +1292,11 @@ export default function AffiliateDashboardClient() {
   {/* PARTNER GROWTH WIDGET */}
 <div className="aff-card glass-promo-widget">
   <h4>Partner Growth</h4>
-  <p>Increase your commission by reaching your monthly volume goal.</p>
+  <p>
+    {progression?.metric === "commission_credits"
+      ? "Track confirmed affiliate commissions this month toward your goal."
+      : "Track referred order sales this month toward your goal."}
+  </p>
 
   <div className="progress-container">
     <div className="progress-labels">
@@ -1304,6 +1324,11 @@ export default function AffiliateDashboardClient() {
       ) : (
         <>
           Currently at <strong>{progression?.progressPercentage ?? 0}%</strong> of goal
+          {progression?.label ? (
+            <span style={{ display: "block", marginTop: 4, opacity: 0.85, fontSize: "0.8rem" }}>
+              {progression.label}
+            </span>
+          ) : null}
         </>
       )}
     </div>
@@ -3184,7 +3209,6 @@ export default function AffiliateDashboardClient() {
             className="form-select"
           >
             <option value="Payoneer">Payoneer</option>
-            <option value="PayPal">PayPal</option>
             <option value="Bank Transfer">Direct Bank Transfer</option>
           </select>
         </div>

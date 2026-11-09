@@ -621,14 +621,39 @@ const UserSchema = new mongoose.Schema(
    SECTION 17 — AFFILIATE DATA 
 =========================================================== */
 
+// In models/User.js — expand affiliateProfile (keep source) and prefer nested storeConfig:
+
 affiliateProfile: {
   source: {
     type: String,
-    default: 'direct',
+    default: "direct",
     trim: true,
-    lowercase: true
-  }
+    lowercase: true,
+  },
+  currentTier: { type: String, default: "Bronze" },
+  prestigeBadge: { type: String, default: "Rising Marketer" },
+  prestigeLevel: { type: Number, default: 1 },
+  prestigePoints: { type: Number, default: 0 },
+  tierTargetEarnings: { type: Number, default: 100 },
+  cookieDays: { type: Number, default: 90 },
+  postbackUrl: { type: String, default: "" },
+  autoPayoutThreshold: { type: Number, default: 50 },
+    
+  /** Canonical storefront config (dashboard + public store) */
+  storeConfig: {
+    storeTitle: { type: String, default: "" },
+    storeDescription: { type: String, default: "" },
+    featuredVideoUrl: { type: String, default: "" },
+    pinnedServices: [
+      {
+        serviceId: { type: mongoose.Schema.Types.ObjectId, ref: "Service" },
+        displayOrder: { type: Number, default: 0 },
+      },
+    ],
+  },
 },
+
+
 
 savedLinks: [
   {
@@ -641,15 +666,6 @@ savedLinks: [
   },
 ],
 
-storeConfig: {
-  featuredVideoUrl: { type: String, default: "" },
-  pinnedServices: [
-    {
-      serviceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
-      displayOrder: { type: Number, default: 0 }
-    }
-  ]
-},    
     
     
     /* ===========================================================
