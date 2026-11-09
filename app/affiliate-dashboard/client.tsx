@@ -513,6 +513,18 @@ export default function AffiliateDashboardClient() {
     setActiveTab(normalizeTab(tabParam));
   }, [tabParam]);
 
+
+  // Scroll Authority Status into view on mobile when tab opens
+  useEffect(() => {
+    if (activeTab !== "prestige-roadmap") return;
+    const t = window.setTimeout(() => {
+      document
+        .getElementById("prestige-roadmap")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [activeTab]);
+
   // LocalStorage savedLinks hydration
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -543,13 +555,24 @@ export default function AffiliateDashboardClient() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.links)) {
-          const formatted = data.links.map((link: { _id: string; url: string; name: string; createdAt: string }) => ({
-            id: link._id,
-            url: link.url,
-            name: link.name,
-            date: new Date(link.createdAt).toLocaleDateString(),
-          }));
+          const formatted = data.links.map((link: any) => {
+            const id = link.id ?? link._id;
+            let dateStr = link.date || "";
+            if (!dateStr && link.createdAt) {
+              const d = new Date(link.createdAt);
+              dateStr = isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+            }
+            return {
+              id,
+              url: link.url || "",
+              name: link.name || "Untitled Link",
+              date: dateStr || new Date().toLocaleDateString(),
+            };
+          });
           setSavedLinks(formatted);
+          try {
+            localStorage.setItem("savedLinks", JSON.stringify(formatted));
+          } catch (_) {}
         }
       })
       .catch((err) => {
@@ -946,38 +969,64 @@ export default function AffiliateDashboardClient() {
   const handleSaveLink = async () => {
     if (!generatedLink) return;
     const nickname = linkNickname.trim() || "Untitled Link";
-    const newLinkObj: SavedLink = {
-      id: Date.now(),
-      url: generatedLink,
-      name: nickname,
-      date: new Date().toLocaleDateString(),
-    };
+    const payload = { name: nickname, url: generatedLink };
 
-    const updated = [...savedLinks, newLinkObj];
-    setSavedLinks(updated);
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('savedLinks', JSON.stringify(updated));
+    if (!authToken) {
+      const localLink: SavedLink = {
+        id: Date.now(),
+        url: generatedLink,
+        name: nickname,
+        date: new Date().toLocaleDateString(),
+      };
+      const updated = [...savedLinks, localLink];
+      setSavedLinks(updated);
+      try {
+        localStorage.setItem("savedLinks", JSON.stringify(updated));
+      } catch (_) {}
+      setLinkNickname("");
+      triggerToast("Link saved locally (sign in to sync).");
+      return;
     }
 
-    setLinkNickname('');
-    triggerToast("Link saved with nickname!");
-
-    if (authToken) {
-      try {
-        const res = await fetch('/api/affiliate/links', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(newLinkObj),
-        });
-
-        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-      } catch (err) {
-        console.warn('Failed to sync saved link with backend:', err);
+    try {
+      const res = await fetch("/api/affiliate/links", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        triggerToast(
+          data.msg || data.message || "Failed to save link on server.",
+          "removed"
+        );
+        return;
       }
+
+      const serverLink = data.link || {};
+      const saved: SavedLink = {
+        id: serverLink.id ?? serverLink._id ?? Date.now(),
+        url: serverLink.url || generatedLink,
+        name: serverLink.name || nickname,
+        date:
+          serverLink.date ||
+          (serverLink.createdAt
+            ? new Date(serverLink.createdAt).toLocaleDateString()
+            : new Date().toLocaleDateString()),
+      };
+      const updated = [...savedLinks, saved];
+      setSavedLinks(updated);
+      try {
+        localStorage.setItem("savedLinks", JSON.stringify(updated));
+      } catch (_) {}
+      setLinkNickname("");
+      triggerToast("Link saved!");
+    } catch (err) {
+      console.error("Failed to save link:", err);
+      triggerToast("Server error saving link.", "removed");
     }
   };
 
@@ -997,7 +1046,9 @@ export default function AffiliateDashboardClient() {
       const data = await res.json();
 
       if (data.success) {
-        const updated = savedLinks.filter((l) => l.id !== linkToDelete);
+        const updated = savedLinks.filter(
+          (l) => String(l.id) !== String(linkToDelete)
+        );
         setSavedLinks(updated);
 
         if (typeof window !== 'undefined') {
@@ -1414,10 +1465,31 @@ export default function AffiliateDashboardClient() {
  {/* PRESTIGE SHORTCUT */}
 <div
   className="aff-card neumorphic-shortcut"
-  onClick={() => setActiveTab("prestige-roadmap")}
+  onClick={() => {
+    setActiveTab("prestige-roadmap");
+    // mobile: sidebar is above main content — scroll after tab paints
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document
+          .getElementById("prestige-roadmap")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    });
+  }}
   role="button"
   tabIndex={0}
-  onKeyDown={(e) => e.key === "Enter" && setActiveTab("prestige-roadmap")}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      setActiveTab("prestige-roadmap");
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          document
+            .getElementById("prestige-roadmap")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 50);
+      });
+    }
+  }}
 >
   <div className="prestige-shortcut-inner">
     <div className="mini-badge-a">
@@ -2368,7 +2440,7 @@ export default function AffiliateDashboardClient() {
     SECTION 8 — TAB 6: PRESTIGE ROADMAP / AUTHORITY STATUS
 ========================================================================= */}
 {activeTab === 'prestige-roadmap' && (
-  <div id="prestige-roadmap" className="tab-content active">
+  <div id="prestige-roadmap" className="tab-content active" style={{ scrollMarginTop: 88 }}>
     <section id="authority-status-root">
 
            {/* CURRENT STATUS CARD — screenshot-style */}

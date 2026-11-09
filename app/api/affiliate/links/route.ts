@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (a) headers.Authorization = a;
     if (c) headers.Cookie = c;
     const qs = request.nextUrl.search || "";
-    const response = await fetch(`\( {BACKEND_URL}/api/affiliate/links \){qs}`, {
+    const response = await fetch(`${BACKEND_URL}/api/affiliate/links${qs}`, {
       method: "GET",
       headers,
       cache: "no-store",

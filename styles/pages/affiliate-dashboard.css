@@ -355,7 +355,7 @@
     min-width: 0; /* This is the "unlock" button for truncation */
     margin-right: 15px;
     /* Add this to force a boundary */
-    width: 0; 
+    width: auto; 
 }
 
 .saved-link-info strong {
