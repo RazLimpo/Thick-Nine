@@ -2440,7 +2440,7 @@ export default function AffiliateDashboardClient() {
     SECTION 8 — TAB 6: PRESTIGE ROADMAP / AUTHORITY STATUS
 ========================================================================= */}
 {activeTab === 'prestige-roadmap' && (
-  <div id="prestige-roadmap" className="tab-content active" style={{ scrollMarginTop: 135 }}>
+  <div id="prestige-roadmap" className="tab-content active">
     <section id="authority-status-root">
 
            {/* CURRENT STATUS CARD — screenshot-style */}

@@ -884,6 +884,12 @@
 
 
 
+#prestige-roadmap {
+  scroll-margin-top: 0;
+}
+
+
+
 
 /* Mobile Breakpoint - 768px and below - Group 1*/
 @media (max-width: 768px) {
@@ -2061,6 +2067,11 @@
   .aff-grid-secondary {
     grid-template-columns: 1fr;
   }
+    
+  #prestige-roadmap {
+    scroll-margin-top: 135px; /* match your sticky header height */
+  }
+
 }
 
 @media (max-width: 640px) {
