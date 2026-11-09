@@ -221,6 +221,42 @@ const formatDate = (dateInput?: string | Date | null): string => {
     }
   };
 
+  /** Convert watch/share URLs to iframe-safe embed URLs (YouTube / Vimeo). */
+  const toEmbedUrl = (raw: string): string | null => {
+    const input = String(raw || "").trim();
+    if (!input) return null;
+    try {
+      const u = new URL(input);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+
+      if (host.includes("youtube.com") && u.pathname.startsWith("/embed/")) {
+        const id = u.pathname.split("/")[2];
+        return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
+      }
+      if (host === "youtu.be") {
+        const id = u.pathname.replace(/^\//, "").split("/")[0];
+        return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
+      }
+      if (host.includes("youtube.com")) {
+        const id = u.searchParams.get("v");
+        if (id) return `https://www.youtube-nocookie.com/embed/${id}`;
+        const parts = u.pathname.split("/").filter(Boolean);
+        if (parts[0] === "shorts" || parts[0] === "live") {
+          const id2 = parts[1];
+          if (id2) return `https://www.youtube-nocookie.com/embed/${id2}`;
+        }
+      }
+      if (host.includes("vimeo.com")) {
+        if (host.includes("player.vimeo.com")) return input;
+        const id = u.pathname.split("/").filter(Boolean).pop();
+        if (id && /^\d+$/.test(id)) return `https://player.vimeo.com/video/${id}`;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
 
 
   // ========================================================================= 
@@ -410,6 +446,13 @@ export default function AffiliateDashboardClient() {
             setStoreTitle(config.storeTitle || '');
             setStoreDescription(config.storeDescription || '');
             setFeaturedVideoUrl(config.featuredVideoUrl || '');
+            if (config.featuredVideoUrl) {
+              const emb = toEmbedUrl(config.featuredVideoUrl);
+              if (emb) {
+                setVideoEmbedSrc(emb);
+                setVideoPreviewType('embed');
+              }
+            }
           }
 
           if (data.tierInfo) {
@@ -743,9 +786,30 @@ export default function AffiliateDashboardClient() {
         return res.json();
       })
       .then((data) => {
-        if (data.success && Array.isArray(data.services)) {
-          setMarketplaceServices(data.services);
-        }
+        const raw = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.services)
+            ? data.services
+            : [];
+        const mapped = raw.map((s: any) => {
+          const id = s.id ?? s._id;
+          const images = s.images || s.gallery || [];
+          const img =
+            s.img ||
+            (Array.isArray(images) && images[0]) ||
+            s.coverImage ||
+            s.thumbnail ||
+            "/default-service.png";
+          return {
+            id,
+            _id: s._id ?? s.id,
+            title: s.title || "Service",
+            category: s.category || s.subcategory || "",
+            price: Number(s.price) || 0,
+            img: typeof img === "string" ? img : img?.url || "/default-service.png",
+          };
+        }).filter((s: any) => s.id != null);
+        setMarketplaceServices(mapped);
       })
       .catch((err) => {
         if (err.name !== 'AbortError') {
@@ -1063,7 +1127,18 @@ export default function AffiliateDashboardClient() {
 
       const data = await res.json();
       if (data.success) {
-        setVideoEmbedSrc(data.featuredVideoUrl || sanitizedUrl);
+        const stored = data.featuredVideoUrl || sanitizedUrl;
+        const embed = toEmbedUrl(stored);
+        if (!embed) {
+          triggerToast(
+            'Saved, but preview needs a YouTube or Vimeo link (watch/share URL).',
+            'removed'
+          );
+          setFeaturedVideoUrl(stored);
+          return;
+        }
+        setFeaturedVideoUrl(stored);
+        setVideoEmbedSrc(embed);
         setVideoPreviewType('embed');
         setVideoUrl('');
         triggerToast('Featured video updated successfully!');
