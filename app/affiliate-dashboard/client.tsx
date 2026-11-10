@@ -35,6 +35,15 @@ function serviceKey(s: { id?: string | number; _id?: string | number } | null | 
   return String(s.id ?? s._id ?? "");
 }
 
+function serviceIdFromLink(url: string): string | null {
+  try {
+    const pathname = new URL(url, "https://thick-nine.local").pathname;
+    const match = pathname.match(/\/services\/details\/([^/]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface ToastMessage {
   id: string | number;
@@ -1034,31 +1043,38 @@ export default function AffiliateDashboardClient() {
     if (linkToDelete === null) return;
 
     try {
-      const res = await fetch(`/api/affiliate/links/${linkToDelete}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${authToken}`
+      const res = await fetch(
+        `/api/affiliate/links/${encodeURIComponent(String(linkToDelete))}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
         }
-      });
+      );
 
-      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      const data = await res.json().catch(() => ({}));
 
-      const data = await res.json();
-
-      if (data.success) {
-        const updated = savedLinks.filter(
-          (l) => String(l.id) !== String(linkToDelete)
+      if (!res.ok || !data.success) {
+        triggerToast(
+          data.msg || data.message || `Could not delete link (HTTP ${res.status}).`,
+          "removed"
         );
-        setSavedLinks(updated);
-
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('savedLinks', JSON.stringify(updated));
-        }
-
-        triggerToast("Link successfully removed", "removed");
-      } else {
-        triggerToast(data.message || "Failed to delete link", "removed");
+        return;
       }
+
+      const updated = savedLinks.filter(
+        (link) => String(link.id ?? link._id) !== String(linkToDelete)
+      );
+      setSavedLinks(updated);
+
+      try {
+        localStorage.setItem("savedLinks", JSON.stringify(updated));
+      } catch {
+        // The server deletion succeeded; ignore unavailable local storage.
+      }
+
+      triggerToast("Link successfully removed", "removed");
     } catch (err) {
       console.error("Error deleting link:", err);
       triggerToast("Server error deleting link", "removed");
@@ -2030,45 +2046,62 @@ export default function AffiliateDashboardClient() {
         ) : (
           (savedLinks ?? []).map((link) => {
             const currentLinkId = link.id || link._id;
+            const linkedServiceId = serviceIdFromLink(link.url);
+            const linkedService = marketplaceServices.find(
+              (service) => serviceKey(service) === linkedServiceId
+            );
+
             return (
-              <div
-                key={currentLinkId}
-                className="saved-link-row"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  marginBottom: '12px',
-                  padding: '12px',
-                  background: 'rgba(255,255,255,0.03)',
-                  borderRadius: '10px'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div key={currentLinkId} className="saved-link-row">
+                <div className="saved-link-content">
+                  {linkedService && (
+                    <Image
+                      className="saved-link-image"
+                      src={linkedService.img || "/default-service.png"}
+                      alt={`${linkedService.title} service`}
+                      width={64}
+                      height={64}
+                      unoptimized
+                    />
+                  )}
+
                   <div className="saved-link-info">
-                    <strong title={link.url}>{link.name}</strong>
-                    <small className="truncated-url" style={{ display: 'block', color: '#718096' }}>{link.url}</small>
+                    <strong title={link.name}>{link.name}</strong>
+                    <small className="truncated-url" title={link.url}>
+                      {link.url}
+                    </small>
                   </div>
 
-                  <div className="button-group-flex" style={{ display: 'flex', gap: '8px' }}>
-                    <button type="button"
+                  <div className="button-group-flex saved-link-actions">
+                    <button
+                      type="button"
                       className="btn-outline"
                       title="Share"
                       onClick={() => {
-  const targetId = currentLinkId ?? null;
-  if (targetId === null) return;
-  setActiveShareSheetId(activeShareSheetId === targetId ? null : targetId);
-}}
+                        const targetId = currentLinkId ?? null;
+                        if (targetId === null) return;
+                        setActiveShareSheetId(
+                          activeShareSheetId === targetId ? null : targetId
+                        );
+                      }}
                     >
                       <i className="fas fa-share-alt"></i>
                     </button>
-                    <button type="button" className="btn-outline" title="Copy" onClick={() => copyToClipboard(link.url)}>
+
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      title="Copy"
+                      onClick={() => copyToClipboard(link.url)}
+                    >
                       <i className="fas fa-copy"></i>
                     </button>
-                    <button type="button"
+
+                    <button
+                      type="button"
                       className="btn-outline"
-                      style={{ color: '#e53e3e' }}
                       title="Delete"
+                      style={{ color: "#e53e3e" }}
                       onClick={() => setLinkToDelete(currentLinkId ?? null)}
                     >
                       <i className="fas fa-trash"></i>
@@ -2077,14 +2110,29 @@ export default function AffiliateDashboardClient() {
                 </div>
 
                 {activeShareSheetId === currentLinkId && (
-                  <div className="share-sheet" style={{ display: 'flex', width: '100%', marginTop: '10px', justifyContent: 'center', gap: '15px' }}>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(link.name + ': ' + link.url)}`} target="_blank" rel="noreferrer" className="share-icon wa">
+                  <div className="share-sheet saved-link-share-sheet">
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(link.name + ": " + link.url)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="share-icon wa"
+                    >
                       <i className="fab fa-whatsapp"></i>
                     </a>
-                    <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(link.name)}&url=${encodeURIComponent(link.url)}`} target="_blank" rel="noreferrer" className="share-icon tw">
+                    <a
+                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(link.name)}&url=${encodeURIComponent(link.url)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="share-icon tw"
+                    >
                       <i className="fab fa-twitter"></i>
                     </a>
-                    <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`} target="_blank" rel="noreferrer" className="share-icon fb">
+                    <a
+                      href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="share-icon fb"
+                    >
                       <i className="fab fa-facebook-f"></i>
                     </a>
                   </div>

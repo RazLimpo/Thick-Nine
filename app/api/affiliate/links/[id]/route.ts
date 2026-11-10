@@ -28,7 +28,8 @@ export async function DELETE(
     if (a) headers.Authorization = a;
     if (c) headers.Cookie = c;
 
-    const response = await fetch(`\( {BACKEND_URL}/api/affiliate/links/ \){id}`, {
+    const backendUrl = `${BACKEND_URL.replace(/\/+$/, "")}/api/affiliate/links/${encodeURIComponent(id)}`;
+    const response = await fetch(backendUrl, {
       method: "DELETE",
       headers,
       cache: "no-store",
