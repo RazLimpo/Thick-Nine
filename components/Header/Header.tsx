@@ -982,7 +982,7 @@ try {
             {userRole === 'client' && (
               <>
                 <li><Link href="/client-dashboard" className={`nav-link ${currentPath === '/client-dashboard' ? 'active' : ''}`}>Dashboard</Link></li>
-                <li><Link href="/client-order-history" className={`nav-link ${currentPath === '/client-order-history' ? 'active' : ''}`}>Orders</Link></li>
+                <li><Link href="/client-orders-history" className={`nav-link ${currentPath === '/client-orders-history' ? 'active' : ''}`}>Orders</Link></li>
                 <li><Link href="/client-all-friends" className={`nav-link ${currentPath === '/client-all-friends' ? 'active' : ''}`}>Network</Link></li>
               </>
             )}

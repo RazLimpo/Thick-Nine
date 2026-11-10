@@ -114,6 +114,10 @@ const OrderSchema = new mongoose.Schema(
     deliveryFiles: { type: [DeliveryFileSchema], default: [] },
     deliveredAt: { type: Date, default: null },
 
+    // Buyer revision request (after delivery)
+    revisionNote: { type: String, default: "", maxlength: 2000 },
+    revisionRequestedAt: { type: Date, default: null },
+
     extensionRequest: {
       proposedDate: { type: Date, default: null },
       reason: { type: String, default: "" },
@@ -142,7 +146,7 @@ const OrderSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["card", "paypal"],
+      enum: ["card", "mobile_money", "bank", "paypal", "other"],
       default: "card",
     },
     status: {
@@ -182,7 +186,16 @@ const OrderSchema = new mongoose.Schema(
     refundNote: { type: String, default: "", maxlength: 1000 },
     /** Set at checkout when real processor is wired */
     paymentIntentId: { type: String, default: null },
-    paymentProvider: { type: String, default: null }, // stripe | paystack | etc.
+    paymentProvider: { type: String, default: null }, // flutterwave | etc.
+
+    // Buyer cancel (before delivery)
+    cancelledAt: { type: Date, default: null },
+    cancelReason: { type: String, default: "", maxlength: 2000 },
+    cancelInitiatedBy: {
+      type: String,
+      enum: ["none", "buyer", "seller", "admin"],
+      default: "none",
+    },
 
     buyerRating: { type: Number, min: 1, max: 5, default: null },
     buyerReview: { type: String, default: "", maxlength: 2000 },

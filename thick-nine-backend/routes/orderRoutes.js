@@ -147,8 +147,95 @@ router.get("/mine", authMiddleware, async (req, res) => {
   }
 });
 
+
+
 // =====================================================
-// 1. POST /api/orders/:id/remind — seller only
+// 1. GET /api/orders/purchases — buyer's orders (client role)
+//    Static path MUST stay before /:id. deliveryFiles use filesForRole.
+// =====================================================
+router.get("/purchases", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const limit = Math.min(Number(req.query.limit) || 100, 200);
+
+    const orders = await Order.find({ clientId: userId })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .limit(limit)
+      .populate("sellerId", "fullName displayName avatar username")
+      .populate("serviceId", "title images category")
+      .lean();
+
+    const mapped = orders.map((o) => {
+      const seller = o.sellerId || {};
+      const service = o.serviceId || {};
+      return {
+        _id: o._id,
+        status: o.status,
+        packageName:
+          o.packageName ||
+          (Array.isArray(o.selectedAddons) && o.selectedAddons[0]?.title) ||
+          service.title ||
+          "Package",
+        amount: o.grandTotal ?? o.subtotal ?? o.basePackagePrice ?? 0,
+        subtotal: o.subtotal ?? null,
+        basePackagePrice: o.basePackagePrice ?? null,
+        grandTotal: o.grandTotal ?? null,
+        dueAt: o.dueAt || null,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+        deliveredAt: o.deliveredAt || null,
+        completedAt: o.completedAt || null,
+        orderNumber: o.orderNumber || null,
+        invoiceNumber: o.invoiceNumber || null,
+        paymentMethod: o.paymentMethod || o.payment?.method || null,
+        paymentStatus: o.paymentStatus || o.refundStatus || null,
+        refundAmount: o.refundAmount ?? null,
+        buyerRating: o.buyerRating != null ? o.buyerRating : null,
+        buyerReview: o.buyerReview || "",
+        ratedAt: o.ratedAt || null,
+        requirements: o.requirements || "",
+        deliveryNote: o.deliveryNote || "",
+        // Buyer list: same lock/preview rules as GET /:id (final URLs only when completed)
+        deliveryFiles: filesForRole(o, "client"),
+        selectedAddons: Array.isArray(o.selectedAddons) ? o.selectedAddons : [],
+        disputeReason: o.disputeReason || null,
+        seller: {
+          _id: seller._id || null,
+          name:
+            seller.fullName || seller.displayName || seller.username || "Freelancer",
+          avatar: seller.avatar || "/default-avatar.png",
+          username: seller.username || null,
+        },
+        service: service._id
+          ? {
+              _id: service._id,
+              title: service.title || "",
+              category: service.category || "",
+              image:
+                (Array.isArray(service.images) && service.images[0]) || null,
+            }
+          : null,
+      };
+    });
+
+    return res.status(200).json({ success: true, orders: mapped });
+  } catch (error) {
+    console.error("GET /api/orders/purchases error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to load purchases." });
+  }
+});
+
+
+
+
+// =====================================================
+// 2. POST /api/orders/:id/remind — seller only
 // =====================================================
 router.post("/:id/remind", authMiddleware, async (req, res) => {
   try {
@@ -204,7 +291,7 @@ router.post("/:id/remind", authMiddleware, async (req, res) => {
 });
 
 // =====================================================
-// 2. POST /api/orders/:id/deliver — seller only
+// 3. POST /api/orders/:id/deliver — seller only
 //    Body: { note?: string, deliveryNote?: string, files?: string[], deliveryFiles?: string[] }
 // =====================================================
 router.post("/:id/deliver", authMiddleware, async (req, res) => {
@@ -275,7 +362,7 @@ router.post("/:id/deliver", authMiddleware, async (req, res) => {
 });
 
 // =====================================================
-// 3. POST /api/orders/:id/extend — seller only
+// 4. POST /api/orders/:id/extend — seller only
 // =====================================================
 router.post("/:id/extend", authMiddleware, async (req, res) => {
   try {
@@ -344,7 +431,7 @@ router.post("/:id/extend", authMiddleware, async (req, res) => {
 });
 
 // =====================================================
-// 4. POST /api/orders/:id/extend/respond — buyer only
+// 5. POST /api/orders/:id/extend/respond — buyer only
 // =====================================================
 router.post("/:id/extend/respond", authMiddleware, async (req, res) => {
   try {
@@ -544,7 +631,7 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
 
 
 // =====================================================
-// POST /api/orders/:id/dispute — buyer only
+// 7. POST /api/orders/:id/dispute — buyer only
 // Body: { reason: string, evidence?: string[] }
 // =====================================================
 router.post("/:id/dispute", authMiddleware, async (req, res) => {
@@ -651,7 +738,7 @@ router.post("/:id/dispute", authMiddleware, async (req, res) => {
 });
 
 // =====================================================
-// 7. POST /api/orders/:id/complete — buyer accepts delivery & closes order
+// 8. POST /api/orders/:id/complete — buyer accepts delivery & closes order
 // =====================================================
 router.post("/:id/complete", authMiddleware, async (req, res) => {
   try {
@@ -790,12 +877,231 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
   }
 });
 
-// =====================================================
-// 5. GET /api/orders/:id — participant only
-// =====================================================
 
 // =====================================================
-// GET /api/orders/:id/invoice — buyer or seller; HTML invoice (PDF engine later)
+// 8b. POST /api/orders/:id/revision — buyer requests changes after delivery
+// Body: { note?: string, reason?: string }
+// =====================================================
+router.post("/:id/revision", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order ID." });
+    }
+
+    const note = String(req.body?.note || req.body?.reason || "").trim().slice(0, 2000);
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found." });
+    }
+    if (String(order.clientId) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the buyer can request a revision.",
+      });
+    }
+
+    if (order.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Completed orders cannot be revised. Open a dispute or contact support.",
+      });
+    }
+    if (order.status === "cancelled" || order.status === "disputed") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot request revision while status is "${order.status}".`,
+      });
+    }
+    if (!order.deliveredAt) {
+      return res.status(400).json({
+        success: false,
+        message: "Revision is available after the freelancer submits delivery.",
+      });
+    }
+    if (order.status === "revision_requested") {
+      return res.status(200).json({
+        success: true,
+        message: "A revision is already requested on this order.",
+        order: {
+          _id: order._id,
+          status: order.status,
+          revisionNote: order.revisionNote || note,
+        },
+      });
+    }
+
+    // in_escrow (or similar) after delivery
+    if (order.status !== "in_escrow" && order.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot request revision for status "${order.status}".`,
+      });
+    }
+
+    order.status = "revision_requested";
+    order.revisionNote = note || order.revisionNote || "";
+    order.revisionRequestedAt = new Date();
+    await order.save();
+
+    try {
+      const Notification = require("../models/Notification");
+      const short = String(order._id).slice(-6).toUpperCase();
+      await Notification.create({
+        userId: order.sellerId,
+        type: "revision_requested",
+        title: "Revision requested",
+        message: note
+          ? `Buyer requested revision on order #${short}: ${note.slice(0, 120)}`
+          : `Buyer requested revision on order #${short}.`,
+        link: `/orders/${order._id}`,
+        orderId: order._id,
+        read: false,
+      });
+    } catch (_) {}
+
+    return res.status(200).json({
+      success: true,
+      message: "Revision requested. The freelancer has been notified.",
+      order: {
+        _id: order._id,
+        status: order.status,
+        revisionNote: order.revisionNote,
+        revisionRequestedAt: order.revisionRequestedAt,
+      },
+    });
+  } catch (error) {
+    console.error("POST /api/orders/:id/revision error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to request revision.",
+    });
+  }
+});
+
+// =====================================================
+// 8c. POST /api/orders/:id/cancel — buyer cancels before / without relying on delivery
+// Body: { reason?: string }
+// Policy: pending always; in_escrow only if not yet delivered; never after complete/dispute
+// =====================================================
+router.post("/:id/cancel", authMiddleware, async (req, res) => {
+  try {
+    const userId = uid(req);
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order ID." });
+    }
+
+    const reason = String(req.body?.reason || "").trim().slice(0, 2000);
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found." });
+    }
+    if (String(order.clientId) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the buyer can cancel this order.",
+      });
+    }
+
+    if (order.status === "cancelled") {
+      return res.status(200).json({
+        success: true,
+        message: "Order is already cancelled.",
+        order: { _id: order._id, status: order.status },
+      });
+    }
+    if (order.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Completed orders cannot be cancelled.",
+      });
+    }
+    if (order.status === "disputed") {
+      return res.status(400).json({
+        success: false,
+        message: "This order is under dispute. Wait for resolution or contact support.",
+      });
+    }
+
+    // After delivery: use dispute, not cancel
+    if (order.deliveredAt) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Delivery was already submitted. Use Request Revision or Open Dispute instead of cancel.",
+      });
+    }
+
+    const cancellable = ["pending", "in_escrow", "revision_requested"];
+    if (!cancellable.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel an order with status "${order.status}".`,
+      });
+    }
+
+    order.status = "cancelled";
+    order.cancelledAt = new Date();
+    order.cancelReason = reason || "Cancelled by buyer";
+    order.cancelInitiatedBy = "buyer";
+    // Refund ledger fields — processor refund when Flutterwave is wired
+    if (order.refundStatus == null || order.refundStatus === "none") {
+      order.refundStatus = "pending";
+      order.refundAmount = order.grandTotal ?? order.subtotal ?? 0;
+    }
+    await order.save();
+
+    try {
+      const Notification = require("../models/Notification");
+      const short = String(order._id).slice(-6).toUpperCase();
+      await Notification.create({
+        userId: order.sellerId,
+        type: "order_cancelled",
+        title: "Order cancelled",
+        message: `Buyer cancelled order #${short}.`,
+        link: `/orders/${order._id}`,
+        orderId: order._id,
+        read: false,
+      });
+    } catch (_) {}
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Order cancelled. Refund will be processed according to platform policy.",
+      order: {
+        _id: order._id,
+        status: order.status,
+        cancelledAt: order.cancelledAt,
+        cancelReason: order.cancelReason,
+        refundStatus: order.refundStatus,
+        refundAmount: order.refundAmount,
+      },
+    });
+  } catch (error) {
+    console.error("POST /api/orders/:id/cancel error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel order.",
+    });
+  }
+});
+
+
+// =====================================================
+// 9. GET /api/orders/:id/invoice — buyer or seller; HTML invoice (PDF engine later)
 // =====================================================
 router.get("/:id/invoice", authMiddleware, async (req, res) => {
   try {
