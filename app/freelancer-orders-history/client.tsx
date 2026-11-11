@@ -165,166 +165,6 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-/** Smooth curved sparkline (quadratic midpoints) for metric cards */
-function Sparkline({
-  values,
-  stroke = "rgba(255,255,255,0.95)",
-}: {
-  values: number[];
-  stroke?: string;
-}) {
-  const w = 120;
-  const h = 40;
-  const data =
-    values.length >= 2 ? values : [0, 1, 0.6, 1.2, 0.9, 1.4, 1.1];
-  const max = Math.max(...data, 0.001);
-  const min = Math.min(...data, 0);
-  const range = max - min || 1;
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((v - min) / range) * (h - 6) - 3;
-    return { x, y };
-  });
-  let d = `M ${pts[0].x},${pts[0].y}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const a = pts[i];
-    const b = pts[i + 1];
-    const mx = (a.x + b.x) / 2;
-    d += ` Q ${a.x},${a.y} ${mx},${(a.y + b.y) / 2}`;
-    d += ` Q ${b.x},${b.y} ${b.x},${b.y}`;
-  }
-  // simpler smooth path
-  d = `M ${pts[0].x},${pts[0].y}`;
-  for (let i = 1; i < pts.length; i++) {
-    const prev = pts[i - 1];
-    const cur = pts[i];
-    const cpx = (prev.x + cur.x) / 2;
-    d += ` C ${cpx},${prev.y} ${cpx},${cur.y} ${cur.x},${cur.y}`;
-  }
-  return (
-    <svg
-      className="oh-sparkline"
-      viewBox={`0 0 ${w} ${h}`}
-      width="100%"
-      height="44"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path
-        d={d}
-        fill="none"
-        stroke={stroke}
-        strokeWidth="2.25"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function buildTimeline(order: OrderRow) {
-  const ui = orderUiStatus(order);
-  const steps: {
-    title: string;
-    date?: string;
-    status: string;
-    detail?: string;
-  }[] = [
-    {
-      title: "Order placed & confirmed",
-      date: formatDate(order.createdAt),
-      status: "completed",
-    },
-  ];
-
-  if (ui === "canceled") {
-    steps.push({
-      title: "Order canceled",
-      date: formatDate(order.updatedAt),
-      status: "canceled",
-      detail: "This order was cancelled.",
-    });
-    return steps;
-  }
-
-  steps.push({
-    title: "Work in progress",
-    date:
-      ui === "pending"
-        ? undefined
-        : formatDate(order.updatedAt || order.createdAt),
-    status:
-      ui === "pending"
-        ? "pending"
-        : ui === "in-progress" || ui === "revision"
-          ? "active"
-          : "completed",
-    detail:
-      ui === "revision"
-        ? "Revision requested by buyer."
-        : ui === "pending"
-          ? "Waiting on requirements / start."
-          : undefined,
-  });
-
-  if (order.deliveredAt || ui === "delivered" || ui === "completed") {
-    steps.push({
-      title: "Delivery submitted",
-      date: formatDate(order.deliveredAt || order.updatedAt),
-      status: ui === "completed" ? "completed" : "active",
-      detail: order.deliveryNote || undefined,
-    });
-  } else {
-    steps.push({ title: "Final delivery", status: "pending" });
-  }
-
-  if (ui === "completed") {
-    steps.push({
-      title: "Completed & closed",
-      date: formatDate(order.updatedAt),
-      status: "completed",
-    });
-  } else if (ui === "disputed") {
-    steps.push({
-      title: "Dispute opened",
-      date: formatDate(order.updatedAt),
-      status: "active",
-    });
-  } else {
-    steps.push({ title: "Closeout", status: "pending" });
-  }
-
-  return steps;
-}
-
-function startOfDaysAgo(days: number): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return d;
-}
-
-/** Build a small series from orders for sparkline visual */
-function seriesFromOrders(
-  orders: OrderRow[],
-  pick: (o: OrderRow) => number
-): number[] {
-  const now = Date.now();
-  const buckets = Array.from({ length: 7 }, () => 0);
-  orders.forEach((o) => {
-    const t = o.createdAt ? new Date(o.createdAt).getTime() : 0;
-    if (!t) return;
-    const daysAgo = Math.floor((now - t) / 86400000);
-    if (daysAgo < 0 || daysAgo > 48) return;
-    const idx = Math.min(6, 6 - Math.floor(daysAgo / 7));
-    buckets[idx] += pick(o);
-  });
-  if (buckets.every((v) => v === 0)) {
-    return [2, 3, 2.5, 4, 3.5, 5, 4.5];
-  }
-  return buckets;
-}
-
 export default function FreelancerOrdersHistoryClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -593,38 +433,6 @@ export default function FreelancerOrdersHistoryClient() {
     return { completed, totalEarned, pendingPayouts, rating: avgRating };
   }, [orders]);
 
-  const sparkCompleted = useMemo(
-    () =>
-      seriesFromOrders(orders, (o) =>
-        orderUiStatus(o) === "completed" ? 1 : 0
-      ),
-    [orders]
-  );
-  const sparkEarned = useMemo(
-    () =>
-      seriesFromOrders(orders, (o) =>
-        orderUiStatus(o) === "completed" ? Number(o.amount) || 0 : 0
-      ),
-    [orders]
-  );
-  const sparkRating = useMemo(() => {
-    const vals = orders
-      .map((o) => Number(o.rating ?? o.buyerRating))
-      .filter((r) => Number.isFinite(r) && r > 0);
-    if (vals.length >= 2) return vals.slice(-7);
-    return [3, 3.5, 4, 3.8, 4.2, 4.5, 4.3];
-  }, [orders]);
-  const sparkPending = useMemo(
-    () =>
-      seriesFromOrders(orders, (o) => {
-        const ui = orderUiStatus(o);
-        return ui === "in-progress" || ui === "delivered" || ui === "revision"
-          ? Number(o.amount) || 0
-          : 0;
-      }),
-    [orders]
-  );
-
   const earningsByMonth = useMemo(() => {
     const map = new Map<string, number>();
     orders.forEach((o) => {
@@ -881,9 +689,6 @@ export default function FreelancerOrdersHistoryClient() {
             <div className="summary-card card-jobs-completed">
               <div className="card-value-section">
                 <p className="card-value">{stats.completed}</p>
-                <div className="oh-spark-wrap">
-                  <Sparkline values={sparkCompleted} />
-                </div>
               </div>
               <div className="card-label-section">
                 <i className="fas fa-briefcase" /> Jobs Completed
@@ -892,9 +697,6 @@ export default function FreelancerOrdersHistoryClient() {
             <div className="summary-card card-total-earned">
               <div className="card-value-section">
                 <p className="card-value">{formatMoney(stats.totalEarned)}</p>
-                <div className="oh-spark-wrap">
-                  <Sparkline values={sparkEarned} />
-                </div>
               </div>
               <div className="card-label-section">
                 <i className="fas fa-dollar-sign" /> Total Earned
@@ -903,9 +705,6 @@ export default function FreelancerOrdersHistoryClient() {
             <div className="summary-card card-average-rating">
               <div className="card-value-section">
                 <p className="card-value">{stats.rating}</p>
-                <div className="oh-spark-wrap">
-                  <Sparkline values={sparkRating} />
-                </div>
               </div>
               <div className="card-label-section">
                 <i className="fas fa-star" /> Average Rating
@@ -916,9 +715,6 @@ export default function FreelancerOrdersHistoryClient() {
                 <p className="card-value">
                   {formatMoney(stats.pendingPayouts)}
                 </p>
-                <div className="oh-spark-wrap">
-                  <Sparkline values={sparkPending} />
-                </div>
               </div>
               <div className="card-label-section">
                 <i className="fas fa-hourglass-half" /> Pending Payouts
@@ -1350,13 +1146,15 @@ export default function FreelancerOrdersHistoryClient() {
       {/* Professional seller tracker modal */}
       {trackerOpen && trackerOrder && (
         <div
-          className="modal-backdrop"
+          className="f-modal oh-modal"
           id="order-tracker-modal"
+          role="dialog"
+          aria-modal="true"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeTracker();
           }}
         >
-          <div className="modal-content detailed-order-modal-content buyer-tracker-modal seller-tracker-modal">
+          <div className="modal-content large-modal detailed-order-modal-content buyer-tracker-modal seller-tracker-modal">
             <div className="btm-header">
               <div className="btm-header-left">
                 <div className="btm-brand" aria-label="Thick 9">
