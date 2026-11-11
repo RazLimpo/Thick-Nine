@@ -699,13 +699,16 @@ export default function FreelancerOrdersHistoryClient() {
   };
 
   const actionLabel = (ui: UiStatus) => {
+    // manage:false → open tracker modal (not /orders/[id] only)
+    if (ui === "pending") {
+      return { text: "Manage Order", icon: "fas fa-cogs", manage: false };
+    }
     if (
       ui === "in-progress" ||
       ui === "delivered" ||
-      ui === "revision" ||
-      ui === "pending"
+      ui === "revision"
     ) {
-      return { text: "Manage Order", icon: "fas fa-cogs", manage: true };
+      return { text: "Track", icon: "fas fa-compass", manage: false };
     }
     if (ui === "completed") {
       return { text: "View Record", icon: "fas fa-receipt", manage: false };
@@ -1027,27 +1030,47 @@ export default function FreelancerOrdersHistoryClient() {
                             )}
                           </td>
                           <td>
-                            <span className="clickable-client">
-                              <Image
-                                src={
-                                  order.buyer?.avatar || "/default-avatar.png"
-                                }
-                                alt={order.buyer?.name || "Client"}
-                                width={30}
-                                height={30}
-                                className="client-avatar"
-                                unoptimized
-                              />
-                              {order.buyer?.name || "Client"}
-                              {isRepeat ? (
-                                <span
-                                  className="oh-repeat-badge"
-                                  title="Repeat client"
-                                >
-                                  Repeat
-                                </span>
-                              ) : null}
-                            </span>
+                            {order.buyer?._id ? (
+                              <Link
+                                href={`/freelancer-profile?id=${order.buyer._id}`}
+                                className="clickable-client"
+                                title="View client profile"
+                              >
+                                <Image
+                                  src={
+                                    order.buyer?.avatar || "/default-avatar.png"
+                                  }
+                                  alt={order.buyer?.name || "Client"}
+                                  width={30}
+                                  height={30}
+                                  className="client-avatar"
+                                  unoptimized
+                                />
+                                <span>{order.buyer?.name || "Client"}</span>
+                                {isRepeat ? (
+                                  <span
+                                    className="oh-repeat-badge"
+                                    title="Repeat client"
+                                  >
+                                    Repeat
+                                  </span>
+                                ) : null}
+                              </Link>
+                            ) : (
+                              <span className="clickable-client">
+                                <Image
+                                  src={
+                                    order.buyer?.avatar || "/default-avatar.png"
+                                  }
+                                  alt={order.buyer?.name || "Client"}
+                                  width={30}
+                                  height={30}
+                                  className="client-avatar"
+                                  unoptimized
+                                />
+                                {order.buyer?.name || "Client"}
+                              </span>
+                            )}
                           </td>
                           <td>{formatDate(order.createdAt)}</td>
                           <td className={overdue ? "oh-due-overdue" : undefined}>
@@ -1081,22 +1104,22 @@ export default function FreelancerOrdersHistoryClient() {
                             </span>
                           </td>
                           <td>
-                            {act.manage ? (
-                              <Link
-                                href={`/orders/${order._id}`}
-                                className="btn-action btn-dark-gray btn-track-details"
-                              >
-                                <i className={act.icon} /> {act.text}
-                              </Link>
-                            ) : (
-                              <button
-                                type="button"
-                                className="btn-action btn-dark-gray btn-track-details"
-                                onClick={() => openTracker(order, "timeline")}
-                              >
-                                <i className={act.icon} /> {act.text}
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              className="btn-action btn-dark-gray btn-track-details"
+                              onClick={() =>
+                                openTracker(
+                                  order,
+                                  ui === "completed" ||
+                                    ui === "canceled" ||
+                                    ui === "disputed"
+                                    ? "summary"
+                                    : "timeline"
+                                )
+                              }
+                            >
+                              <i className={act.icon} /> {act.text}
+                            </button>
                           </td>
                         </tr>
                         {open && (
