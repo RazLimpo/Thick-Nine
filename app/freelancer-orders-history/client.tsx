@@ -24,7 +24,20 @@ type OrderRow = {
   deliveredAt?: string | null;
   orderNumber?: string;
   deliveryNote?: string;
-  deliveryFiles?: string[];
+  deliveryFiles?: (
+    | string
+    | {
+        url?: string | null;
+        previewUrl?: string | null;
+        name?: string;
+        mime?: string;
+        locked?: boolean;
+      }
+  )[];
+  buyerRating?: number | null;
+  buyerReview?: string;
+  paymentMethod?: string | null;
+  invoiceNumber?: string | null;
   basePackagePrice?: number;
   subtotal?: number;
   sellerPlatformFee?: number;
@@ -32,7 +45,6 @@ type OrderRow = {
   grandTotal?: number;
   requirements?: string;
   rating?: number;
-  buyerRating?: number;
 };
 
 type UiStatus =
@@ -49,7 +61,7 @@ type DatePreset = "all" | "30" | "90" | "year" | "custom";
 const PAGE_SIZE = 10;
 const FILTERS_KEY = "freelancer-orders-history-filters";
 
-function mapStatus(raw: string): UiStatus {
+function mapStatus(raw: string, deliveredAt?: string | null): UiStatus {
   const s = (raw || "").toLowerCase();
   if (s.includes("complete")) return "completed";
   if (s.includes("cancel")) return "canceled";
@@ -57,9 +69,16 @@ function mapStatus(raw: string): UiStatus {
   if (s.includes("revision")) return "revision";
   if (s === "pending") return "pending";
   if (s.includes("deliver") && !s.includes("escrow")) return "delivered";
+  if (deliveredAt && (s === "in_escrow" || s.includes("progress"))) {
+    return "delivered";
+  }
   if (s === "in_escrow" || s.includes("progress") || s === "active")
     return "in-progress";
   return "pending";
+}
+
+function orderUiStatus(o: { status: string; deliveredAt?: string | null }): UiStatus {
+  return mapStatus(o.status, o.deliveredAt);
 }
 
 function formatMoney(n?: number) {
@@ -81,7 +100,7 @@ function formatDate(iso?: string | null) {
 }
 
 function isOverdue(order: OrderRow): boolean {
-  const ui = mapStatus(order.status);
+  const ui = orderUiStatus(order);
   if (ui === "completed" || ui === "canceled") return false;
   if (!order.dueAt) return false;
   try {
@@ -95,23 +114,34 @@ function showToast(
   msg: string,
   type: "success" | "removed" | "info" = "success"
 ) {
-  const container = document.getElementById("toast-container");
-  if (!container) return;
+  let container = document.getElementById("toast-container");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
+  }
   const el = document.createElement("div");
   el.className = `toast ${type}`;
-  const icon =
+  const iconName =
     type === "removed"
       ? "fa-exclamation-triangle"
       : type === "info"
         ? "fa-info-circle"
         : "fa-check-circle";
-  el.innerHTML = `<i class="fas ${icon}"></i> <span>${msg}</span>`;
+  const icon = document.createElement("i");
+  icon.className = `fas ${iconName}`;
+  const span = document.createElement("span");
+  span.textContent = String(msg ?? "");
+  el.appendChild(icon);
+  el.appendChild(document.createTextNode(" "));
+  el.appendChild(span);
   container.appendChild(el);
   setTimeout(() => el.remove(), 3000);
 }
 
 function csvEscape(val: unknown): string {
-  const s = String(val ?? "");
+  let s = String(val ?? "");
+  if (/^[=+\-@]/.test(s)) s = `'${s}`;
   if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
@@ -128,7 +158,7 @@ function downloadCsv(filename: string, rows: string[][]) {
 }
 
 function buildTimeline(order: OrderRow) {
-  const ui = mapStatus(order.status);
+  const ui = orderUiStatus(order);
   const steps: {
     title: string;
     date?: string;
@@ -371,7 +401,7 @@ export default function FreelancerOrdersHistoryClient() {
     let list = orders.filter((o) => {
       if (!inDateRange(o.createdAt)) return false;
 
-      const ui = mapStatus(o.status);
+      const ui = orderUiStatus(o);
       const name = (o.buyer?.name || "").toLowerCase();
       const id = (o.orderNumber || o._id || "").toLowerCase();
       const svc = (o.packageName || o.service?.title || "").toLowerCase();
@@ -444,7 +474,7 @@ export default function FreelancerOrdersHistoryClient() {
     let pendingPayouts = 0;
     const ratings: number[] = [];
     orders.forEach((o) => {
-      const ui = mapStatus(o.status);
+      const ui = orderUiStatus(o);
       const amt = Number(o.amount) || 0;
       if (ui === "completed") {
         completed += 1;
@@ -467,7 +497,7 @@ export default function FreelancerOrdersHistoryClient() {
   const earningsByMonth = useMemo(() => {
     const map = new Map<string, number>();
     orders.forEach((o) => {
-      if (mapStatus(o.status) !== "completed") return;
+      if (orderUiStatus(o) !== "completed") return;
       const d = o.deliveredAt || o.updatedAt || o.createdAt;
       if (!d) return;
       const dt = new Date(d);
@@ -486,10 +516,102 @@ export default function FreelancerOrdersHistoryClient() {
     }));
   }, [orders]);
 
-  const openTracker = (order: OrderRow) => {
+  const openTracker = (
+    order: OrderRow,
+    tab: "summary" | "timeline" | "communication" | "files" | "invoice" = "summary"
+  ) => {
     setTrackerOrder(order);
-    setTrackerTab("summary");
+    setTrackerTab(tab);
     setTrackerOpen(true);
+  };
+
+  const [actionBusy, setActionBusy] = useState(false);
+
+  const postOrderAction = async (
+    orderId: string,
+    path: string,
+    body?: Record<string, unknown>
+  ) => {
+    setActionBusy(true);
+    try {
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(`/api/orders/${orderId}/${path}`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        showToast(
+          data.message || data.msg || `Action failed (${res.status})`,
+          "removed"
+        );
+        return false;
+      }
+      showToast(data.message || "Updated successfully");
+      await loadOrders();
+      return true;
+    } catch {
+      showToast("Network error", "removed");
+      return false;
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleDeliver = async () => {
+    if (!trackerOrder) return;
+    const note = window.prompt(
+      "Delivery note for the buyer (optional):"
+    );
+    if (note === null) return;
+    const ok = await postOrderAction(trackerOrder._id, "deliver", {
+      deliveryNote: note.trim(),
+      files: trackerOrder.deliveryFiles || [],
+    });
+    if (ok) {
+      setTrackerOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              deliveredAt: new Date().toISOString(),
+              deliveryNote: note.trim(),
+              status:
+                prev.status === "revision_requested" ? "in_escrow" : prev.status,
+            }
+          : prev
+      );
+    }
+  };
+
+  const handleRemind = async () => {
+    if (!trackerOrder) return;
+    await postOrderAction(trackerOrder._id, "remind");
+  };
+
+  const handleExtend = async () => {
+    if (!trackerOrder) return;
+    const reason = window.prompt("Why do you need more time?");
+    if (reason === null) return;
+    const dateStr = window.prompt(
+      "Proposed new due date (YYYY-MM-DD) — optional:"
+    );
+    if (dateStr === null) return;
+    const body: Record<string, unknown> = { reason: reason.trim() };
+    if (dateStr.trim()) body.proposedDate = dateStr.trim();
+    await postOrderAction(trackerOrder._id, "extend", body);
+  };
+
+  const handleInvoice = () => {
+    if (!trackerOrder) return;
+    window.open(`/api/orders/${trackerOrder._id}/invoice`, "_blank");
   };
 
   const closeTracker = () => {
@@ -847,7 +969,7 @@ export default function FreelancerOrdersHistoryClient() {
                   </tr>
                 ) : (
                   pageRows.map((order) => {
-                    const ui = mapStatus(order.status);
+                    const ui = orderUiStatus(order);
                     const oid =
                       order.orderNumber || `#${String(order._id).slice(-6)}`;
                     const act = actionLabel(ui);
@@ -880,7 +1002,7 @@ export default function FreelancerOrdersHistoryClient() {
                             <button
                               type="button"
                               className="clickable-id"
-                              onClick={() => openTracker(order)}
+                              onClick={() => openTracker(order, "timeline")}
                               title="Quick View Order Progress"
                             >
                               {oid}
@@ -970,7 +1092,7 @@ export default function FreelancerOrdersHistoryClient() {
                               <button
                                 type="button"
                                 className="btn-action btn-dark-gray btn-track-details"
-                                onClick={() => openTracker(order)}
+                                onClick={() => openTracker(order, "timeline")}
                               >
                                 <i className={act.icon} /> {act.text}
                               </button>
@@ -991,7 +1113,7 @@ export default function FreelancerOrdersHistoryClient() {
                                 <button
                                   type="button"
                                   className="btn-action btn-secondary"
-                                  onClick={() => openTracker(order)}
+                                  onClick={() => openTracker(order, "timeline")}
                                 >
                                   <i className="fas fa-compass" /> Tracker
                                 </button>
@@ -1039,266 +1161,391 @@ export default function FreelancerOrdersHistoryClient() {
         </div>
       </div>
 
-      {/* Order tracker modal */}
-      <div
-        className={`f-modal oh-modal${trackerOpen ? "" : " hidden"}`}
-        id="order-tracker-modal"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) closeTracker();
-        }}
-      >
-        {trackerOrder && (
-          <div className="modal-content large-modal">
-            <div className="modal-header">
-              <h2 className="modal-title">
-                <i className="fas fa-compass" /> Order Tracker{" "}
-                <span id="tracker-order-id" className="text-secondary">
+      {/* Order tracker modal — professional seller layout */}
+      {trackerOpen && trackerOrder && (
+        <div
+          className="modal-backdrop"
+          id="order-tracker-modal"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeTracker();
+          }}
+        >
+          <div className="modal-content detailed-order-modal-content buyer-tracker-modal seller-tracker-modal">
+            <div className="btm-header">
+              <div className="btm-header-left">
+                <div className="btm-brand" aria-label="Thick 9">
+                  <span className="btm-logo-mark">T9</span>
+                  <span className="btm-logo-text">Thick 9</span>
+                </div>
+                <span className="btm-header-divider" aria-hidden />
+                <div className="btm-seller">
+                  <Image
+                    src={trackerOrder.buyer?.avatar || "/default-avatar.png"}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="btm-seller-avatar"
+                    unoptimized
+                  />
+                  <div className="btm-seller-meta">
+                    <div className="btm-seller-name">
+                      {trackerOrder.buyer?.name || "Client"}
+                    </div>
+                    <span className="btm-seller-role">Buyer</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="btm-header-center">
+                <span className="btm-order-id">
+                  ORDER{" "}
                   {trackerOrder.orderNumber ||
-                    `#${String(trackerOrder._id).slice(-6)}`}
+                    `#${String(trackerOrder._id).slice(-6).toUpperCase()}`}
                 </span>
-              </h2>
-              <button
-                type="button"
-                className="close-modal-btn"
-                onClick={closeTracker}
-              >
-                &times;
-              </button>
+                <h3 className="btm-service-title">
+                  {trackerOrder.service?.title ||
+                    trackerOrder.packageName ||
+                    "Service"}
+                </h3>
+                <span
+                  className={`btm-status-chip status-${orderUiStatus(trackerOrder)}`}
+                >
+                  {orderUiStatus(trackerOrder)
+                    .replace("-", " ")
+                    .replace(/\b\w/g, (c) => c.toUpperCase())}
+                </span>
+              </div>
+
+              <div className="btm-header-right">
+                <span className="btm-amount">
+                  {formatMoney(
+                    trackerOrder.sellerEarnings ?? trackerOrder.amount
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="btm-btn-outline"
+                  onClick={() => contactClient(trackerOrder)}
+                >
+                  Message
+                </button>
+                <button
+                  type="button"
+                  className="btm-close"
+                  onClick={closeTracker}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
-            <div className="modal-body">
-              <div className="tracker-tabs-container">
-                <div className="tracker-tabs">
-                  {(
-                    [
-                      ["summary", "fa-info-circle", "Summary"],
-                      ["timeline", "fa-stream", "Progress Tracker"],
-                      ["communication", "fa-comments", "Messages"],
-                      ["files", "fa-box-open", "Delivery & Files"],
-                      ["invoice", "fa-file-invoice-dollar", "Invoice"],
-                    ] as const
-                  ).map(([key, icon, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={`tracker-tab-btn${
-                        trackerTab === key ? " active" : ""
-                      }`}
-                      onClick={() => setTrackerTab(key)}
-                    >
-                      <i className={`fas ${icon}`} /> {label}
-                    </button>
-                  ))}
-                </div>
+            <div className="btm-meta-strip">
+              <span>
+                <i className="far fa-calendar" /> Placed{" "}
+                {formatDate(trackerOrder.createdAt)}
+              </span>
+              <span>
+                <i className="far fa-clock" /> Due{" "}
+                {formatDate(trackerOrder.dueAt)}
+              </span>
+              <span>
+                <i className="fas fa-wallet" /> Your payout{" "}
+                {formatMoney(
+                  trackerOrder.sellerEarnings ?? trackerOrder.amount
+                )}
+              </span>
+              <span>
+                <i className="fas fa-shield-alt" /> Escrow protected
+              </span>
+            </div>
 
-                <div id="tracker-tab-content">
-                  {trackerTab === "summary" && (
-                    <div className="tracker-tab-pane active" id="tab-summary">
-                      <div className="tracker-summary-grid">
-                        <div id="summary-order-details">
-                          <h4 className="section-title">
-                            <i className="fas fa-clipboard-list" /> Order Summary
-                          </h4>
-                          <dl
-                            className="dl-stripped-table"
-                            id="summary-details-table"
-                          >
-                            <dt>Service:</dt>
-                            <dd>
-                              {trackerOrder.packageName ||
-                                trackerOrder.service?.title ||
+            <div className="modal-tabs btm-tabs">
+              {(
+                [
+                  ["summary", "Summary"],
+                  ["timeline", "Progress"],
+                  ["communication", "Messages"],
+                  ["files", "Files"],
+                  ["invoice", "Invoice"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`tab-button${
+                    trackerTab === key ? " active" : ""
+                  }`}
+                  onClick={() => setTrackerTab(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="tab-content-container btm-body">
+              {trackerTab === "summary" && (
+                <div className="tab-pane active">
+                  <div className="summary-columns-container">
+                    <div className="summary-column">
+                      <h4>Order summary</h4>
+                      <table className="summary-table stripped-table">
+                        <tbody>
+                          <tr>
+                            <th>Client</th>
+                            <td>{trackerOrder.buyer?.name || "—"}</td>
+                          </tr>
+                          <tr>
+                            <th>Service</th>
+                            <td>
+                              {trackerOrder.service?.title ||
+                                trackerOrder.packageName ||
                                 "—"}
-                            </dd>
-                            <dt>Client:</dt>
-                            <dd>{trackerOrder.buyer?.name || "—"}</dd>
-                            <dt>Date Placed:</dt>
-                            <dd>{formatDate(trackerOrder.createdAt)}</dd>
-                            <dt>Due Date:</dt>
-                            <dd>{formatDate(trackerOrder.dueAt)}</dd>
-                            <dt>Status:</dt>
-                            <dd>
-                              <span
-                                className={`status-badge status-${mapStatus(
-                                  trackerOrder.status
-                                )}`}
-                              >
-                                {mapStatus(trackerOrder.status)
-                                  .replace("-", " ")
-                                  .toUpperCase()}
-                              </span>
-                            </dd>
-                          </dl>
-                        </div>
-                        <div id="summary-price-breakdown">
-                          <h4 className="section-title">
-                            <i className="fas fa-dollar-sign" /> Payout Details
-                          </h4>
-                          <dl
-                            className="dl-stripped-table"
-                            id="payout-details-table"
-                          >
-                            <dt>Service Price:</dt>
-                            <dd>
+                            </td>
+                          </tr>
+                          <tr>
+                            <th>Requirements</th>
+                            <td>{trackerOrder.requirements || "—"}</td>
+                          </tr>
+                          <tr>
+                            <th>Due</th>
+                            <td>{formatDate(trackerOrder.dueAt)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="summary-column">
+                      <h4>Payout details</h4>
+                      <table className="stripped-table price-breakdown-table">
+                        <tbody>
+                          <tr>
+                            <th>Service / subtotal</th>
+                            <td>
                               {formatMoney(
                                 trackerOrder.subtotal ??
                                   trackerOrder.basePackagePrice
                               )}
-                            </dd>
-                            <dt className="total-row">Platform Fee:</dt>
-                            <dd className="total-row">
+                            </td>
+                          </tr>
+                          <tr>
+                            <th>Platform fee</th>
+                            <td>
                               −
                               {formatMoney(
                                 trackerOrder.sellerPlatformFee
                               ).replace("$", "")}
-                            </dd>
-                            <dt className="payout-row">Net Payout:</dt>
-                            <dd className="payout-row">
-                              {formatMoney(
-                                trackerOrder.sellerEarnings ??
-                                  trackerOrder.amount
-                              )}
-                            </dd>
-                          </dl>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {trackerTab === "timeline" && (
-                    <div className="tracker-tab-pane" id="tab-timeline">
-                      <h5 className="tab-pane-title">Order Milestones</h5>
-                      <div id="timeline-steps-container">
-                        {buildTimeline(trackerOrder).map((step, i) => (
-                          <div
-                            key={i}
-                            className={`timeline-item ${step.status}`}
-                          >
-                            <div className="timeline-dot-container">
-                              <span className="timeline-dot" />
-                            </div>
-                            <div className="timeline-content">
-                              <h5 style={{ marginTop: 0 }}>{step.title}</h5>
-                              <p
-                                className="text-secondary"
-                                style={{ fontSize: "0.9em", margin: "5px 0" }}
-                              >
-                                {step.date ? (
-                                  <strong>{step.date}</strong>
-                                ) : (
-                                  "Expected Soon"
+                            </td>
+                          </tr>
+                          <tr className="total-row">
+                            <th>Net payout</th>
+                            <td>
+                              <strong>
+                                {formatMoney(
+                                  trackerOrder.sellerEarnings ??
+                                    trackerOrder.amount
                                 )}
-                              </p>
-                              {step.detail ? (
-                                <p style={{ margin: 0, color: "#777" }}>
-                                  {step.detail}
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                              </strong>
+                            </td>
+                          </tr>
+                          {(trackerOrder.buyerRating != null ||
+                            trackerOrder.rating != null) && (
+                            <tr>
+                              <th>Buyer rating</th>
+                              <td>
+                                {trackerOrder.buyerRating ??
+                                  trackerOrder.rating}
+                                /5
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
                     </div>
-                  )}
+                  </div>
+                </div>
+              )}
 
-                  {trackerTab === "communication" && (
-                    <div className="tracker-tab-pane" id="tab-communication">
-                      <h5 className="tab-pane-title">Recent Chat History</h5>
-                      <div className="chat-window">
-                        Open the full conversation with{" "}
-                        {trackerOrder.buyer?.name || "the client"} for this
-                        order.
-                        <div style={{ marginTop: 12 }}>
-                          <button
-                            type="button"
-                            className="btn-action btn-oh-primary"
-                            onClick={() => contactClient(trackerOrder)}
-                          >
-                            <i className="fas fa-comment-dots" /> Open Messages
-                          </button>
+              {trackerTab === "timeline" && (
+                <div className="tab-pane active">
+                  <div
+                    className="order-timeline"
+                    id="timeline-steps-container"
+                  >
+                    {buildTimeline(trackerOrder).map((step, i) => (
+                      <div
+                        key={i}
+                        className={`timeline-item ${step.status}`}
+                      >
+                        <div className="timeline-dot-container">
+                          <div className="timeline-dot" />
+                        </div>
+                        <div className="timeline-content">
+                          <h4 className="timeline-title">{step.title}</h4>
+                          {step.date && (
+                            <p className="timeline-date">{step.date}</p>
+                          )}
+                          {step.detail && (
+                            <p className="timeline-detail">{step.detail}</p>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                  {trackerTab === "files" && (
-                    <div className="tracker-tab-pane" id="tab-files">
-                      <h5 className="tab-pane-title">Delivery & Revisions</h5>
-                      <ul id="delivery-files-list">
-                        {trackerOrder.deliveryNote ? (
-                          <li>
-                            <strong>Note:</strong> {trackerOrder.deliveryNote}
-                          </li>
-                        ) : null}
-                        {(trackerOrder.deliveryFiles || []).length > 0 ? (
-                          (trackerOrder.deliveryFiles || []).map((f, i) => (
-                            <li key={i}>
-                              <i className="fas fa-file-archive" />{" "}
-                              <a href={f} target="_blank" rel="noreferrer">
-                                {f.split("/").pop() || "File"}
+              {trackerTab === "communication" && (
+                <div className="tab-pane active">
+                  <h4>Messages</h4>
+                  <p className="btm-muted">
+                    Message {trackerOrder.buyer?.name || "the client"} about
+                    this order.
+                  </p>
+                  <button
+                    type="button"
+                    className="btm-btn btm-btn-dark"
+                    onClick={() => contactClient(trackerOrder)}
+                  >
+                    Open messages
+                  </button>
+                </div>
+              )}
+
+              {trackerTab === "files" && (
+                <div className="tab-pane active">
+                  <h4>Delivery files</h4>
+                  {trackerOrder.deliveryNote && (
+                    <p className="btm-delivery-note">
+                      <strong>Note:</strong> {trackerOrder.deliveryNote}
+                    </p>
+                  )}
+                  {(trackerOrder.deliveryFiles || []).length === 0 ? (
+                    <p className="btm-muted">
+                      No delivery files submitted yet.
+                    </p>
+                  ) : (
+                    <ul className="btm-file-list">
+                      {(trackerOrder.deliveryFiles || []).map((f, i) => {
+                        const isStr = typeof f === "string";
+                        const name = isStr
+                          ? f.split("/").pop() || `File ${i + 1}`
+                          : f.name || `File ${i + 1}`;
+                        const href = isStr
+                          ? f
+                          : f.url || f.previewUrl || null;
+                        return (
+                          <li key={i}>
+                            <i className="fas fa-file-download" />{" "}
+                            {href ? (
+                              <a href={href} target="_blank" rel="noreferrer">
+                                {name}
                               </a>
-                            </li>
-                          ))
-                        ) : (
-                          <li>No final delivery files submitted yet.</li>
-                        )}
-                      </ul>
-                    </div>
-                  )}
-
-                  {trackerTab === "invoice" && (
-                    <div className="tracker-tab-pane" id="tab-invoice">
-                      <h5 className="tab-pane-title">Invoice Record</h5>
-                      <p>
-                        Invoice details for Order{" "}
-                        {trackerOrder.orderNumber ||
-                          `#${String(trackerOrder._id).slice(-6)}`}
-                        .
-                      </p>
-                      <p>
-                        Total paid (buyer):{" "}
-                        {formatMoney(trackerOrder.grandTotal)}
-                      </p>
-                      <p>
-                        Your payout:{" "}
-                        {formatMoney(
-                          trackerOrder.sellerEarnings ?? trackerOrder.amount
-                        )}
-                      </p>
-                      <button
-                        type="button"
-                        className="btn-action btn-secondary"
-                        onClick={() =>
-                          showToast("PDF invoice export coming soon", "info")
-                        }
-                      >
-                        <i className="fas fa-download" /> Download Invoice (PDF)
-                      </button>
-                    </div>
+                            ) : (
+                              name
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </div>
-              </div>
+              )}
+
+              {trackerTab === "invoice" && (
+                <div className="tab-pane active">
+                  <h4>Invoice</h4>
+                  <p className="btm-muted">
+                    Buyer total: {formatMoney(trackerOrder.grandTotal)}
+                  </p>
+                  <p className="btm-muted">
+                    Your payout:{" "}
+                    {formatMoney(
+                      trackerOrder.sellerEarnings ?? trackerOrder.amount
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    className="btm-btn btm-btn-dark"
+                    onClick={handleInvoice}
+                  >
+                    Download invoice
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="tracker-footer-actions">
-              <button
-                type="button"
-                className="btn-action btn-oh-primary btn-contact"
-                onClick={() => contactClient(trackerOrder)}
-              >
-                <i className="fas fa-comment-dots" /> Contact Client
-              </button>
-              <Link
-                href={`/orders/${trackerOrder._id}`}
-                className="btn-action btn-dark-gray"
-                id="full-management-link"
-              >
-                <i className="fas fa-external-link-alt" /> Go to Full Management
-                Page
-              </Link>
+            <div className="btm-footer">
+              <div className="btm-footer-actions">
+                {(() => {
+                  const ui = orderUiStatus(trackerOrder);
+                  const canDeliver =
+                    ui === "in-progress" ||
+                    ui === "revision" ||
+                    (ui === "pending" && !!trackerOrder.dueAt);
+                  // Backend allows in_escrow | revision_requested
+                  const canDeliverApi =
+                    ui === "in-progress" || ui === "revision";
+                  const canRemind = ui === "pending";
+                  const canExtend = ui === "in-progress";
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        className="btm-btn btm-btn-green"
+                        disabled={actionBusy || !canDeliverApi}
+                        title={
+                          canDeliverApi
+                            ? "Submit delivery to the buyer"
+                            : "Available while order is in progress or revision"
+                        }
+                        onClick={handleDeliver}
+                      >
+                        Submit delivery
+                      </button>
+                      <button
+                        type="button"
+                        className="btm-btn btm-btn-dark"
+                        disabled={actionBusy || !canExtend}
+                        title="Request more time from the buyer"
+                        onClick={handleExtend}
+                      >
+                        Request extension
+                      </button>
+                      <button
+                        type="button"
+                        className="btm-btn btm-btn-outline"
+                        disabled={actionBusy || !canRemind}
+                        title="Remind the buyer (pending orders)"
+                        onClick={handleRemind}
+                      >
+                        Send reminder
+                      </button>
+                      <button
+                        type="button"
+                        className="btm-btn btm-btn-outline"
+                        onClick={() => contactClient(trackerOrder)}
+                      >
+                        Message buyer
+                      </button>
+                    </>
+                  );
+                })()}
+                <Link
+                  href={`/orders/${trackerOrder._id}`}
+                  className="btm-footer-link"
+                >
+                  Open full order details →
+                </Link>
+              </div>
+              <p className="btm-footer-caption">
+                After you deliver, the buyer can accept, request revision, or
+                open a dispute. Completing the order credits your available
+                balance.
+              </p>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div id="toast-container" />
     </>
