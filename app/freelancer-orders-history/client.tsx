@@ -165,6 +165,90 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
+
+
+function buildTimeline(order: OrderRow) {
+  const ui = orderUiStatus(order);
+  const steps: {
+    title: string;
+    date?: string;
+    status: string;
+    detail?: string;
+  }[] = [
+    {
+      title: "Order placed & confirmed",
+      date: formatDate(order.createdAt),
+      status: "completed",
+    },
+  ];
+
+  if (ui === "canceled") {
+    steps.push({
+      title: "Order canceled",
+      date: formatDate(order.updatedAt),
+      status: "canceled",
+      detail: "This order was cancelled.",
+    });
+    return steps;
+  }
+
+  steps.push({
+    title: "Work in progress",
+    date:
+      ui === "pending"
+        ? undefined
+        : formatDate(order.updatedAt || order.createdAt),
+    status:
+      ui === "pending"
+        ? "pending"
+        : ui === "in-progress" || ui === "revision"
+          ? "active"
+          : "completed",
+    detail:
+      ui === "revision"
+        ? "Revision requested by buyer."
+        : ui === "pending"
+          ? "Waiting on requirements / start."
+          : undefined,
+  });
+
+  if (order.deliveredAt || ui === "delivered" || ui === "completed") {
+    steps.push({
+      title: "Delivery submitted",
+      date: formatDate(order.deliveredAt || order.updatedAt),
+      status: ui === "completed" ? "completed" : "active",
+      detail: order.deliveryNote || undefined,
+    });
+  } else {
+    steps.push({ title: "Final delivery", status: "pending" });
+  }
+
+  if (ui === "completed") {
+    steps.push({
+      title: "Completed & closed",
+      date: formatDate(order.updatedAt),
+      status: "completed",
+    });
+  } else if (ui === "disputed") {
+    steps.push({
+      title: "Dispute opened",
+      date: formatDate(order.updatedAt),
+      status: "active",
+    });
+  } else {
+    steps.push({ title: "Closeout", status: "pending" });
+  }
+
+  return steps;
+}
+
+function startOfDaysAgo(days: number): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - days);
+  return d;
+}
+
 export default function FreelancerOrdersHistoryClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderRow[]>([]);
