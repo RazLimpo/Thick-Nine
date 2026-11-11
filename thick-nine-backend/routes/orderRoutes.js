@@ -579,17 +579,8 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
     order.buyerReview = String(req.body?.review || "").slice(0, 2000);
     order.ratedAt = new Date();
 
-    // Optional: mark completed when buyer rates after delivery
-    if (order.status === "in_escrow" || order.status === "revision_requested") {
-      if (order.deliveredAt) {
-        order.status = "completed";
-        if (!order.escrowReleaseDate) {
-          const release = new Date();
-          release.setDate(release.getDate() + 14);
-          order.escrowReleaseDate = release;
-        }
-      }
-    }
+    // Rating only — never change status or credit wallets here.
+    // Buyer must use POST /:id/complete for completion + seller/affiliate credits.
 
     await order.save();
 

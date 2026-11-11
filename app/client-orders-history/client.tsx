@@ -162,19 +162,25 @@ function showToast(
   message: string,
   type: "success" | "removed" | "info" = "success"
 ) {
-  const container = document.getElementById("toast-container");
+  let container = document.getElementById("toast-container");
   if (!container) {
-    // Fallback: create container
-    const c = document.createElement("div");
-    c.id = "toast-container";
-    document.body.appendChild(c);
-    return showToast(message, type);
+    container = document.createElement("div");
+    container.id = "toast-container";
+    document.body.appendChild(container);
   }
   const el = document.createElement("div");
   el.className = `toast ${type === "removed" ? "removed" : ""}`;
-  el.innerHTML = `<i class="fas ${
+
+  const icon = document.createElement("i");
+  icon.className = `fas ${
     type === "removed" ? "fa-exclamation-circle" : "fa-check-circle"
-  }"></i><span>${message}</span>`;
+  }`;
+
+  const span = document.createElement("span");
+  span.textContent = String(message ?? "");
+
+  el.appendChild(icon);
+  el.appendChild(span);
   container.appendChild(el);
   setTimeout(() => el.remove(), 3500);
 }
@@ -274,7 +280,7 @@ export default function ClientOrdersHistoryClient() {
         router.replace("/?auth=login");
         return;
       }
-      const res = await fetch("/api/orders/purchases?limit=100", {
+      const res = await fetch("/api/orders/purchases?limit=200", {
         headers: authHeaders(),
         credentials: "include",
         cache: "no-store",
@@ -493,9 +499,13 @@ export default function ClientOrdersHistoryClient() {
       "Cancel this order? Refunds follow platform policy. This cannot be undone from here."
     );
     if (!okConfirm) return;
-    const reason = window.prompt("Optional reason for cancellation:") || "";
+    // null = user dismissed the prompt → abort cancel
+    const reasonRaw = window.prompt(
+      "Optional reason for cancellation (Cancel closes without cancelling the order):"
+    );
+    if (reasonRaw === null) return;
     const ok = await postOrderAction(activeOrder._id, "cancel", {
-      reason: reason.trim(),
+      reason: reasonRaw.trim(),
     });
     if (ok) {
       setActiveOrder((prev) =>
@@ -585,6 +595,12 @@ export default function ClientOrdersHistoryClient() {
       "Status",
       "Payment",
     ];
+    const csvCell = (value: unknown) => {
+      let s = String(value ?? "");
+      // Neutralize spreadsheet formula injection
+      if (/^[=+\-@]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const rows = filtered.map((o) => [
       orderDisplayId(o),
       o.service?.title || o.packageName || "",
@@ -596,9 +612,7 @@ export default function ClientOrdersHistoryClient() {
       o.paymentStatus || o.paymentMethod || "",
     ]);
     const csv = [header, ...rows]
-      .map((r) =>
-        r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
-      )
+      .map((r) => r.map(csvCell).join(","))
       .join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -1164,8 +1178,7 @@ export default function ClientOrdersHistoryClient() {
                     ))}
                   </div>
 
-                  {(orderUiStatus(activeOrder) === "completed" ||
-                    orderUiStatus(activeOrder) === "delivered") && (
+                  {orderUiStatus(activeOrder) === "completed" && (
                     <div className="btm-rate-block">
                       <h4>Rate this order</h4>
                       {activeOrder.buyerRating != null && activeOrder.ratedAt ? (
