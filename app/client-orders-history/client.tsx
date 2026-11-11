@@ -181,6 +181,7 @@ function showToast(
 
 function buildTimeline(order: ClientOrder) {
   const ui = orderUiStatus(order);
+  const fileCount = (order.deliveryFiles || []).length;
   const steps: {
     title: string;
     date?: string;
@@ -188,13 +189,14 @@ function buildTimeline(order: ClientOrder) {
     state: "completed" | "active" | "pending";
   }[] = [
     {
-      title: "Order placed & paid",
+      title: "Order placed",
       date: formatDate(order.createdAt),
       state: "completed",
     },
     {
-      title: "Freelancer working",
-      detail: "Your order is in progress.",
+      title: "In progress",
+      detail:
+        ui === "pending" ? "Waiting for the freelancer to start" : undefined,
       state:
         ui === "pending"
           ? "pending"
@@ -205,7 +207,11 @@ function buildTimeline(order: ClientOrder) {
     {
       title: "Delivered for review",
       date: order.deliveredAt ? formatDate(order.deliveredAt) : undefined,
-      detail: order.deliveryNote || undefined,
+      detail: order.deliveredAt
+        ? fileCount
+          ? `${fileCount} file${fileCount === 1 ? "" : "s"} attached · preview only until you accept`
+          : order.deliveryNote || "Preview only until you accept"
+        : undefined,
       state:
         ui === "delivered"
           ? "active"
@@ -221,6 +227,7 @@ function buildTimeline(order: ClientOrder) {
             ? "Order canceled"
             : "Completed",
       date: order.completedAt ? formatDate(order.completedAt) : undefined,
+      detail: ui === "delivered" ? "Awaiting your action" : undefined,
       state:
         ui === "completed" || ui === "disputed" || ui === "canceled"
           ? "completed"
@@ -921,7 +928,7 @@ export default function ClientOrdersHistoryClient() {
         </button>
       </div>
 
-      {/* Tracker modal */}
+      {/* Tracker modal — professional layout */}
       {activeOrder && (
         <div
           id="tracker-modal-backdrop"
@@ -931,65 +938,119 @@ export default function ClientOrdersHistoryClient() {
           }}
         >
           <div className="modal-content detailed-order-modal-content buyer-tracker-modal">
-            <button
-              type="button"
-              className="close-modal-btn tracker-close-btn"
-              onClick={closeModal}
-              aria-label="Close"
-            >
-              ×
-            </button>
-            <div className="modal-header">
-              <h3 id="modal-order-title">
-                Order <span>{orderDisplayId(activeOrder)}</span>:{" "}
-                <span>
-                  {activeOrder.service?.title || activeOrder.packageName || "Service"}
+            {/* ===== HEADER ===== */}
+            <div className="btm-header">
+              <div className="btm-header-left">
+                <div className="btm-brand" aria-label="Thick 9">
+                  <span className="btm-logo-mark">T9</span>
+                  <span className="btm-logo-text">Thick 9</span>
+                </div>
+                <span className="btm-header-divider" aria-hidden />
+                <div className="btm-seller">
+                  <Image
+                    src={activeOrder.seller?.avatar || "/default-avatar.png"}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="btm-seller-avatar"
+                    unoptimized
+                  />
+                  <div className="btm-seller-meta">
+                    <div className="btm-seller-name">
+                      {activeOrder.seller?.name || "Freelancer"}
+                      <i className="fas fa-check-circle btm-verified" title="Verified" />
+                    </div>
+                    <span className="btm-seller-role">Seller</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="btm-header-center">
+                <span className="btm-order-id">
+                  ORDER {orderDisplayId(activeOrder)}
                 </span>
-              </h3>
-              <p className="due-date-info">
-                Status:{" "}
+                <h3 className="btm-service-title">
+                  {activeOrder.service?.title ||
+                    activeOrder.packageName ||
+                    "Service"}
+                </h3>
                 <span
-                  className={`status-badge ${statusClass(
+                  className={`btm-status-chip ${statusClass(
                     orderUiStatus(activeOrder)
                   )}`}
                 >
-                  {statusLabel(orderUiStatus(activeOrder))}
-                </span>{" "}
-                | Due: <span>{formatDate(activeOrder.dueAt)}</span>
-              </p>
-              <button
-                type="button"
-                id="reorder-btn"
-                className="btn-action"
-                onClick={() => handleReorder(activeOrder)}
-              >
-                <i className="fas fa-redo" /> Reorder
-              </button>
+                  {orderUiStatus(activeOrder) === "delivered"
+                    ? "Delivered · awaiting your review"
+                    : statusLabel(orderUiStatus(activeOrder))}
+                </span>
+              </div>
+
+              <div className="btm-header-right">
+                <span className="btm-amount">
+                  {formatMoney(activeOrder.grandTotal ?? activeOrder.amount)}
+                </span>
+                <button
+                  type="button"
+                  className="btm-btn-outline"
+                  onClick={() => handleReorder(activeOrder)}
+                >
+                  Reorder
+                </button>
+                <button
+                  type="button"
+                  className="btm-close"
+                  onClick={closeModal}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
-            <div className="modal-tabs">
+            {/* ===== META STRIP ===== */}
+            <div className="btm-meta-strip">
+              <span>
+                <i className="far fa-calendar" /> Placed{" "}
+                {formatDate(activeOrder.createdAt)}
+              </span>
+              <span>
+                <i className="far fa-clock" /> Due {formatDate(activeOrder.dueAt)}
+              </span>
+              <span>
+                <i className="far fa-credit-card" />{" "}
+                {activeOrder.paymentMethod
+                  ? `Paid by ${activeOrder.paymentMethod}`
+                  : "Payment recorded"}
+              </span>
+              <span>
+                <i className="fas fa-shield-alt" /> Escrow protected
+              </span>
+            </div>
+
+            {/* ===== TABS ===== */}
+            <div className="modal-tabs btm-tabs">
               {(
                 [
-                  ["summary", "Summary", "fa-info-circle"],
-                  ["tracker", "Progress Tracker", "fa-map-marker-alt"],
-                  ["communication", "Messages", "fa-comments"],
-                  ["files", "Delivery & Files", "fa-file-download"],
-                  ["invoice", "Invoice", "fa-file-invoice-dollar"],
+                  ["summary", "Summary"],
+                  ["tracker", "Progress"],
+                  ["communication", "Messages"],
+                  ["files", "Files"],
+                  ["invoice", "Invoice"],
                 ] as const
-              ).map(([id, label, icon]) => (
+              ).map(([id, label]) => (
                 <button
                   key={id}
                   type="button"
                   className={`tab-button ${modalTab === id ? "active" : ""}`}
                   onClick={() => setModalTab(id)}
                 >
-                  <i className={`fas ${icon}`} /> {label}
+                  {label}
                 </button>
               ))}
             </div>
 
-            <div id="modal-content-area" className="tab-content-container">
-              {/* Summary */}
+            {/* ===== BODY ===== */}
+            <div id="modal-content-area" className="tab-content-container btm-body">
               {modalTab === "summary" && (
                 <div className="tab-pane active" id="tab-summary">
                   <div className="summary-columns-container">
@@ -998,9 +1059,7 @@ export default function ClientOrdersHistoryClient() {
                       <table className="summary-table stripped-table">
                         <tbody>
                           <tr>
-                            <th>
-                              <i className="fas fa-user-tie" /> Freelancer
-                            </th>
+                            <th>Freelancer</th>
                             <td>
                               {activeOrder.seller?.name || "—"}{" "}
                               {activeOrder.seller?._id && (
@@ -1008,21 +1067,17 @@ export default function ClientOrdersHistoryClient() {
                                   href={`/freelancer-profile?id=${activeOrder.seller._id}`}
                                   target="_blank"
                                 >
-                                  View Profile
+                                  View profile
                                 </Link>
                               )}
                             </td>
                           </tr>
                           <tr>
-                            <th>
-                              <i className="fas fa-box-open" /> Package
-                            </th>
+                            <th>Package</th>
                             <td>{activeOrder.packageName || "—"}</td>
                           </tr>
                           <tr>
-                            <th>
-                              <i className="fas fa-clipboard-list" /> Requirements
-                            </th>
+                            <th>Requirements</th>
                             <td id="summary-description">
                               {activeOrder.requirements || "—"}
                             </td>
@@ -1032,44 +1087,42 @@ export default function ClientOrdersHistoryClient() {
                     </div>
                     <div className="summary-column">
                       <h4>Price Breakdown</h4>
-                      <div id="summary-price-breakdown">
-                        <table className="stripped-table price-breakdown-table">
-                          <tbody>
-                            <tr>
-                              <th>Subtotal</th>
-                              <td>
-                                <strong>
-                                  {formatMoney(
-                                    activeOrder.subtotal ??
-                                      activeOrder.basePackagePrice ??
-                                      activeOrder.amount
-                                  )}
-                                </strong>
-                              </td>
+                      <table className="stripped-table price-breakdown-table">
+                        <tbody>
+                          <tr>
+                            <th>Subtotal</th>
+                            <td>
+                              <strong>
+                                {formatMoney(
+                                  activeOrder.subtotal ??
+                                    activeOrder.basePackagePrice ??
+                                    activeOrder.amount
+                                )}
+                              </strong>
+                            </td>
+                          </tr>
+                          {(activeOrder.selectedAddons || []).map((a, i) => (
+                            <tr key={i}>
+                              <th>{a.title || "Add-on"}</th>
+                              <td>{formatMoney(a.price)}</td>
                             </tr>
-                            {(activeOrder.selectedAddons || []).map((a, i) => (
-                              <tr key={i}>
-                                <th>{a.title || "Add-on"}</th>
-                                <td>{formatMoney(a.price)}</td>
-                              </tr>
-                            ))}
-                            <tr className="total-row">
-                              <th>Total Paid</th>
-                              <td>
-                                <strong style={{ color: "#2c3e50" }}>
-                                  {formatMoney(
-                                    activeOrder.grandTotal ?? activeOrder.amount
-                                  )}
-                                </strong>
-                              </td>
-                            </tr>
-                            <tr>
-                              <th>Payment Method</th>
-                              <td>{activeOrder.paymentMethod || "—"}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
+                          ))}
+                          <tr className="total-row">
+                            <th>Total paid</th>
+                            <td>
+                              <strong>
+                                {formatMoney(
+                                  activeOrder.grandTotal ?? activeOrder.amount
+                                )}
+                              </strong>
+                            </td>
+                          </tr>
+                          <tr>
+                            <th>Payment method</th>
+                            <td>{activeOrder.paymentMethod || "—"}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                   {orderUiStatus(activeOrder) === "disputed" && (
@@ -1087,13 +1140,9 @@ export default function ClientOrdersHistoryClient() {
                 </div>
               )}
 
-              {/* Tracker */}
               {modalTab === "tracker" && (
                 <div className="tab-pane active" id="tab-tracker">
-                  <div
-                    className="order-timeline"
-                    id="timeline-steps-container"
-                  >
+                  <div className="order-timeline" id="timeline-steps-container">
                     {buildTimeline(activeOrder).map((step, idx) => (
                       <div
                         key={idx}
@@ -1105,9 +1154,7 @@ export default function ClientOrdersHistoryClient() {
                         <div className="timeline-content">
                           <h4 className="timeline-title">{step.title}</h4>
                           {step.date && (
-                            <p className="timeline-date">
-                              <i className="fas fa-calendar-alt" /> {step.date}
-                            </p>
+                            <p className="timeline-date">{step.date}</p>
                           )}
                           {step.detail && (
                             <p className="timeline-detail">{step.detail}</p>
@@ -1117,118 +1164,29 @@ export default function ClientOrdersHistoryClient() {
                     ))}
                   </div>
 
-                  <div className="tracker-action-area buyer-action-grid">
-                    {(() => {
-                      const ui = orderUiStatus(activeOrder);
-                      const hasDelivery = !!activeOrder.deliveredAt;
-                      const canRevise =
-                        hasDelivery &&
-                        (ui === "delivered" ||
-                          ui === "in-progress" ||
-                          ui === "revision");
-                      const canComplete =
-                        hasDelivery &&
-                        ui !== "completed" &&
-                        ui !== "canceled" &&
-                        ui !== "disputed";
-                      const canDispute =
-                        ui !== "completed" &&
-                        ui !== "canceled" &&
-                        ui !== "disputed";
-                      const canCancel =
-                        !hasDelivery &&
-                        ui !== "completed" &&
-                        ui !== "canceled" &&
-                        ui !== "disputed";
-                      return (
-                        <>
-                          <button
-                            type="button"
-                            className="btn-action btn-buyer-primary"
-                            disabled={actionBusy || !canRevise}
-                            title={
-                              canRevise
-                                ? "Ask the freelancer to change the delivery"
-                                : "Available after the freelancer delivers"
-                            }
-                            onClick={handleRevision}
-                          >
-                            <i className="fas fa-undo" /> Request Revision
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-action btn-buyer-success"
-                            disabled={actionBusy || !canComplete}
-                            title={
-                              canComplete
-                                ? "Accept delivery and close the order"
-                                : "Available after delivery is submitted"
-                            }
-                            onClick={handleComplete}
-                          >
-                            <i className="fas fa-check" /> Mark As Complete
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-action btn-danger-text"
-                            disabled={actionBusy || !canDispute}
-                            title="Escalate if work is unsatisfactory"
-                            onClick={handleDispute}
-                          >
-                            <i className="fas fa-gavel" /> Open Dispute
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-action btn-danger-text"
-                            disabled={actionBusy || !canCancel}
-                            title={
-                              canCancel
-                                ? "Cancel before delivery is submitted"
-                                : "After delivery, use Revision or Dispute"
-                            }
-                            onClick={handleCancel}
-                          >
-                            <i className="fas fa-times" /> Cancel Order
-                          </button>
-                          <Link
-                            href={`/orders/${activeOrder._id}`}
-                            className="btn-action btn-buyer-ghost"
-                          >
-                            <i className="fas fa-external-link-alt" /> Full order
-                            page
-                          </Link>
-                        </>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Rating after complete */}
                   {(orderUiStatus(activeOrder) === "completed" ||
                     orderUiStatus(activeOrder) === "delivered") && (
-                    <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #eee" }}>
+                    <div className="btm-rate-block">
                       <h4>Rate this order</h4>
                       {activeOrder.buyerRating != null && activeOrder.ratedAt ? (
                         <p>
-                          You rated this <strong>{activeOrder.buyerRating}/5</strong>
+                          You rated this{" "}
+                          <strong>{activeOrder.buyerRating}/5</strong>
                           {activeOrder.buyerReview
                             ? ` — “${activeOrder.buyerReview}”`
                             : ""}
                         </p>
                       ) : (
                         <>
-                          <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
+                          <div className="btm-stars">
                             {[1, 2, 3, 4, 5].map((n) => (
                               <button
                                 key={n}
                                 type="button"
                                 onClick={() => setRateValue(n)}
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  fontSize: "1.4rem",
-                                  color: n <= rateValue ? "#f59e0b" : "#cbd5e1",
-                                }}
+                                className={
+                                  n <= rateValue ? "star on" : "star"
+                                }
                                 aria-label={`${n} stars`}
                               >
                                 ★
@@ -1240,17 +1198,11 @@ export default function ClientOrdersHistoryClient() {
                             onChange={(e) => setRateReview(e.target.value)}
                             placeholder="Optional review…"
                             rows={3}
-                            style={{
-                              width: "100%",
-                              padding: 10,
-                              borderRadius: 6,
-                              border: "1px solid #e2e8f0",
-                              marginBottom: 8,
-                            }}
+                            className="btm-review-input"
                           />
                           <button
                             type="button"
-                            className="btn-action"
+                            className="btn-action btn-buyer-primary"
                             disabled={actionBusy}
                             onClick={handleRate}
                           >
@@ -1263,28 +1215,26 @@ export default function ClientOrdersHistoryClient() {
                 </div>
               )}
 
-              {/* Messages */}
               {modalTab === "communication" && (
                 <div className="tab-pane active" id="tab-communication">
-                  <h4>Communication</h4>
-                  <p style={{ color: "#718096", marginBottom: 12 }}>
-                    Continue the conversation in your messages inbox (order-linked
-                    when available).
+                  <h4>Messages</h4>
+                  <p className="btm-muted">
+                    Continue the conversation in your inbox (linked to this
+                    order when available).
                   </p>
                   <button
                     type="button"
-                    className="btn-action"
+                    className="btn-action btn-buyer-primary"
                     onClick={() => handleContact(activeOrder)}
                   >
-                    <i className="fas fa-comments" /> Open Messages
+                    <i className="fas fa-comments" /> Open messages
                   </button>
                 </div>
               )}
 
-              {/* Files */}
               {modalTab === "files" && (
                 <div className="tab-pane active" id="tab-files">
-                  <h4>Delivery Files</h4>
+                  <h4>Delivery files</h4>
                   {(() => {
                     const files = activeOrder.deliveryFiles || [];
                     const anyLocked = files.some(
@@ -1297,21 +1247,18 @@ export default function ClientOrdersHistoryClient() {
                     return (
                       <>
                         {(incomplete || anyLocked) && files.length > 0 && (
-                          <p
-                            className="alert-box"
-                            style={{ marginBottom: 12 }}
-                          >
+                          <p className="alert-box">
                             Preview files may remain watermarked until you mark
                             the order complete. Final downloads unlock after
                             completion.
                           </p>
                         )}
                         {files.length === 0 ? (
-                          <p style={{ color: "#718096" }}>
+                          <p className="btm-muted">
                             No files have been delivered yet.
                           </p>
                         ) : (
-                          <ul id="delivery-files-list">
+                          <ul id="delivery-files-list" className="btm-file-list">
                             {files.map((f, i) => {
                               const isStr = typeof f === "string";
                               const name = isStr
@@ -1322,7 +1269,7 @@ export default function ClientOrdersHistoryClient() {
                                 : f.url || f.previewUrl || null;
                               const locked = !isStr && !!f.locked;
                               return (
-                                <li key={i} style={{ marginBottom: 8 }}>
+                                <li key={i}>
                                   <i className="fas fa-file-download" />{" "}
                                   {href ? (
                                     <a
@@ -1347,50 +1294,127 @@ export default function ClientOrdersHistoryClient() {
                     );
                   })()}
                   {activeOrder.deliveryNote && (
-                    <p style={{ marginTop: 12 }}>
+                    <p className="btm-delivery-note">
                       <strong>Note:</strong> {activeOrder.deliveryNote}
                     </p>
                   )}
                 </div>
               )}
 
-              {/* Invoice */}
               {modalTab === "invoice" && (
                 <div className="tab-pane active" id="tab-invoice">
-                  <h4>Invoice & Payment</h4>
+                  <h4>Invoice & payment</h4>
                   <button
                     type="button"
-                    id="download-invoice-btn"
-                    className="btn-action"
+                    className="btn-action btn-buyer-primary"
                     onClick={() => handleDownloadInvoice(activeOrder)}
                   >
-                    <i className="fas fa-file-pdf" /> Download Invoice
+                    <i className="fas fa-file-pdf" /> Download invoice
                   </button>
-                  <p style={{ marginTop: 12 }}>
-                    Payment Method:{" "}
-                    <span>{activeOrder.paymentMethod || "—"}</span>
+                  <p className="btm-muted" style={{ marginTop: 12 }}>
+                    Payment method: {activeOrder.paymentMethod || "—"}
                   </p>
-                  <p>
-                    Payment / order date:{" "}
-                    <span>{formatDate(activeOrder.createdAt)}</span>
+                  <p className="btm-muted">
+                    Order date: {formatDate(activeOrder.createdAt)}
                   </p>
                   {activeOrder.invoiceNumber && (
-                    <p>
-                      Invoice #: <span>{activeOrder.invoiceNumber}</span>
+                    <p className="btm-muted">
+                      Invoice #: {activeOrder.invoiceNumber}
                     </p>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="modal-footer" style={{ marginTop: 20 }}>
-              <button
-                type="button"
-                className="btn-action btn-contact"
-                onClick={() => handleContact(activeOrder)}
-              >
-                Contact Freelancer
-              </button>
+            {/* ===== FOOTER ACTIONS ===== */}
+            <div className="btm-footer">
+              <div className="btm-footer-actions">
+                {(() => {
+                  const ui = orderUiStatus(activeOrder);
+                  const hasDelivery = !!activeOrder.deliveredAt;
+                  const canRevise =
+                    hasDelivery &&
+                    (ui === "delivered" ||
+                      ui === "in-progress" ||
+                      ui === "revision");
+                  const canComplete =
+                    hasDelivery &&
+                    ui !== "completed" &&
+                    ui !== "canceled" &&
+                    ui !== "disputed";
+                  const canDispute =
+                    ui !== "completed" &&
+                    ui !== "canceled" &&
+                    ui !== "disputed";
+                  const canCancel =
+                    !hasDelivery &&
+                    ui !== "completed" &&
+                    ui !== "canceled" &&
+                    ui !== "disputed";
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        className="btm-btn btm-btn-dark"
+                        disabled={actionBusy || !canRevise}
+                        title={
+                          canRevise
+                            ? "Ask the freelancer to change the delivery"
+                            : "Available after the freelancer delivers"
+                        }
+                        onClick={handleRevision}
+                      >
+                        Request revision
+                      </button>
+                      <button
+                        type="button"
+                        className="btm-btn btm-btn-green"
+                        disabled={actionBusy || !canComplete}
+                        title={
+                          canComplete
+                            ? "Accept delivery and close the order"
+                            : "Available after delivery is submitted"
+                        }
+                        onClick={handleComplete}
+                      >
+                        Mark as complete
+                      </button>
+                      <button
+                        type="button"
+                        className="btm-btn btm-btn-outline"
+                        disabled={actionBusy || !canDispute}
+                        onClick={handleDispute}
+                      >
+                        Open dispute
+                      </button>
+                      <button
+                        type="button"
+                        className="btm-btn btm-btn-outline btm-btn-muted"
+                        disabled={actionBusy || !canCancel}
+                        title={
+                          canCancel
+                            ? "Cancel before delivery is submitted"
+                            : "After delivery, use Revision or Dispute"
+                        }
+                        onClick={handleCancel}
+                      >
+                        Cancel order
+                      </button>
+                    </>
+                  );
+                })()}
+                <Link
+                  href={`/orders/${activeOrder._id}`}
+                  className="btm-footer-link"
+                >
+                  Open full order details →
+                </Link>
+              </div>
+              <p className="btm-footer-caption">
+                Completing releases final files and starts the seller payout
+                schedule. Need help?{" "}
+                <a href="/messages">Contact support</a>.
+              </p>
             </div>
           </div>
         </div>
