@@ -34,10 +34,6 @@ type OrderRow = {
         locked?: boolean;
       }
   )[];
-  buyerRating?: number | null;
-  buyerReview?: string;
-  paymentMethod?: string | null;
-  invoiceNumber?: string | null;
   basePackagePrice?: number;
   subtotal?: number;
   sellerPlatformFee?: number;
@@ -45,6 +41,9 @@ type OrderRow = {
   grandTotal?: number;
   requirements?: string;
   rating?: number;
+  buyerRating?: number;
+  paymentMethod?: string | null;
+  invoiceNumber?: string | null;
 };
 
 type UiStatus =
@@ -57,6 +56,12 @@ type UiStatus =
   | "revision";
 
 type DatePreset = "all" | "30" | "90" | "year" | "custom";
+type TrackerTab =
+  | "summary"
+  | "timeline"
+  | "communication"
+  | "files"
+  | "invoice";
 
 const PAGE_SIZE = 10;
 const FILTERS_KEY = "freelancer-orders-history-filters";
@@ -77,7 +82,10 @@ function mapStatus(raw: string, deliveredAt?: string | null): UiStatus {
   return "pending";
 }
 
-function orderUiStatus(o: { status: string; deliveredAt?: string | null }): UiStatus {
+function orderUiStatus(o: {
+  status: string;
+  deliveredAt?: string | null;
+}): UiStatus {
   return mapStatus(o.status, o.deliveredAt);
 }
 
@@ -157,6 +165,63 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
+/** Smooth curved sparkline (quadratic midpoints) for metric cards */
+function Sparkline({
+  values,
+  stroke = "rgba(255,255,255,0.95)",
+}: {
+  values: number[];
+  stroke?: string;
+}) {
+  const w = 120;
+  const h = 40;
+  const data =
+    values.length >= 2 ? values : [0, 1, 0.6, 1.2, 0.9, 1.4, 1.1];
+  const max = Math.max(...data, 0.001);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 6) - 3;
+    return { x, y };
+  });
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    const mx = (a.x + b.x) / 2;
+    d += ` Q ${a.x},${a.y} ${mx},${(a.y + b.y) / 2}`;
+    d += ` Q ${b.x},${b.y} ${b.x},${b.y}`;
+  }
+  // simpler smooth path
+  d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1];
+    const cur = pts[i];
+    const cpx = (prev.x + cur.x) / 2;
+    d += ` C ${cpx},${prev.y} ${cpx},${cur.y} ${cur.x},${cur.y}`;
+  }
+  return (
+    <svg
+      className="oh-sparkline"
+      viewBox={`0 0 ${w} ${h}`}
+      width="100%"
+      height="44"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <path
+        d={d}
+        fill="none"
+        stroke={stroke}
+        strokeWidth="2.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function buildTimeline(order: OrderRow) {
   const ui = orderUiStatus(order);
   const steps: {
@@ -166,7 +231,7 @@ function buildTimeline(order: OrderRow) {
     detail?: string;
   }[] = [
     {
-      title: "Order Placed & Confirmed",
+      title: "Order placed & confirmed",
       date: formatDate(order.createdAt),
       status: "completed",
     },
@@ -174,7 +239,7 @@ function buildTimeline(order: OrderRow) {
 
   if (ui === "canceled") {
     steps.push({
-      title: "Order Canceled",
+      title: "Order canceled",
       date: formatDate(order.updatedAt),
       status: "canceled",
       detail: "This order was cancelled.",
@@ -219,6 +284,12 @@ function buildTimeline(order: OrderRow) {
       date: formatDate(order.updatedAt),
       status: "completed",
     });
+  } else if (ui === "disputed") {
+    steps.push({
+      title: "Dispute opened",
+      date: formatDate(order.updatedAt),
+      status: "active",
+    });
   } else {
     steps.push({ title: "Closeout", status: "pending" });
   }
@@ -233,9 +304,31 @@ function startOfDaysAgo(days: number): Date {
   return d;
 }
 
+/** Build a small series from orders for sparkline visual */
+function seriesFromOrders(
+  orders: OrderRow[],
+  pick: (o: OrderRow) => number
+): number[] {
+  const now = Date.now();
+  const buckets = Array.from({ length: 7 }, () => 0);
+  orders.forEach((o) => {
+    const t = o.createdAt ? new Date(o.createdAt).getTime() : 0;
+    if (!t) return;
+    const daysAgo = Math.floor((now - t) / 86400000);
+    if (daysAgo < 0 || daysAgo > 48) return;
+    const idx = Math.min(6, 6 - Math.floor(daysAgo / 7));
+    buckets[idx] += pick(o);
+  });
+  if (buckets.every((v) => v === 0)) {
+    return [2, 3, 2.5, 4, 3.5, 5, 4.5];
+  }
+  return buckets;
+}
+
 export default function FreelancerOrdersHistoryClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [listTruncated, setListTruncated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -247,14 +340,12 @@ export default function FreelancerOrdersHistoryClient() {
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filtersReady, setFiltersReady] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [trackerOrder, setTrackerOrder] = useState<OrderRow | null>(null);
-  const [trackerTab, setTrackerTab] = useState<
-    "summary" | "timeline" | "communication" | "files" | "invoice"
-  >("summary");
+  const [trackerTab, setTrackerTab] = useState<TrackerTab>("summary");
 
-  // Restore saved filters
   useEffect(() => {
     try {
       const raw = localStorage.getItem(FILTERS_KEY);
@@ -274,7 +365,6 @@ export default function FreelancerOrdersHistoryClient() {
     setFiltersReady(true);
   }, []);
 
-  // Persist filters
   useEffect(() => {
     if (!filtersReady) return;
     try {
@@ -316,7 +406,7 @@ export default function FreelancerOrdersHistoryClient() {
   const loadOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/orders/mine?limit=200", {
+      const res = await fetch("/api/orders/mine?limit=500", {
         credentials: "include",
         headers: getAuthHeaders(),
         cache: "no-store",
@@ -332,8 +422,10 @@ export default function FreelancerOrdersHistoryClient() {
         return;
       }
       setOrders(Array.isArray(data.orders) ? data.orders : []);
+      setListTruncated(Boolean(data.meta?.truncated));
     } catch {
       setOrders([]);
+      setListTruncated(false);
       showToast("Network error loading history", "removed");
     } finally {
       setLoading(false);
@@ -405,11 +497,13 @@ export default function FreelancerOrdersHistoryClient() {
       const name = (o.buyer?.name || "").toLowerCase();
       const id = (o.orderNumber || o._id || "").toLowerCase();
       const svc = (o.packageName || o.service?.title || "").toLowerCase();
-      const matchQ = !q || name.includes(q) || id.includes(q) || svc.includes(q);
+      const matchQ =
+        !q || name.includes(q) || id.includes(q) || svc.includes(q);
 
       let matchS = true;
       if (statusFilter === "in-progress") {
-        matchS = ui === "in-progress" || ui === "pending" || ui === "revision";
+        matchS =
+          ui === "in-progress" || ui === "pending" || ui === "revision";
       } else if (statusFilter === "delivered") {
         matchS = ui === "delivered";
       } else if (statusFilter === "completed") {
@@ -422,7 +516,9 @@ export default function FreelancerOrdersHistoryClient() {
 
       let matchSvc = true;
       if (serviceFilter !== "all") {
-        const key = String(o.service?._id || o.packageName || o.service?.title || "");
+        const key = String(
+          o.service?._id || o.packageName || o.service?.title || ""
+        );
         matchSvc = key === serviceFilter;
       }
 
@@ -452,18 +548,19 @@ export default function FreelancerOrdersHistoryClient() {
     });
 
     return list;
+  }, [orders, search, statusFilter, sortBy, serviceFilter, inDateRange]);
+
+  useEffect(() => {
+    setPage(1);
   }, [
-    orders,
     search,
     statusFilter,
     sortBy,
     serviceFilter,
-    inDateRange,
+    datePreset,
+    customFrom,
+    customTo,
   ]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, statusFilter, sortBy, serviceFilter, datePreset, customFrom, customTo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -475,7 +572,10 @@ export default function FreelancerOrdersHistoryClient() {
     const ratings: number[] = [];
     orders.forEach((o) => {
       const ui = orderUiStatus(o);
-      const amt = Number(o.amount) || 0;
+      // Net seller payout only (API amount is sellerEarnings)
+      const amt = Number(
+        o.sellerEarnings != null ? o.sellerEarnings : o.amount
+      ) || 0;
       if (ui === "completed") {
         completed += 1;
         totalEarned += amt;
@@ -493,7 +593,38 @@ export default function FreelancerOrdersHistoryClient() {
     return { completed, totalEarned, pendingPayouts, rating: avgRating };
   }, [orders]);
 
-  /** Monthly earnings for simple chart (completed only) */
+  const sparkCompleted = useMemo(
+    () =>
+      seriesFromOrders(orders, (o) =>
+        orderUiStatus(o) === "completed" ? 1 : 0
+      ),
+    [orders]
+  );
+  const sparkEarned = useMemo(
+    () =>
+      seriesFromOrders(orders, (o) =>
+        orderUiStatus(o) === "completed" ? Number(o.amount) || 0 : 0
+      ),
+    [orders]
+  );
+  const sparkRating = useMemo(() => {
+    const vals = orders
+      .map((o) => Number(o.rating ?? o.buyerRating))
+      .filter((r) => Number.isFinite(r) && r > 0);
+    if (vals.length >= 2) return vals.slice(-7);
+    return [3, 3.5, 4, 3.8, 4.2, 4.5, 4.3];
+  }, [orders]);
+  const sparkPending = useMemo(
+    () =>
+      seriesFromOrders(orders, (o) => {
+        const ui = orderUiStatus(o);
+        return ui === "in-progress" || ui === "delivered" || ui === "revision"
+          ? Number(o.amount) || 0
+          : 0;
+      }),
+    [orders]
+  );
+
   const earningsByMonth = useMemo(() => {
     const map = new Map<string, number>();
     orders.forEach((o) => {
@@ -516,16 +647,17 @@ export default function FreelancerOrdersHistoryClient() {
     }));
   }, [orders]);
 
-  const openTracker = (
-    order: OrderRow,
-    tab: "summary" | "timeline" | "communication" | "files" | "invoice" = "summary"
-  ) => {
+  const openTracker = (order: OrderRow, tab: TrackerTab = "timeline") => {
     setTrackerOrder(order);
     setTrackerTab(tab);
     setTrackerOpen(true);
   };
 
-  const [actionBusy, setActionBusy] = useState(false);
+  const closeTracker = () => {
+    setTrackerOpen(false);
+    setTrackerOrder(null);
+    setActionBusy(false);
+  };
 
   const postOrderAction = async (
     orderId: string,
@@ -534,17 +666,13 @@ export default function FreelancerOrdersHistoryClient() {
   ) => {
     setActionBusy(true);
     try {
-      const token =
-        typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      const headers: Record<string, string> = {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      };
-      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(`/api/orders/${orderId}/${path}`, {
         method: "POST",
-        headers,
         credentials: "include",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
         body: body ? JSON.stringify(body) : undefined,
       });
       const data = await res.json().catch(() => ({}));
@@ -568,13 +696,10 @@ export default function FreelancerOrdersHistoryClient() {
 
   const handleDeliver = async () => {
     if (!trackerOrder) return;
-    const note = window.prompt(
-      "Delivery note for the buyer (optional):"
-    );
+    const note = window.prompt("Delivery note for the buyer (optional):");
     if (note === null) return;
     const ok = await postOrderAction(trackerOrder._id, "deliver", {
       deliveryNote: note.trim(),
-      files: trackerOrder.deliveryFiles || [],
     });
     if (ok) {
       setTrackerOrder((prev) =>
@@ -583,8 +708,6 @@ export default function FreelancerOrdersHistoryClient() {
               ...prev,
               deliveredAt: new Date().toISOString(),
               deliveryNote: note.trim(),
-              status:
-                prev.status === "revision_requested" ? "in_escrow" : prev.status,
             }
           : prev
       );
@@ -612,11 +735,6 @@ export default function FreelancerOrdersHistoryClient() {
   const handleInvoice = () => {
     if (!trackerOrder) return;
     window.open(`/api/orders/${trackerOrder._id}/invoice`, "_blank");
-  };
-
-  const closeTracker = () => {
-    setTrackerOpen(false);
-    setTrackerOrder(null);
   };
 
   const contactClient = async (order: OrderRow) => {
@@ -698,22 +816,18 @@ export default function FreelancerOrdersHistoryClient() {
     showToast("Filters cleared", "info");
   };
 
+  /** Manage / Track → open modal; not /orders detail */
   const actionLabel = (ui: UiStatus) => {
-    // manage:false → open tracker modal (not /orders/[id] only)
     if (ui === "pending") {
-      return { text: "Manage Order", icon: "fas fa-cogs", manage: false };
+      return { text: "Manage Order", icon: "fas fa-cogs" };
     }
-    if (
-      ui === "in-progress" ||
-      ui === "delivered" ||
-      ui === "revision"
-    ) {
-      return { text: "Track", icon: "fas fa-compass", manage: false };
+    if (ui === "in-progress" || ui === "delivered" || ui === "revision") {
+      return { text: "Track", icon: "fas fa-compass" };
     }
     if (ui === "completed") {
-      return { text: "View Record", icon: "fas fa-receipt", manage: false };
+      return { text: "View Record", icon: "fas fa-receipt" };
     }
-    return { text: "View Details", icon: "fas fa-eye", manage: false };
+    return { text: "View Details", icon: "fas fa-eye" };
   };
 
   return (
@@ -731,7 +845,10 @@ export default function FreelancerOrdersHistoryClient() {
               </p>
             </div>
             <div className="oh-header-actions">
-              <Link href="/freelancer-orders" className="btn-action btn-oh-primary">
+              <Link
+                href="/freelancer-orders"
+                className="btn-action btn-oh-primary"
+              >
                 <i className="fas fa-tasks" /> Active queue
               </Link>
               <button
@@ -743,6 +860,13 @@ export default function FreelancerOrdersHistoryClient() {
               </button>
             </div>
           </div>
+
+          {listTruncated && (
+            <div className="alert-box oh-truncated-note" style={{ marginBottom: 16 }}>
+              Showing your most recent orders only (limit reached). Older
+              orders are not loaded in this list or CSV export yet.
+            </div>
+          )}
 
           <div
             className="order-summary-overview"
@@ -757,6 +881,9 @@ export default function FreelancerOrdersHistoryClient() {
             <div className="summary-card card-jobs-completed">
               <div className="card-value-section">
                 <p className="card-value">{stats.completed}</p>
+                <div className="oh-spark-wrap">
+                  <Sparkline values={sparkCompleted} />
+                </div>
               </div>
               <div className="card-label-section">
                 <i className="fas fa-briefcase" /> Jobs Completed
@@ -765,6 +892,9 @@ export default function FreelancerOrdersHistoryClient() {
             <div className="summary-card card-total-earned">
               <div className="card-value-section">
                 <p className="card-value">{formatMoney(stats.totalEarned)}</p>
+                <div className="oh-spark-wrap">
+                  <Sparkline values={sparkEarned} />
+                </div>
               </div>
               <div className="card-label-section">
                 <i className="fas fa-dollar-sign" /> Total Earned
@@ -773,6 +903,9 @@ export default function FreelancerOrdersHistoryClient() {
             <div className="summary-card card-average-rating">
               <div className="card-value-section">
                 <p className="card-value">{stats.rating}</p>
+                <div className="oh-spark-wrap">
+                  <Sparkline values={sparkRating} />
+                </div>
               </div>
               <div className="card-label-section">
                 <i className="fas fa-star" /> Average Rating
@@ -783,13 +916,15 @@ export default function FreelancerOrdersHistoryClient() {
                 <p className="card-value">
                   {formatMoney(stats.pendingPayouts)}
                 </p>
+                <div className="oh-spark-wrap">
+                  <Sparkline values={sparkPending} />
+                </div>
               </div>
               <div className="card-label-section">
                 <i className="fas fa-hourglass-half" /> Pending Payouts
               </div>
             </div>
 
-            {/* Earnings chart */}
             {earningsByMonth.length > 0 && (
               <div className="oh-earnings-chart" style={{ width: "100%" }}>
                 <h3 className="oh-chart-title">
@@ -797,7 +932,11 @@ export default function FreelancerOrdersHistoryClient() {
                 </h3>
                 <div className="oh-chart-bars">
                   {earningsByMonth.map((m) => (
-                    <div key={m.key} className="oh-chart-col" title={formatMoney(m.value)}>
+                    <div
+                      key={m.key}
+                      className="oh-chart-col"
+                      title={formatMoney(m.value)}
+                    >
                       <div className="oh-chart-bar-wrap">
                         <div
                           className="oh-chart-bar"
@@ -805,7 +944,9 @@ export default function FreelancerOrdersHistoryClient() {
                         />
                       </div>
                       <span className="oh-chart-label">{m.label}</span>
-                      <span className="oh-chart-val">{formatMoney(m.value)}</span>
+                      <span className="oh-chart-val">
+                        {formatMoney(m.value)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -930,7 +1071,10 @@ export default function FreelancerOrdersHistoryClient() {
               <tbody id="freelancer-order-table-body">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: "center", padding: 30 }}>
+                    <td
+                      colSpan={9}
+                      style={{ textAlign: "center", padding: 30 }}
+                    >
                       Loading history…
                     </td>
                   </tr>
@@ -974,7 +1118,8 @@ export default function FreelancerOrdersHistoryClient() {
                   pageRows.map((order) => {
                     const ui = orderUiStatus(order);
                     const oid =
-                      order.orderNumber || `#${String(order._id).slice(-6)}`;
+                      order.orderNumber ||
+                      `#${String(order._id).slice(-6)}`;
                     const act = actionLabel(ui);
                     const overdue = isOverdue(order);
                     const isRepeat =
@@ -985,7 +1130,9 @@ export default function FreelancerOrdersHistoryClient() {
                       <React.Fragment key={order._id}>
                         <tr
                           data-order-id={order._id}
-                          className={overdue ? "oh-row-overdue" : undefined}
+                          className={
+                            overdue ? "oh-row-overdue" : undefined
+                          }
                         >
                           <td>
                             <button
@@ -997,19 +1144,21 @@ export default function FreelancerOrdersHistoryClient() {
                               }
                             >
                               <i
-                                className={`fas fa-chevron-${open ? "up" : "down"}`}
+                                className={`fas fa-chevron-${
+                                  open ? "up" : "down"
+                                }`}
                               />
                             </button>
                           </td>
                           <td>
-                            <button
-                              type="button"
+                            {/* Order ID → Order Details page */}
+                            <Link
+                              href={`/orders/${order._id}`}
                               className="clickable-id"
-                              onClick={() => openTracker(order, "timeline")}
-                              title="Quick View Order Progress"
+                              title="Open order details"
                             >
                               {oid}
-                            </button>
+                            </Link>
                           </td>
                           <td>
                             {order.service?._id ? (
@@ -1038,7 +1187,8 @@ export default function FreelancerOrdersHistoryClient() {
                               >
                                 <Image
                                   src={
-                                    order.buyer?.avatar || "/default-avatar.png"
+                                    order.buyer?.avatar ||
+                                    "/default-avatar.png"
                                   }
                                   alt={order.buyer?.name || "Client"}
                                   width={30}
@@ -1046,7 +1196,9 @@ export default function FreelancerOrdersHistoryClient() {
                                   className="client-avatar"
                                   unoptimized
                                 />
-                                <span>{order.buyer?.name || "Client"}</span>
+                                <span>
+                                  {order.buyer?.name || "Client"}
+                                </span>
                                 {isRepeat ? (
                                   <span
                                     className="oh-repeat-badge"
@@ -1060,7 +1212,8 @@ export default function FreelancerOrdersHistoryClient() {
                               <span className="clickable-client">
                                 <Image
                                   src={
-                                    order.buyer?.avatar || "/default-avatar.png"
+                                    order.buyer?.avatar ||
+                                    "/default-avatar.png"
                                   }
                                   alt={order.buyer?.name || "Client"}
                                   width={30}
@@ -1073,7 +1226,11 @@ export default function FreelancerOrdersHistoryClient() {
                             )}
                           </td>
                           <td>{formatDate(order.createdAt)}</td>
-                          <td className={overdue ? "oh-due-overdue" : undefined}>
+                          <td
+                            className={
+                              overdue ? "oh-due-overdue" : undefined
+                            }
+                          >
                             <i
                               className={
                                 overdue
@@ -1087,7 +1244,10 @@ export default function FreelancerOrdersHistoryClient() {
                             />
                             {formatDate(order.dueAt)}
                             {overdue ? (
-                              <span className="oh-overdue-tag"> Overdue</span>
+                              <span className="oh-overdue-tag">
+                                {" "}
+                                Overdue
+                              </span>
                             ) : null}
                           </td>
                           <td
@@ -1131,12 +1291,15 @@ export default function FreelancerOrdersHistoryClient() {
                                   className="btn-action btn-oh-primary"
                                   onClick={() => contactClient(order)}
                                 >
-                                  <i className="fas fa-comment-dots" /> Contact
+                                  <i className="fas fa-comment-dots" />{" "}
+                                  Contact
                                 </button>
                                 <button
                                   type="button"
                                   className="btn-action btn-secondary"
-                                  onClick={() => openTracker(order, "timeline")}
+                                  onClick={() =>
+                                    openTracker(order, "timeline")
+                                  }
                                 >
                                   <i className="fas fa-compass" /> Tracker
                                 </button>
@@ -1184,7 +1347,7 @@ export default function FreelancerOrdersHistoryClient() {
         </div>
       </div>
 
-      {/* Order tracker modal — professional seller layout */}
+      {/* Professional seller tracker modal */}
       {trackerOpen && trackerOrder && (
         <div
           className="modal-backdrop"
@@ -1203,7 +1366,9 @@ export default function FreelancerOrdersHistoryClient() {
                 <span className="btm-header-divider" aria-hidden />
                 <div className="btm-seller">
                   <Image
-                    src={trackerOrder.buyer?.avatar || "/default-avatar.png"}
+                    src={
+                      trackerOrder.buyer?.avatar || "/default-avatar.png"
+                    }
                     alt=""
                     width={40}
                     height={40}
@@ -1231,7 +1396,9 @@ export default function FreelancerOrdersHistoryClient() {
                     "Service"}
                 </h3>
                 <span
-                  className={`btm-status-chip status-${orderUiStatus(trackerOrder)}`}
+                  className={`btm-status-chip status-${orderUiStatus(
+                    trackerOrder
+                  )}`}
                 >
                   {orderUiStatus(trackerOrder)
                     .replace("-", " ")
@@ -1370,17 +1537,6 @@ export default function FreelancerOrdersHistoryClient() {
                               </strong>
                             </td>
                           </tr>
-                          {(trackerOrder.buyerRating != null ||
-                            trackerOrder.rating != null) && (
-                            <tr>
-                              <th>Buyer rating</th>
-                              <td>
-                                {trackerOrder.buyerRating ??
-                                  trackerOrder.rating}
-                                /5
-                              </td>
-                            </tr>
-                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1460,7 +1616,11 @@ export default function FreelancerOrdersHistoryClient() {
                           <li key={i}>
                             <i className="fas fa-file-download" />{" "}
                             {href ? (
-                              <a href={href} target="_blank" rel="noreferrer">
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
                                 {name}
                               </a>
                             ) : (
@@ -1501,11 +1661,6 @@ export default function FreelancerOrdersHistoryClient() {
               <div className="btm-footer-actions">
                 {(() => {
                   const ui = orderUiStatus(trackerOrder);
-                  const canDeliver =
-                    ui === "in-progress" ||
-                    ui === "revision" ||
-                    (ui === "pending" && !!trackerOrder.dueAt);
-                  // Backend allows in_escrow | revision_requested
                   const canDeliverApi =
                     ui === "in-progress" || ui === "revision";
                   const canRemind = ui === "pending";
@@ -1516,11 +1671,6 @@ export default function FreelancerOrdersHistoryClient() {
                         type="button"
                         className="btm-btn btm-btn-green"
                         disabled={actionBusy || !canDeliverApi}
-                        title={
-                          canDeliverApi
-                            ? "Submit delivery to the buyer"
-                            : "Available while order is in progress or revision"
-                        }
                         onClick={handleDeliver}
                       >
                         Submit delivery
@@ -1529,7 +1679,6 @@ export default function FreelancerOrdersHistoryClient() {
                         type="button"
                         className="btm-btn btm-btn-dark"
                         disabled={actionBusy || !canExtend}
-                        title="Request more time from the buyer"
                         onClick={handleExtend}
                       >
                         Request extension
@@ -1538,7 +1687,6 @@ export default function FreelancerOrdersHistoryClient() {
                         type="button"
                         className="btm-btn btm-btn-outline"
                         disabled={actionBusy || !canRemind}
-                        title="Remind the buyer (pending orders)"
                         onClick={handleRemind}
                       >
                         Send reminder

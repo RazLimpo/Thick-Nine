@@ -97,18 +97,28 @@ router.get("/mine", authMiddleware, async (req, res) => {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
 
-    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    // History UI may request up to 500; default 100
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
 
-    const orders = await Order.find({ sellerId: userId })
+    const filter = { sellerId: userId };
+    const totalMatching = await Order.countDocuments(filter);
+
+    const orders = await Order.find(filter)
       .sort({ updatedAt: -1, createdAt: -1 })
       .limit(limit)
       .populate("clientId", "fullName displayName avatar")
-      .populate("serviceId", "title images")
+      .populate("serviceId", "title images category")
       .lean();
 
     const mapped = orders.map((o) => {
       const buyer = o.clientId || {};
       const service = o.serviceId || {};
+      // amount = seller net payout only (never buyer grandTotal)
+      const sellerNet =
+        o.sellerEarnings != null
+          ? Number(o.sellerEarnings)
+          : Number(o.subtotal || 0) - Number(o.sellerPlatformFee || 0);
+
       return {
         _id: o._id,
         status: o.status,
@@ -117,12 +127,27 @@ router.get("/mine", authMiddleware, async (req, res) => {
           (Array.isArray(o.selectedAddons) && o.selectedAddons[0]?.title) ||
           service.title ||
           "Package",
-        amount: o.sellerEarnings ?? o.subtotal ?? o.grandTotal ?? 0,
+        // Explicit net payout fields for the history UI
+        amount: sellerNet,
+        sellerEarnings: o.sellerEarnings != null ? Number(o.sellerEarnings) : sellerNet,
+        sellerPlatformFee:
+          o.sellerPlatformFee != null ? Number(o.sellerPlatformFee) : 0,
+        subtotal: o.subtotal != null ? Number(o.subtotal) : null,
+        basePackagePrice:
+          o.basePackagePrice != null ? Number(o.basePackagePrice) : null,
+        grandTotal: o.grandTotal != null ? Number(o.grandTotal) : null,
         dueAt: o.dueAt || o.escrowReleaseDate || null,
         createdAt: o.createdAt,
         updatedAt: o.updatedAt,
         deliveredAt: o.deliveredAt || null,
         orderNumber: o.orderNumber || null,
+        invoiceNumber: o.invoiceNumber || null,
+        paymentMethod: o.paymentMethod || null,
+        requirements: o.requirements || "",
+        deliveryNote: o.deliveryNote || "",
+        // Seller always sees final delivery assets
+        deliveryFiles: filesForRole(o, "seller"),
+        selectedAddons: Array.isArray(o.selectedAddons) ? o.selectedAddons : [],
         buyerRating: o.buyerRating != null ? o.buyerRating : null,
         buyerReview: o.buyerReview || "",
         ratedAt: o.ratedAt || null,
@@ -133,12 +158,25 @@ router.get("/mine", authMiddleware, async (req, res) => {
           avatar: buyer.avatar || "/default-avatar.png",
         },
         service: service._id
-          ? { _id: service._id, title: service.title || "" }
+          ? {
+              _id: service._id,
+              title: service.title || "",
+              category: service.category || "",
+            }
           : null,
       };
     });
 
-    return res.status(200).json({ success: true, orders: mapped });
+    return res.status(200).json({
+      success: true,
+      orders: mapped,
+      meta: {
+        returned: mapped.length,
+        limit,
+        totalMatching,
+        truncated: totalMatching > mapped.length,
+      },
+    });
   } catch (error) {
     console.error("GET /api/orders/mine error:", error);
     return res
