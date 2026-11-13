@@ -1215,8 +1215,13 @@ try {
       </nav>
 
       {/* Authentication Gateway Dialog Modal Popover Box */}
-      <div className={`modal-overlay ${isModalOpen ? 'is-active' : ''}`}>
-        <div className="modal-container">
+     <div
+  className={`modal-overlay ${isModalOpen ? "is-active" : ""}`}
+  onClick={(e) => {
+    if (e.target === e.currentTarget) closeAllUI();
+  }}
+>
+  <div className="modal-container">
           <button className="modal-close" onClick={closeAllUI}>&times;</button>
           <div className="modal-content-wrapper">
             

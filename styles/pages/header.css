@@ -576,6 +576,7 @@ body[data-user-role="guest"] #account-icon-btn::after {
   height: 100%;
   background: rgba(0, 0, 0, 0.75);
   display: none;
+  pointer-events: none;
   justify-content: center;
   align-items: center;
   z-index: 3000;
@@ -586,6 +587,7 @@ body[data-user-role="guest"] #account-icon-btn::after {
 /* This is the missing rule */
 .modal-overlay.is-active {
   display: flex;
+  pointer-events: auto;
   opacity: 1;
 }
 
