@@ -1,75 +1,105 @@
+// hooks/usePresenceHeartbeat.ts
 "use client";
 
 import { useEffect, useRef } from "react";
 
-const HEARTBEAT_MS = 45_000; // 45s — under backend 2min TTL
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return localStorage.getItem("token");
-  } catch {
-    return null;
-  }
-}
+const INTERVAL_MS = 45_000;
 
 /**
- * Keeps the logged-in user marked online while this component is mounted
- * (put once in root layout via PresenceProvider).
- * Sends offline on tab close / unmount when possible.
+ * Keeps the signed-in user's onlineStatus + lastSeen fresh on the server.
+ * Visibility: online while tab focused, away when hidden, offline on unload.
+ * Mount once via PresenceProvider in the root layout.
  */
-export function usePresenceHeartbeat(enabled = true) {
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+export function usePresenceHeartbeat(enabled: boolean) {
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
 
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled) return;
+    if (typeof window === "undefined") return;
 
-    const send = (path: "heartbeat" | "offline", body?: object) => {
-      const token = getToken();
-      if (!token) return;
+    let stopped = false;
+    let timer: number | null = null;
 
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      };
-
-      // Same-origin Next.js API proxy → Express
-      const url = `/api/presence/${path}`;
-
-      fetch(url, {
-        method: "POST",
-        headers,
-        credentials: "include",
-        body: JSON.stringify(body || {}),
-        keepalive: path === "offline",
-      }).catch(() => {
-        /* ignore network errors for presence */
-      });
-    };
-
-    const tick = () => {
-      if (document.visibilityState === "hidden") {
-        send("heartbeat", { status: "away" });
-      } else {
-        send("heartbeat", { status: "online" });
+    const token = () => {
+      try {
+        return localStorage.getItem("token");
+      } catch {
+        return null;
       }
     };
 
-    // Immediate + interval
-    tick();
-    intervalRef.current = setInterval(tick, HEARTBEAT_MS);
+    const post = (path: string, body: Record<string, string>) => {
+      const t = token();
+      if (!t) return Promise.resolve();
+      return fetch(path, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${t}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+        keepalive: true,
+      }).catch(() => {});
+    };
 
-    const onVisibility = () => tick();
-    document.addEventListener("visibilitychange", onVisibility);
+    const beat = () => {
+      if (stopped || !enabledRef.current) return;
+      if (!token()) return;
+      const status =
+        typeof document !== "undefined" && document.hidden ? "away" : "online";
+      void post("/api/presence/heartbeat", { status });
+      try {
+        window.dispatchEvent(
+          new CustomEvent("presence:self", { detail: { status } })
+        );
+      } catch {
+        /* ignore */
+      }
+    };
 
-    const onUnload = () => send("offline");
+    const onVis = () => {
+      beat();
+    };
+
+    const onUnload = () => {
+      const t = token();
+      if (!t) return;
+      // Best-effort offline on tab close
+      try {
+        const blob = new Blob(
+          [JSON.stringify({})],
+          { type: "application/json" }
+        );
+        // fetch keepalive is more reliable than sendBeacon with auth headers
+        void fetch("/api/presence/offline", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${t}`,
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+          keepalive: true,
+        });
+      } catch {
+        /* ignore */
+      }
+      void blob;
+    };
+
+    beat();
+    timer = window.setInterval(beat, INTERVAL_MS);
+    document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", onUnload);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      document.removeEventListener("visibilitychange", onVisibility);
+      stopped = true;
+      if (timer != null) window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pagehide", onUnload);
-      send("offline");
     };
   }, [enabled]);
 }
+
+export default usePresenceHeartbeat;

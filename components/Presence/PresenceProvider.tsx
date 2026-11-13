@@ -25,9 +25,13 @@ export default function PresenceProvider({
       }
     };
     check();
-    // Re-check on storage changes (other tabs login/logout)
     window.addEventListener("storage", check);
-    return () => window.removeEventListener("storage", check);
+    // Same-tab login/logout
+    window.addEventListener("auth:changed", check);
+    return () => {
+      window.removeEventListener("storage", check);
+      window.removeEventListener("auth:changed", check);
+    };
   }, []);
 
   usePresenceHeartbeat(enabled);

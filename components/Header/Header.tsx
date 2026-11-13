@@ -291,21 +291,49 @@ const handleAccountSwitching = async () => {
 
   // Clears active authorization records cleanly and routes back to the root page context
   const handleSignOut = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('token');
-    localStorage.removeItem('userRole');
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        void fetch("/api/presence/offline", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+          keepalive: true,
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
     localStorage.removeItem("adminRole");
-    localStorage.removeItem('accountStrength'); 
-    localStorage.removeItem('isEmailVerified');
-    localStorage.removeItem('isProfileComplete');
+    localStorage.removeItem("accountStrength");
+    localStorage.removeItem("isEmailVerified");
+    localStorage.removeItem("isProfileComplete");
+    localStorage.removeItem("userPhoto");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("id");
+    localStorage.removeItem("user");
 
     setIsLoggedIn(false);
-    setUserRole('guest');
+    setUserRole("guest");
     setUserProfilePic(null);
+    setMyPresence("offline");
+
+    try {
+      window.dispatchEvent(new Event("auth:changed"));
+    } catch {
+      /* ignore */
+    }
 
     closeAllUI();
     showToast("Signed out successfully", "fa-sign-out-alt");
-    router.push('/');
+    router.push("/");
   };
 
     
@@ -332,15 +360,17 @@ const handleAccountSwitching = async () => {
     const emailVerified = localStorage.getItem('isEmailVerified') === 'true';
     const profileDone = localStorage.getItem('isProfileComplete') === 'true';
     const role = localStorage.getItem('userRole') || 'guest';
-    const photo = localStorage.getItem('userPhoto');
+    const photoRaw = localStorage.getItem("userPhoto");
+    const photo =
+      photoRaw && photoRaw !== "/default-avatar.png" ? photoRaw : null;
 
-    const effectiveRole = loggedIn ? role : 'guest';
+    const effectiveRole = loggedIn ? role : "guest";
 
     // Synchronize state flags cleanly with active local records
     setIsLoggedIn(loggedIn);
     setIsEmailVerified(emailVerified);
     setIsProfileComplete(profileDone);
-    setUserRole(effectiveRole); 
+    setUserRole(effectiveRole);
     setUserProfilePic(photo); 
     
     // Bind current credentials to DOM attribute triggers for CSS selection architecture
@@ -414,19 +444,70 @@ useEffect(() => {
 }, []);
 
 
-  // Own presence for header avatar (session-based; heartbeat can refine later)
+  // Own presence: follow shared heartbeat + visibility
   useEffect(() => {
     if (!isMounted || !isLoggedIn) {
       setMyPresence("offline");
       return;
     }
-    setMyPresence("online");
-    // Soft heartbeat: if tab hidden, mark away
+    setMyPresence(document.hidden ? "away" : "online");
     const onVis = () => {
       setMyPresence(document.hidden ? "away" : "online");
     };
+    const onSelf = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const s = detail?.status;
+      if (s === "online" || s === "away" || s === "offline") {
+        setMyPresence(s);
+      }
+    };
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    window.addEventListener("presence:self", onSelf as EventListener);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("presence:self", onSelf as EventListener);
+    };
+  }, [isMounted, isLoggedIn]);
+
+  // Hydrate avatar from profile API if localStorage userPhoto missing/stale
+  useEffect(() => {
+    if (!isMounted || !isLoggedIn) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/users/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok) return;
+        const u = data.user || data;
+        const photo = String(u.avatar || u.profilePicture || "").trim();
+        if (photo && photo !== "/default-avatar.png") {
+          localStorage.setItem("userPhoto", photo);
+          setUserProfilePic(photo);
+        }
+        const id = String(u.id || u._id || "").trim();
+        if (id) {
+          localStorage.setItem("userId", id);
+          localStorage.setItem("id", id);
+        }
+        if (u.accountStrength != null) {
+          localStorage.setItem("accountStrength", String(u.accountStrength));
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [isMounted, isLoggedIn]);
 
   // Open auth modal when landing with ?auth=login or ?auth=register
@@ -764,11 +845,15 @@ try {
   const completeLoginSession = async (data: {
     token: string;
     user: {
+      id?: string;
+      _id?: string;
       role?: string;
       accountStrength?: number;
       isEmailVerified?: boolean;
       isProfileComplete?: boolean;
       fullName?: string;
+      avatar?: string;
+      profilePicture?: string;
     };
   }) => {
     const userRole = data.user.role || "client";
@@ -790,7 +875,31 @@ try {
       (data.user.isProfileComplete ?? false).toString()
     );
 
+    const uid = String(data.user.id || data.user._id || "").trim();
+    if (uid) {
+      localStorage.setItem("userId", uid);
+      localStorage.setItem("id", uid);
+    }
+    try {
+      localStorage.setItem("user", JSON.stringify(data.user));
+    } catch {
+      /* ignore */
+    }
+    const photo = String(
+      data.user.avatar || data.user.profilePicture || ""
+    ).trim();
+    if (photo && photo !== "/default-avatar.png") {
+      localStorage.setItem("userPhoto", photo);
+      setUserProfilePic(photo);
+    }
+
     localStorage.removeItem("adminRole");
+    try {
+      window.dispatchEvent(new Event("auth:changed"));
+    } catch {
+      /* ignore */
+    }
+
     if (isAdminRole(userRole)) {
       try {
         const meRes = await fetch("/api/admin/me", {

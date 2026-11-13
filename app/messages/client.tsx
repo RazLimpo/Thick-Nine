@@ -140,6 +140,10 @@ export default function MessagesClient() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [otherName, setOtherName] = useState("Select a chat");
   const [otherAvatar, setOtherAvatar] = useState("/default-avatar.png");
+  const [otherUserId, setOtherUserId] = useState("");
+  const [presenceMap, setPresenceMap] = useState<
+    Record<string, "online" | "away" | "offline">
+  >({});
   const [threadStarred, setThreadStarred] = useState(false);
   const [threadArchived, setThreadArchived] = useState(false);
   const [threadBlocked, setThreadBlocked] = useState(false);
@@ -219,6 +223,15 @@ export default function MessagesClient() {
           setOtherAvatar(
             data.conversation.otherUser.avatar || "/default-avatar.png"
           );
+          setOtherUserId(
+            String(
+              data.conversation.otherUser._id ||
+                data.conversation.otherUser.id ||
+                ""
+            )
+          );
+        } else {
+          setOtherUserId("");
         }
         setThreadStarred(!!data.conversation?.starred);
         setThreadArchived(!!data.conversation?.archived);
@@ -259,6 +272,46 @@ export default function MessagesClient() {
     }, 15000);
     return () => clearInterval(id);
   }, [loadInbox]);
+
+  /* Shared presence for inbox avatars + active chat */
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const c of conversations) {
+      const id = String(c.otherUser?._id || "").trim();
+      if (id) ids.add(id);
+    }
+    if (otherUserId) ids.add(otherUserId);
+    if (!ids.size) return;
+
+    let cancelled = false;
+    const fetchPresence = async () => {
+      try {
+        const qs = encodeURIComponent([...ids].join(","));
+        const res = await fetch(`/api/presence?ids=${qs}`, {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok) return;
+        const next: Record<string, "online" | "away" | "offline"> = {};
+        const map = data.presence || {};
+        for (const [k, v] of Object.entries(map)) {
+          const st = (v as { status?: string })?.status || "offline";
+          next[k] =
+            st === "online" || st === "away" ? st : "offline";
+        }
+        setPresenceMap(next);
+      } catch {
+        /* ignore */
+      }
+    };
+    fetchPresence();
+    const t = window.setInterval(fetchPresence, 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, [conversations, otherUserId]);
 
 
 
@@ -558,7 +611,7 @@ export default function MessagesClient() {
                   tabIndex={0}
                   onKeyDown={(e) => e.key === "Enter" && openConvo(c._id)}
                 >
-                  <div className="avatar-wrapper">
+                  <div className="avatar-wrapper" style={{ position: "relative" }}>
                     <Image
                       src={c.otherUser?.avatar || "/default-avatar.png"}
                       alt={c.otherUser?.name || "User"}
@@ -566,6 +619,17 @@ export default function MessagesClient() {
                       height={48}
                       style={{ borderRadius: "50%", objectFit: "cover" }}
                     />
+                    {(() => {
+                      const pid = String(c.otherUser?._id || "");
+                      const st = presenceMap[pid] || "offline";
+                      return (
+                        <span
+                          className={`presence-dot presence-${st}`}
+                          title={st === "online" ? "Online" : st === "away" ? "Away" : "Offline"}
+                          aria-label={st}
+                        />
+                      );
+                    })()}
                   </div>
                   <div className="convo-info">
                     <div className="convo-top">
@@ -655,23 +719,35 @@ export default function MessagesClient() {
               <i className="fas fa-arrow-left" />
             </button>
             <div className="chat-user-meta">
-              <div className="avatar-small">
+              <div className="avatar-small" style={{ position: "relative" }}>
                 <Image
                   src={otherAvatar}
                   alt={otherName}
                   width={40}
                   height={40}
-                  style={{ objectFit: "cover" }}
+                  style={{ objectFit: "cover", borderRadius: "50%" }}
                 />
+                {activeId && otherUserId ? (
+                  <span
+                    className={`presence-dot presence-${
+                      presenceMap[otherUserId] || "offline"
+                    }`}
+                    aria-hidden
+                  />
+                ) : null}
               </div>
               <div>
                 <h3 id="activeChatName">{otherName}</h3>
                 <span className="status-text">
                   {threadBlocked
                     ? "Blocked"
-                    : activeId
-                      ? "Conversation"
-                      : "—"}
+                    : !activeId
+                      ? "—"
+                      : presenceMap[otherUserId] === "online"
+                        ? "Online"
+                        : presenceMap[otherUserId] === "away"
+                          ? "Away"
+                          : "Offline"}
                 </span>
               </div>
             </div>

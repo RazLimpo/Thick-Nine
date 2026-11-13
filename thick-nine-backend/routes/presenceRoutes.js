@@ -1,218 +1,184 @@
-// thick-nine-backend/routes/presenceRoutes.js
-// Universal online / away / offline presence API
+// routes/presenceRoutes.js
+// Shared presence: heartbeat writes onlineStatus + lastSeen;
+// GET reads for other users (respects settings.showOnlineStatus).
 
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const User = require("../models/User");
-const authMiddleware = require("../middleware/auth");
+const auth = require("../middleware/auth");
 
-/** Consider user offline if lastSeen older than this (ms). */
-const ONLINE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+const STALE_MS = 90 * 1000; // no heartbeat for 90s → treat as offline for readers
 
-const VALID_STATUS = ["online", "away", "offline"];
+function uid(req) {
+  return req.user?.id || req.user?._id;
+}
 
-function isValidObjectId(id) {
-  return id && mongoose.Types.ObjectId.isValid(id);
+function normalizeStatus(s) {
+  const v = String(s || "").toLowerCase();
+  if (v === "online" || v === "away" || v === "offline") return v;
+  return null;
 }
 
 /**
- * Derive effective status from stored fields.
- * online/away only count if lastSeen is fresh.
+ * Effective status for *other* users viewing this person.
+ * Hidden privacy → offline. Stale lastSeen → offline.
  */
 function effectiveStatus(user) {
   if (!user) return "offline";
-  const raw = user.onlineStatus || "offline";
-  if (raw === "offline") return "offline";
-
-  if (!user.lastSeen) {
-    // No heartbeat yet — trust stored flag only for a short grace if online
-    return raw === "online" || raw === "away" ? raw : "offline";
+  if (user.settings && user.settings.showOnlineStatus === false) {
+    return "offline";
   }
-
-  const age = Date.now() - new Date(user.lastSeen).getTime();
-  if (age > ONLINE_TTL_MS) return "offline";
-  return VALID_STATUS.includes(raw) ? raw : "offline";
+  const raw = normalizeStatus(user.onlineStatus) || "offline";
+  if (raw === "offline") return "offline";
+  const last = user.lastSeen ? new Date(user.lastSeen).getTime() : 0;
+  if (!last || Date.now() - last > STALE_MS) return "offline";
+  return raw;
 }
 
-function presencePayload(user) {
-  const status = effectiveStatus(user);
-  return {
-    userId: String(user._id),
-    status,
-    online: status === "online",
-    away: status === "away",
-    lastSeen: user.lastSeen || null,
-  };
-}
-
-// =====================================================
-// POST /api/presence/heartbeat  (auth) — tab is active
-// =====================================================
-router.post("/heartbeat", authMiddleware, async (req, res) => {
+/**
+ * @route   POST /api/presence/heartbeat
+ * @body    { status?: "online" | "away" }
+ * @access  Private
+ */
+router.post("/heartbeat", auth, async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId = uid(req);
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
 
-    const status =
-      req.body?.status === "away" ? "away" : "online";
+    let status = normalizeStatus(req.body?.status) || "online";
+    if (status === "offline") status = "online"; // use /offline for that
 
     const user = await User.findByIdAndUpdate(
       userId,
       {
-        onlineStatus: status,
-        lastSeen: new Date(),
+        $set: {
+          onlineStatus: status,
+          lastSeen: new Date(),
+        },
       },
       { new: true }
-    ).select("_id onlineStatus lastSeen");
+    ).select("onlineStatus lastSeen settings.showOnlineStatus");
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found." });
     }
 
-    return res.status(200).json({
+    return res.json({
       success: true,
-      ...presencePayload(user),
+      status: user.onlineStatus || status,
+      lastSeen: user.lastSeen,
+      showOnlineStatus: user.settings?.showOnlineStatus !== false,
     });
-  } catch (error) {
-    console.error("POST /api/presence/heartbeat error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update presence.",
-    });
+  } catch (err) {
+    console.error("presence heartbeat:", err.message);
+    return res.status(500).json({ success: false, message: "Heartbeat failed." });
   }
 });
 
-// =====================================================
-// POST /api/presence/offline  (auth) — tab closing / logout
-// =====================================================
-router.post("/offline", authMiddleware, async (req, res) => {
+/**
+ * @route   POST /api/presence/offline
+ * @access  Private — tab close / logout
+ */
+router.post("/offline", auth, async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId = uid(req);
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      {
+    await User.findByIdAndUpdate(userId, {
+      $set: {
         onlineStatus: "offline",
         lastSeen: new Date(),
       },
-      { new: true }
-    ).select("_id onlineStatus lastSeen");
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found." });
-    }
-
-    return res.status(200).json({
-      success: true,
-      ...presencePayload(user),
     });
-  } catch (error) {
-    console.error("POST /api/presence/offline error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to set offline.",
-    });
+
+    return res.json({ success: true, status: "offline" });
+  } catch (err) {
+    console.error("presence offline:", err.message);
+    return res.status(500).json({ success: false, message: "Offline update failed." });
   }
 });
 
-// =====================================================
-// GET /api/presence/:userId  — single user (public-ish)
-// =====================================================
-router.get("/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    if (!isValidObjectId(userId)) {
-      return res.status(400).json({ success: false, message: "Invalid user ID." });
-    }
-
-    const user = await User.findById(userId)
-      .select("_id onlineStatus lastSeen")
-      .lean();
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found." });
-    }
-
-    return res.status(200).json({
-      success: true,
-      ...presencePayload(user),
-    });
-  } catch (error) {
-    console.error("GET /api/presence/:userId error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load presence.",
-    });
-  }
-});
-
-// =====================================================
-// GET /api/presence?ids=id1,id2,id3  — batch for cards/inbox
-// =====================================================
+/**
+ * @route   GET /api/presence?ids=id1,id2
+ * @access  Public (marketplace / chat avatars)
+ */
 router.get("/", async (req, res) => {
   try {
     const raw = String(req.query.ids || "").trim();
     if (!raw) {
-      return res.status(400).json({
-        success: false,
-        message: "Query param ids is required (comma-separated user ids).",
-      });
+      return res.json({ success: true, presence: {} });
     }
 
     const ids = raw
       .split(",")
       .map((s) => s.trim())
-      .filter((id) => isValidObjectId(id))
-      .slice(0, 100);
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .slice(0, 50);
 
-    if (ids.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No valid user ids provided.",
-      });
+    if (!ids.length) {
+      return res.json({ success: true, presence: {} });
     }
 
     const users = await User.find({ _id: { $in: ids } })
-      .select("_id onlineStatus lastSeen")
+      .select("onlineStatus lastSeen settings.showOnlineStatus")
       .lean();
 
-    const map = {};
-    users.forEach((u) => {
-      map[String(u._id)] = presencePayload(u);
-    });
-
-    // Fill missing ids as offline
-    ids.forEach((id) => {
-      if (!map[id]) {
-        map[id] = {
-          userId: id,
-          status: "offline",
-          online: false,
-          away: false,
-          lastSeen: null,
-        };
+    const presence = {};
+    for (const u of users) {
+      const id = String(u._id);
+      presence[id] = {
+        status: effectiveStatus(u),
+        lastSeen: u.lastSeen || null,
+      };
+    }
+    // Missing ids → offline
+    for (const id of ids) {
+      if (!presence[id]) {
+        presence[id] = { status: "offline", lastSeen: null };
       }
-    });
+    }
 
-    return res.status(200).json({
+    return res.json({ success: true, presence });
+  } catch (err) {
+    console.error("presence batch:", err.message);
+    return res.status(500).json({ success: false, message: "Failed to load presence." });
+  }
+});
+
+/**
+ * @route   GET /api/presence/:userId
+ * @access  Public
+ */
+router.get("/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid user id." });
+    }
+
+    const user = await User.findById(userId)
+      .select("onlineStatus lastSeen settings.showOnlineStatus")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    return res.json({
       success: true,
-      presence: map,
+      userId: String(user._id),
+      status: effectiveStatus(user),
+      lastSeen: user.lastSeen || null,
     });
-  } catch (error) {
-    console.error("GET /api/presence error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load presence batch.",
-    });
+  } catch (err) {
+    console.error("presence one:", err.message);
+    return res.status(500).json({ success: false, message: "Failed to load presence." });
   }
 });
 
 module.exports = router;
-module.exports.effectiveStatus = effectiveStatus;
-module.exports.ONLINE_TTL_MS = ONLINE_TTL_MS;

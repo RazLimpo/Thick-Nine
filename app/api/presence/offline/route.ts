@@ -1,18 +1,15 @@
+// app/api/presence/offline/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 const BACKEND_URL =
-  process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+  process.env.BACKEND_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "https://thick-nine-backend.onrender.com";
 
 export async function POST(request: NextRequest) {
-  if (!BACKEND_URL) {
-    return NextResponse.json(
-      { message: "Server misconfiguration: backend URL missing." },
-      { status: 500 }
-    );
-  }
-
   try {
     const authHeader = request.headers.get("authorization");
     if (!authHeader) {
@@ -26,8 +23,10 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         Authorization: authHeader,
+        Accept: "application/json",
       },
       body: JSON.stringify(body),
+      cache: "no-store",
     });
 
     const data = await res.json().catch(() => ({}));

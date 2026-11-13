@@ -1,19 +1,16 @@
+// app/api/presence/route.ts
+// GET /api/presence?ids=id1,id2
+
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 const BACKEND_URL =
-  process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+  process.env.BACKEND_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "https://thick-nine-backend.onrender.com";
 
-/** GET /api/presence?ids=id1,id2,id3 */
 export async function GET(request: NextRequest) {
-  if (!BACKEND_URL) {
-    return NextResponse.json(
-      { message: "Server misconfiguration: backend URL missing." },
-      { status: 500 }
-    );
-  }
-
   try {
     const ids = request.nextUrl.searchParams.get("ids") || "";
     const res = await fetch(

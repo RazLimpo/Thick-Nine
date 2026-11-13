@@ -182,11 +182,21 @@ export default function ServiceDetailsClient({
         : "offline"
       : rawOnline || "offline"
   ).toLowerCase();
-  const isOnline =
+  const [livePresence, setLivePresence] = useState<
+    "online" | "away" | "offline" | null
+  >(null);
+  const baseOnline =
     onlineKey === "online" || onlineKey === "true" || onlineKey === "1";
-  const isAway = onlineKey === "away";
-  const presenceClass = isOnline ? "online" : isAway ? "away" : "offline";
-  const presenceLabel = isOnline ? "Online" : isAway ? "Away" : "Offline";
+  const baseAway = onlineKey === "away";
+  const presenceClass =
+    livePresence ||
+    (baseOnline ? "online" : baseAway ? "away" : "offline");
+  const presenceLabel =
+    presenceClass === "online"
+      ? "Online"
+      : presenceClass === "away"
+        ? "Away"
+        : "Offline";
   const sellerId = String(seller?._id || seller?.id || "").trim();
   const sellerProfileHref = sellerId
     ? `/freelancer-profile?id=${encodeURIComponent(sellerId)}`
@@ -239,6 +249,34 @@ export default function ServiceDetailsClient({
       return;
     }
     setIsOwner(String(myId) === String(sellerId));
+  }, [sellerId]);
+
+  /* Live shared presence for seller (glowing status on profile pic) */
+  useEffect(() => {
+    if (!sellerId) return;
+    let cancelled = false;
+    const pull = async () => {
+      try {
+        const res = await fetch(`/api/presence/${sellerId}`, {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok) return;
+        const st = String(data.status || "offline").toLowerCase();
+        if (st === "online" || st === "away" || st === "offline") {
+          setLivePresence(st);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    pull();
+    const t = window.setInterval(pull, 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
   }, [sellerId]);
 
   const rating = service.rating ?? 0;
