@@ -286,7 +286,7 @@ export default function MessagesClient() {
     let cancelled = false;
     const fetchPresence = async () => {
       try {
-        const qs = encodeURIComponent([...ids].join(","));
+        const qs = encodeURIComponent(Array.from(ids).join(","));
         const res = await fetch(`/api/presence?ids=${qs}`, {
           cache: "no-store",
           headers: { Accept: "application/json" },
