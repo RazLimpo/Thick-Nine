@@ -124,7 +124,8 @@ const Header = () => {
   }>
 >([]);
     
-const [isNotifOpen, setIsNotifOpen] = useState(false);  
+const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [myPresence, setMyPresence] = useState<"online" | "away" | "offline">("offline");  
 
   const [toast, setToast] = useState<ToastState>({ 
     visible: false, 
@@ -411,6 +412,22 @@ useEffect(() => {
   document.addEventListener('mousedown', handleClickOutside);
   return () => document.removeEventListener('mousedown', handleClickOutside);
 }, []);
+
+
+  // Own presence for header avatar (session-based; heartbeat can refine later)
+  useEffect(() => {
+    if (!isMounted || !isLoggedIn) {
+      setMyPresence("offline");
+      return;
+    }
+    setMyPresence("online");
+    // Soft heartbeat: if tab hidden, mark away
+    const onVis = () => {
+      setMyPresence(document.hidden ? "away" : "online");
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [isMounted, isLoggedIn]);
 
   // Open auth modal when landing with ?auth=login or ?auth=register
 useEffect(() => {
@@ -1144,12 +1161,114 @@ try {
 )}
           <div className="account-dropdown-container">
             <button
-              className="icon-btn account-trigger"
+              type="button"
+              id="account-icon-btn"
+              className={`icon-btn account-trigger role-ring role-ring-${
+                isAdminRole(userRole)
+                  ? "admin"
+                  : userRole === "freelancer"
+                    ? "freelancer"
+                    : userRole === "affiliate"
+                      ? "affiliate"
+                      : userRole === "client" || userRole === "buyer"
+                        ? "client"
+                        : "guest"
+              }`}
               onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
               aria-expanded={isAccountMenuOpen}
-              title="Account Menu"
+              title={
+                isLoggedIn
+                  ? `Account · ${
+                      isAdminRole(userRole)
+                        ? "Admin"
+                        : userRole === "freelancer"
+                          ? "Freelancer"
+                          : userRole === "affiliate"
+                            ? "Affiliate"
+                            : "Buyer"
+                    } mode · ${
+                      myPresence === "online"
+                        ? "Online"
+                        : myPresence === "away"
+                          ? "Away"
+                          : "Offline"
+                    }`
+                  : "Account Menu"
+              }
               aria-haspopup="true"
             >
+              <span className="account-avatar-wrap">
+                {isLoggedIn && userProfilePic ? (
+                  <Image
+                    src={userProfilePic}
+                    alt="Profile"
+                    className="user-profile-pic"
+                    width={36}
+                    height={36}
+                    unoptimized
+                  />
+                ) : (
+                  <i
+                    className={`fas ${
+                      isLoggedIn ? "fa-user-circle" : "fa-user-plus"
+                    }`}
+                  />
+                )}
+                {isLoggedIn && (
+                  <span
+                    className={`presence-dot presence-${myPresence}`}
+                    title={
+                      myPresence === "online"
+                        ? "Online"
+                        : myPresence === "away"
+                          ? "Away"
+                          : "Offline"
+                    }
+                    aria-label={
+                      myPresence === "online"
+                        ? "Online"
+                        : myPresence === "away"
+                          ? "Away"
+                          : "Offline"
+                    }
+                  />
+                )}
+              </span>
+            </button>
+
+            <ul className={`dropdown-menu ${isAccountMenuOpen ? 'is-active' : ''}`} role="menu">
+              {isLoggedIn && !isAdminRole(userRole) && (
+                <li className="dropdown-mode-label" role="presentation">
+                  <span>
+                    {userRole === "freelancer"
+                      ? "Freelancer mode"
+                      : userRole === "affiliate"
+                        ? "Affiliate mode"
+                        : "Buyer mode"}
+                  </span>
+                </li>
+              )}
+              {getMenuItems()}
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            className={`icon-btn menu-toggle role-ring role-ring-${
+              isAdminRole(userRole)
+                ? "admin"
+                : userRole === "freelancer"
+                  ? "freelancer"
+                  : userRole === "affiliate"
+                    ? "affiliate"
+                    : userRole === "client" || userRole === "buyer"
+                      ? "client"
+                      : "guest"
+            }`}
+            onClick={toggleMobileMenu}
+            aria-label="Open Menu"
+          >
+            <span className="account-avatar-wrap">
               {isLoggedIn && userProfilePic ? (
                 <Image
                   src={userProfilePic}
@@ -1158,32 +1277,19 @@ try {
                   width={36}
                   height={36}
                   unoptimized
-                  style={{ borderRadius: '50%', objectFit: 'cover' }}
                 />
               ) : (
-                <i className={`fas ${isLoggedIn ? 'fa-user-circle' : 'fa-user-plus'}`}></i>
-              )}
-            </button>
-
-            <ul className={`dropdown-menu ${isAccountMenuOpen ? 'is-active' : ''}`} role="menu">
-              {getMenuItems()}
-            </ul>
-          </div>
-
-          <button className="icon-btn menu-toggle" onClick={toggleMobileMenu} aria-label="Open Menu">
-            {isLoggedIn && userProfilePic ? (
-              <Image
-                  src={userProfilePic}
-                  alt="Profile"
-                  className="user-profile-pic"
-                  width={36}
-                  height={36}
-                  unoptimized
-                  style={{ borderRadius: '50%', objectFit: 'cover' }}
+                <i
+                  className={`fas ${isLoggedIn ? "fa-user-circle" : "fa-bars"}`}
                 />
-            ) : (
-              <i className={`fas ${isLoggedIn ? 'fa-user-circle' : 'fa-bars'}`}></i>
-            )}
+              )}
+              {isLoggedIn && (
+                <span
+                  className={`presence-dot presence-${myPresence}`}
+                  aria-hidden
+                />
+              )}
+            </span>
           </button>
         </div>
       </header>
