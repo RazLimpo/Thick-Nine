@@ -251,7 +251,7 @@ export default function ServiceDetailsClient({
     setIsOwner(String(myId) === String(sellerId));
   }, [sellerId]);
 
-  /* Live shared presence for seller (glowing status on profile pic) */
+  /* Live shared presence for seller avatar */
   useEffect(() => {
     if (!sellerId) return;
     let cancelled = false;
@@ -922,7 +922,7 @@ export default function ServiceDetailsClient({
 
             {/* Packages — badge = tier key (BASIC / STANDARD / PREMIUM) */}
             {availableKeys.length > 0 && (
-              <section className="packages-section">
+              <section className="packages-section" id="packages-section">
                 <h2>Choose Your Package</h2>
                 <div className="packages-grid" id="packages-grid">
                   {availableKeys.map((key) => {
@@ -1072,7 +1072,31 @@ export default function ServiceDetailsClient({
                   >
                     {tierLabel(selectedKey)}
                   </span>
-                  <a href="#packages-grid" className="select-package-link">
+                  <a
+                    href="#packages-section"
+                    className="select-package-link"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const el =
+                        document.getElementById("packages-section") ||
+                        document.getElementById("packages-grid");
+                      if (!el) return;
+                      const headerOffset =
+                        (document.querySelector(".main-header") as HTMLElement)
+                          ?.offsetHeight || 72;
+                      const top =
+                        el.getBoundingClientRect().top +
+                        window.scrollY -
+                        headerOffset -
+                        12;
+                      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+                      try {
+                        history.replaceState(null, "", "#packages-section");
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                  >
                     select package
                   </a>
                 </div>

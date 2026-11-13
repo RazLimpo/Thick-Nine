@@ -1238,3 +1238,17 @@ margin-bottom: 12px;
 border-radius: 12px;
 background: #0f172a;
 }
+
+/* Anchor scroll: clear fixed header when using #packages-grid / select package */
+#packages-section,
+#packages-grid,
+.packages-section {
+scroll-margin-top: calc(var(--header-height, 72px) + 24px);
+}
+@media (max-width: 768px) {
+#packages-section,
+#packages-grid,
+.packages-section {
+  scroll-margin-top: calc(var(--header-height, 64px) + 16px);
+}
+}
