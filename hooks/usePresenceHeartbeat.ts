@@ -64,19 +64,14 @@ export function usePresenceHeartbeat(enabled: boolean) {
     };
 
     const onUnload = () => {
-      const t = token();
-      if (!t) return;
-      // Best-effort offline on tab close
+      const tok = token();
+      if (!tok) return;
+      // Best-effort offline on tab close (keepalive works with auth headers)
       try {
-        const blob = new Blob(
-          [JSON.stringify({})],
-          { type: "application/json" }
-        );
-        // fetch keepalive is more reliable than sendBeacon with auth headers
         void fetch("/api/presence/offline", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${t}`,
+            Authorization: `Bearer ${tok}`,
             "Content-Type": "application/json",
           },
           body: "{}",
@@ -85,7 +80,6 @@ export function usePresenceHeartbeat(enabled: boolean) {
       } catch {
         /* ignore */
       }
-      void blob;
     };
 
     beat();
