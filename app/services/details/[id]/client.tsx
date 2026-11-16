@@ -169,7 +169,8 @@ export default function ServiceDetailsClient({
     "Freelancer";
   const sellerAvatar =
     service.sellerAvatar || seller?.avatar || "/default-avatar.png";
-  const sellerLevel = service.level || seller?.level || "Level 1 Seller";
+  // Prefer seller.level (User.level from auto-promotion); enum-safe fallback
+  const sellerLevel = seller?.level || service.level || "New Seller";
   const isVerified = seller?.isVerified ?? false;
   const rawOnline =
     (seller as { onlineStatus?: string; isOnline?: boolean } | undefined)

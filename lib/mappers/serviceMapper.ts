@@ -94,7 +94,8 @@ export function mapService(rawService: BackendServiceResponse): Service {
     // Pass full seller object (includes onlineStatus + lastSeen when API populates them)
     sellerId: seller,
 
-    level: seller?.level || "Level 1 Seller",
+    // User.level from auto-promotion (New Seller | Level 1 | Level 2 | Top Rated)
+    level: seller?.level || "New Seller",
 
     isOnline: isUserOnline({
       onlineStatus: seller?.onlineStatus,

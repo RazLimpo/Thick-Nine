@@ -58,7 +58,8 @@ export default function ServiceCard({
     avatar:
       service.sellerAvatar ?? seller?.avatar ?? "/default-avatar.png",
 
-    level: service.level ?? seller?.level ?? "Level 1 Seller",
+    // Prefer live seller.level (auto-promotion writes User.level)
+    level: seller?.level ?? service.level ?? "New Seller",
 
     verified: seller?.isVerified ?? false,
 

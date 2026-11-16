@@ -5,7 +5,7 @@ import type { BackendSeller, Service } from "@/types/service";
 
 /**
  * Fetch marketplace services from the Express backend.
- * Returns a raw array for mapService().
+ * Returns a raw array for mapService() / normalizeService().
  */
 export async function getServices(): Promise<any[]> {
   const response = await fetch(`${API_BASE_URL}/api/services`, {
@@ -78,8 +78,21 @@ export async function getServiceById(
   return normalizeService(raw as Record<string, unknown>);
 }
 
+/** Align seller level with User.level enum */
+function normalizeSellerLevel(value: unknown): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "New Seller";
+  // Legacy UI label → enum
+  if (/^level\s*1\s*seller$/i.test(raw)) return "Level 1";
+  if (/^level\s*2\s*seller$/i.test(raw)) return "Level 2";
+  if (/top\s*rated/i.test(raw)) return "Top Rated";
+  if (/new\s*seller/i.test(raw)) return "New Seller";
+  // Already one of: New Seller | Level 1 | Level 2 | Top Rated
+  return raw;
+}
+
 /** Normalize backend document → frontend Service shape */
-function normalizeService(raw: Record<string, unknown>): Service {
+export function normalizeService(raw: Record<string, unknown>): Service {
   const seller = raw.sellerId as Record<string, unknown> | undefined;
 
   const normalizedSeller: BackendSeller | undefined = seller
@@ -91,7 +104,7 @@ function normalizeService(raw: Record<string, unknown>): Service {
             ? seller.displayName
             : undefined,
         avatar: String(seller.avatar ?? "/default-avatar.png"),
-        level: String(seller.level ?? "Level 1 Seller"),
+        level: normalizeSellerLevel(seller.level),
         onlineStatus:
           typeof seller.onlineStatus === "string"
             ? seller.onlineStatus
@@ -152,7 +165,16 @@ function normalizeService(raw: Record<string, unknown>): Service {
       normalizedSeller?.fullName ||
       undefined,
     sellerAvatar: normalizedSeller?.avatar,
-    level: normalizedSeller?.level,
+    // Seller level lives on the user — never invent "Level 1 Seller"
+    level: normalizedSeller?.level ?? "New Seller",
     isOnline: normalizedSeller?.onlineStatus === "online",
   };
+}
+
+/** Map a list of backend services (from getServices) into UI Service shape */
+export function mapServices(rawList: any[]): Service[] {
+  if (!Array.isArray(rawList)) return [];
+  return rawList
+    .filter((row) => row && typeof row === "object")
+    .map((row) => normalizeService(row as Record<string, unknown>));
 }
