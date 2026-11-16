@@ -1,4 +1,5 @@
 // models/Transaction.js
+// Affiliate commissions + seller (freelancer) escrow withdrawals
 
 const mongoose = require("mongoose");
 
@@ -7,7 +8,14 @@ const TransactionSchema = new mongoose.Schema(
     affiliateId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
+      index: true,
+    },
+
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
       index: true,
     },
 
@@ -26,6 +34,10 @@ const TransactionSchema = new mongoose.Schema(
         "group_promo",
         "withdrawal",
         "referral_bonus",
+        "payout",
+        "earning",
+        "fee",
+        "refund",
       ],
       default: "commission",
       required: true,
@@ -39,11 +51,27 @@ const TransactionSchema = new mongoose.Schema(
         "group_promo",
         "referral_bonus",
         "withdrawal",
+        "seller_escrow",
         "other",
       ],
-      default: "solo_fee_share",
+      default: "other",
       index: true,
     },
+
+    payoutType: {
+      type: String,
+      enum: ["seller_escrow", "affiliate_wallet", null],
+      default: null,
+      index: true,
+    },
+
+    payoutMethod: {
+      type: String,
+      enum: ["payoneer", "bank", "momo", "mpesa", "other", ""],
+      default: "",
+    },
+
+    payoneerEmail: { type: String, default: "" },
 
     amount: {
       type: Number,
@@ -51,35 +79,39 @@ const TransactionSchema = new mongoose.Schema(
       min: 0,
     },
 
-    commissionRate: {
+    fee: {
       type: Number,
-      default: null,
+      default: 0,
+      min: 0,
     },
-    commissionableFee: {
-      type: Number,
-      default: null,
-    },
-    orderTotal: {
+
+    net: {
       type: Number,
       default: null,
     },
 
+    commissionRate: { type: Number, default: null },
+    commissionableFee: { type: Number, default: null },
+    orderTotal: { type: Number, default: null },
+
     status: {
       type: String,
-      enum: ["pending", "completed", "failed", "cancelled", "reversed"],
+      enum: [
+        "pending",
+        "pending_payoneer",
+        "completed",
+        "paid",
+        "failed",
+        "cancelled",
+        "reversed",
+      ],
       default: "completed",
       index: true,
     },
 
-    description: {
-      type: String,
-      default: "",
-    },
-
-    referenceId: {
-      type: String,
-      default: "",
-    },
+    description: { type: String, default: "" },
+    note: { type: String, default: "" },
+    referenceId: { type: String, default: "" },
 
     idempotencyKey: {
       type: String,
@@ -87,15 +119,17 @@ const TransactionSchema = new mongoose.Schema(
       sparse: true,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 TransactionSchema.index({ affiliateId: 1, type: 1, status: 1, createdAt: -1 });
+TransactionSchema.index({ userId: 1, type: 1, payoutType: 1, createdAt: -1 });
 TransactionSchema.index(
   { idempotencyKey: 1 },
-  { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } } }
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: "string" } },
+  }
 );
 
 module.exports =

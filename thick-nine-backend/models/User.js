@@ -519,31 +519,45 @@ const UserSchema = new mongoose.Schema(
 
 
     /* ===========================================================
-       SECTION 12 — WALLET
+       SECTION 12 — WALLET (affiliate + shared) AND SELLER BALANCES
+       Keep BOTH shapes so existing affiliate code (wallet.*) and
+       freelancer withdrawal / creditSellerBalance (sellerAvailableBalance)
+       continue to work without mass renames.
        =========================================================== */
 
     wallet: {
-
         availableBalance: {
             type: Number,
             default: 0
         },
-
         pendingBalance: {
             type: Number,
             default: 0
         },
-
         lifetimeEarnings: {
             type: Number,
             default: 0
         },
-
         lifetimeWithdrawals: {
             type: Number,
             default: 0
         }
+    },
 
+    /** Freelancer / seller escrow wallet (used by withdrawals + order complete credit) */
+    sellerAvailableBalance: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    sellerPendingBalance: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    sellerBalanceCreditedAt: {
+        type: Date,
+        default: null
     },
 
 

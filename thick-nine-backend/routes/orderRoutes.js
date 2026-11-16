@@ -622,6 +622,14 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
 
     await order.save();
 
+    let levelEval = null;
+    try {
+      const { evaluateSellerLevel } = require("../utils/evaluateSellerLevel");
+      levelEval = await evaluateSellerLevel(order.sellerId);
+    } catch (e) {
+      console.error("evaluateSellerLevel on rate:", e);
+    }
+
     try {
       const Notification = require("../models/Notification");
       await Notification.create({
@@ -647,6 +655,7 @@ router.post("/:id/rate", authMiddleware, async (req, res) => {
         buyerReview: order.buyerReview,
         ratedAt: order.ratedAt,
       },
+      level: levelEval,
     });
   } catch (error) {
     console.error("POST /api/orders/:id/rate error:", error);
@@ -862,6 +871,15 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
       console.error("creditAffiliateForOrder on complete:", e);
     }
 
+    // Auto-promote seller level from completed-order metrics
+    let levelEval = null;
+    try {
+      const { evaluateSellerLevel } = require("../utils/evaluateSellerLevel");
+      levelEval = await evaluateSellerLevel(order.sellerId);
+    } catch (e) {
+      console.error("evaluateSellerLevel on complete:", e);
+    }
+
     await order.save();
 
     try {
@@ -896,6 +914,7 @@ router.post("/:id/complete", authMiddleware, async (req, res) => {
       },
       sellerCredit: creditResult,
       affiliateCredit,
+      level: levelEval,
     });
   } catch (error) {
     console.error("POST /api/orders/:id/complete error:", error);

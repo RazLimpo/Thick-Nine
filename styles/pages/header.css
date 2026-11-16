@@ -1022,12 +1022,13 @@ color: #888;
 
 
 /* === Role ring (mode) + presence dot on account control === */
+/* Tiny gap: padding between photo and border-ring */
 .account-trigger.role-ring,
 .menu-toggle.role-ring {
-width: 32px;
-height: 32px;
+width: 34px;
+height: 34px;
 border-radius: 50%;
-padding: 0;
+padding: 2px; /* minute gap between avatar and ring */
 overflow: visible;
 border: 2px solid transparent;
 box-sizing: border-box;
@@ -1041,8 +1042,10 @@ display: block;
 width: 100%;
 height: 100%;
 border-radius: 50%;
+/* Must be visible so presence-dot + waves are not clipped */
 overflow: visible;
 line-height: 0;
+background: transparent;
 }
 
 .account-trigger.role-ring .user-profile-pic,
@@ -1052,38 +1055,44 @@ height: 100%;
 border-radius: 50%;
 object-fit: cover;
 display: block;
-/* photo clips to circle; ring stays on the button border */
 border: none;
+/* Round clip is on the image itself, not the wrap */
 }
 
 .account-trigger.role-ring i,
 .menu-toggle.role-ring i {
-font-size: 1.2rem;
-line-height: 28px;
+font-size: 1.15rem;
+line-height: 26px;
 width: 100%;
 text-align: center;
 }
 
-/* Strong role rings */
+/*
+Greyscale role rings (readable but quiet):
+client     = faint grey
+freelancer = mid grey
+affiliate  = deep grey
+admin      = keeps red for safety visibility
+*/
 .account-trigger.role-ring-client,
 .menu-toggle.role-ring-client {
-border-color: transparent;
+border-color: #d1d5db; /* faint grey */
 box-shadow: none;
 }
 .account-trigger.role-ring-freelancer,
 .menu-toggle.role-ring-freelancer {
-border-color: #3B82F6;
-box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+border-color: #9ca3af; /* normal grey */
+box-shadow: none;
 }
 .account-trigger.role-ring-affiliate,
 .menu-toggle.role-ring-affiliate {
-border-color: #9333EA;
-box-shadow: 0 0 0 1px rgba(147, 51, 234, 0.25);
+border-color: #4b5563; /* deep grey */
+box-shadow: none;
 }
 .account-trigger.role-ring-admin,
 .menu-toggle.role-ring-admin {
 border-color: #DC2626;
-box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25);
+box-shadow: none;
 }
 .account-trigger.role-ring-guest,
 .menu-toggle.role-ring-guest {
@@ -1093,42 +1102,43 @@ box-shadow: none;
 
 .account-trigger.role-ring:hover,
 .menu-toggle.role-ring:hover {
-background-color: rgba(0, 0, 0, 0.04);
+background-color: rgba(0, 0, 0, 0.03);
 }
 .account-trigger.role-ring-client:hover,
 .menu-toggle.role-ring-client:hover {
-border-color: transparent;
-box-shadow: none;
-background-color: rgba(0, 0, 0, 0.04); /* keep normal hover if you want */
+border-color: #9ca3af;
+box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.25);
 }
 .account-trigger.role-ring-freelancer:hover,
 .menu-toggle.role-ring-freelancer:hover {
-border-color: #2563EB;
-box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+border-color: #6b7280;
+box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.28);
 }
 .account-trigger.role-ring-affiliate:hover,
 .menu-toggle.role-ring-affiliate:hover {
-border-color: #7E22CE;
-box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.28);
+border-color: #374151;
+box-shadow: 0 0 0 2px rgba(55, 65, 81, 0.3);
 }
 .account-trigger.role-ring-admin:hover,
 .menu-toggle.role-ring-admin:hover {
 border-color: #B91C1C;
-box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.28);
+box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.28);
 }
 
 /* Presence = corner dot + lively pulse waves when online */
 .presence-dot {
 position: absolute;
-right: -1px;
-bottom: -1px;
-width: 10px;
-height: 10px;
+right: -2px;
+bottom: -2px;
+width: 11px;
+height: 11px;
 border-radius: 50%;
 border: 2px solid #fff;
 box-sizing: border-box;
-z-index: 3;
+z-index: 5;
 pointer-events: none;
+/* room for wave rings */
+overflow: visible;
 }
 .presence-dot.presence-online {
 background-color: #22c55e;
@@ -1138,6 +1148,7 @@ animation: presence-pulse 1.8s ease-out infinite;
 .presence-dot.presence-away {
 background-color: #f59e0b;
 box-shadow: 0 0 6px rgba(245, 158, 11, 0.55);
+animation: none;
 }
 .presence-dot.presence-offline {
 background-color: #9ca3af;
@@ -1152,11 +1163,11 @@ content: "";
 position: absolute;
 left: 50%;
 top: 50%;
-width: 10px;
-height: 10px;
-margin: -5px 0 0 -5px;
+width: 11px;
+height: 11px;
+margin: -5.5px 0 0 -5.5px;
 border-radius: 50%;
-border: 1.5px solid rgba(34, 197, 94, 0.55);
+border: 1.5px solid rgba(34, 197, 94, 0.65);
 animation: presence-wave 1.8s ease-out infinite;
 pointer-events: none;
 }
@@ -1166,20 +1177,20 @@ animation-delay: 0.9s;
 
 @keyframes presence-pulse {
 0%, 100% {
-  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55);
 }
 50% {
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+  box-shadow: 0 0 0 5px rgba(34, 197, 94, 0);
 }
 }
 
 @keyframes presence-wave {
 0% {
   transform: scale(1);
-  opacity: 0.7;
+  opacity: 0.75;
 }
 100% {
-  transform: scale(2.6);
+  transform: scale(2.8);
   opacity: 0;
 }
 }
@@ -1206,7 +1217,7 @@ border-radius: 999px;
 padding: 4px 10px;
 }
 
-/* Mobile: stronger role ring (desktop already solid; mobile was faint) */
+/* Mobile: same grey tiers + tiny gap */
 @media (max-width: 992px) {
 .menu-toggle.role-ring,
 .icon-btn.menu-toggle.role-ring {
@@ -1216,33 +1227,32 @@ padding: 4px 10px;
   width: 34px !important;
   height: 34px !important;
   border-radius: 50% !important;
-  padding: 0 !important;
+  padding: 2px !important; /* minute gap */
   border-style: solid !important;
-  border-width: 3px !important;
+  border-width: 2px !important;
   overflow: visible !important;
   background: #fff !important;
 }
 
-/* Solid saturated colours — beat any faint inheritance */
 .menu-toggle.role-ring-client,
 .icon-btn.menu-toggle.role-ring-client {
-  border-color: transparent !important;
+  border-color: #d1d5db !important;
   box-shadow: none !important;
 }
 .menu-toggle.role-ring-freelancer,
 .icon-btn.menu-toggle.role-ring-freelancer {
-  border-color: #1D4ED8 !important;
-  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.35) !important;
+  border-color: #9ca3af !important;
+  box-shadow: none !important;
 }
 .menu-toggle.role-ring-affiliate,
 .icon-btn.menu-toggle.role-ring-affiliate {
-  border-color: #7E22CE !important;
-  box-shadow: 0 0 0 2px rgba(126, 34, 206, 0.35) !important;
+  border-color: #4b5563 !important;
+  box-shadow: none !important;
 }
 .menu-toggle.role-ring-admin,
 .icon-btn.menu-toggle.role-ring-admin {
   border-color: #B91C1C !important;
-  box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.35) !important;
+  box-shadow: none !important;
 }
 .menu-toggle.role-ring-guest,
 .icon-btn.menu-toggle.role-ring-guest {
@@ -1253,6 +1263,8 @@ padding: 4px 10px;
 .menu-toggle .account-avatar-wrap {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
+  overflow: visible; /* do not clip presence-dot */
 }
 .menu-toggle .user-profile-pic {
   width: 100% !important;

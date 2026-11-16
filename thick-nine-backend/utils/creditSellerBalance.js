@@ -42,6 +42,14 @@ async function creditSellerBalance(order, opts = {}) {
   order.sellerBalanceCreditedAmount = amount;
   // Caller must order.save() if order not yet saved with these fields
 
+  // Level may change from new completed earnings; ignore errors
+  try {
+    const { evaluateSellerLevel } = require("./evaluateSellerLevel");
+    await evaluateSellerLevel(sellerId);
+  } catch (_) {
+    /* non-fatal */
+  }
+
   return { credited: true, amount };
 }
 
