@@ -1,6 +1,9 @@
-import React from 'react';
-import AffiliateDashboard from './client';
+// app/post-job/page.tsx
+import PostJobClient from "./client";
+import "@/styles/pages/post-job.css";
 
-export default function AffiliateDashboardPage() {
-  return <AffiliateDashboard />;
+export const dynamic = "force-dynamic";
+
+export default function PostJobPage() {
+  return <PostJobClient />;
 }

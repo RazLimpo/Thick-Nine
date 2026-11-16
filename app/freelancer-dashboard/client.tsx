@@ -683,7 +683,7 @@ export default function FreelancerDashboardClient() {
             <span className="icon">
               <i className="fas fa-handshake" />
             </span>
-            Marketing partners
+            Marketing Partners
           </Link>
           <Link href="/freelancer-settings" className="nav-item">
             <span className="icon">
@@ -881,7 +881,7 @@ export default function FreelancerDashboardClient() {
               View and manage orders that still need your attention.
             </p>
             <div className="activity-section">
-              <h2>Current orders</h2>
+              <h2>Current Orders</h2>
               <div className="responsive-table-container">
                 <table className="dashboard-table">
                   <thead>
@@ -1069,7 +1069,7 @@ export default function FreelancerDashboardClient() {
               <i className="fas fa-wallet" /> Earnings &amp; Payments
             </h1>
             <div className="content-card earnings-overview">
-              <h2>Earnings overview</h2>
+              <h2>Earnings Overview</h2>
               <div className="kpi-row earnings-kpi-row">
                 <div className="kpi-card available">
                   <div className="kpi-label">Available balance</div>
@@ -1101,12 +1101,12 @@ export default function FreelancerDashboardClient() {
                 </div>
               </div>
               <Link href="/freelancer-withdrawals" className="btn btn-primary mt-15 fd-withdraw-btn">
-                <i className="fas fa-arrow-circle-up" /> Withdraw funds
+                <i className="fas fa-arrow-circle-up" /> Withdraw Funds
               </Link>
             </div>
 
             <div className="content-card financial-insights">
-              <h2>Earnings breakdown &amp; insights</h2>
+              <h2>Earnings Breakdown &amp; Insights</h2>
               <div className="chart-controls">
                 <span className="text-muted">Showing last 6 months of completed earnings</span>
               </div>
@@ -1148,7 +1148,7 @@ export default function FreelancerDashboardClient() {
             </div>
 
             <div className="activity-section">
-              <h2>Recent transactions</h2>
+              <h2>Recent Transactions</h2>
               <div className="transaction-controls">
                 <select
                   id="transaction-filter"
@@ -1220,7 +1220,7 @@ export default function FreelancerDashboardClient() {
             <div className="content-card financial-sidebar-card">
               <div className="financial-section">
                 <h3>
-                  <i className="fas fa-sliders-h" /> Fees &amp; settings
+                  <i className="fas fa-sliders-h" /> Fees &amp; Settings
                 </h3>
                 <ul className="info-list">
                   <li>
@@ -1274,7 +1274,7 @@ export default function FreelancerDashboardClient() {
                   <h2>
                     {levelProgress.next ? (
                       <>
-                        Next milestone:{" "}
+                        Next Milestone:{" "}
                         <span className="highlight">{levelProgress.next}</span>
                       </>
                     ) : (
@@ -1500,7 +1500,7 @@ export default function FreelancerDashboardClient() {
                   </div>
 
                   <div className="content-card">
-                    <h2>Key performance indicators (KPIs)</h2>
+                    <h2>Key Performance Indicators (KPIs)</h2>
                     <div className="stat-kpi-grid">
                       <div className="stat-card">
                         <p className="stat-value">{successScore}%</p>
@@ -1548,7 +1548,7 @@ export default function FreelancerDashboardClient() {
 
                   <div className="insights-row">
                     <div className="content-card chart-area">
-                      <h2>Success metric trend</h2>
+                      <h2>Success Metric Trend</h2>
                       <div className="chart-controls">
                         <span className="text-muted">
                           Completed earnings · last 6 months
@@ -1582,7 +1582,7 @@ export default function FreelancerDashboardClient() {
                     </div>
 
                     <div className="content-card insights-breakdown">
-                      <h3>Top earning breakdown</h3>
+                      <h3>Top Earning Breakdown</h3>
                       <ul className="insight-list">
                         {serviceRows.length === 0 ? (
                           <li>
@@ -1603,7 +1603,7 @@ export default function FreelancerDashboardClient() {
                         )}
                       </ul>
 
-                      <h3 className="mt-20">Client quality summary</h3>
+                      <h3 className="mt-20">Client Quality Summary</h3>
                       <ul className="insight-list">
                         <li>
                           <span className="icon-label">
@@ -1635,7 +1635,7 @@ export default function FreelancerDashboardClient() {
 
                   <div className="content-card">
                     <h2>
-                      <i className="fas fa-chart-line" /> Performance deep dive
+                      <i className="fas fa-chart-line" /> Performance Deep Dive
                     </h2>
                     <p>
                       Access historical data, traffic sources, and goals on the
@@ -1668,7 +1668,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-plus-circle" />
                 </div>
                 <div className="card-info">
-                  <h3>Create service</h3>
+                  <h3>Create Service</h3>
                   <p>Launch a new listing</p>
                 </div>
               </Link>
@@ -1690,7 +1690,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-cash-register" />
                 </div>
                 <div className="card-info">
-                  <h3>Request payout</h3>
+                  <h3>Request Payout</h3>
                   <p>Withdraw earnings</p>
                 </div>
               </Link>
@@ -1699,7 +1699,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-upload" />
                 </div>
                 <div className="card-info">
-                  <h3>Active orders</h3>
+                  <h3>Active Orders</h3>
                   <p>{activeOrders.length} open</p>
                 </div>
               </Link>
@@ -1708,7 +1708,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-user-circle" />
                 </div>
                 <div className="card-info">
-                  <h3>View profile</h3>
+                  <h3>View Profile</h3>
                   <p>Public storefront</p>
                 </div>
               </Link>
@@ -1717,7 +1717,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-history" />
                 </div>
                 <div className="card-info">
-                  <h3>Order history</h3>
+                  <h3>Order History</h3>
                   <p>Past transactions</p>
                 </div>
               </Link>
@@ -1726,7 +1726,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-images" />
                 </div>
                 <div className="card-info">
-                  <h3>Portfolio & media</h3>
+                  <h3>Portfolio & Media</h3>
                   <p>In settings</p>
                 </div>
               </Link>
@@ -1735,7 +1735,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-user-cog" />
                 </div>
                 <div className="card-info">
-                  <h3>Account settings</h3>
+                  <h3>Account Settings</h3>
                   <p>Security & payout</p>
                 </div>
               </Link>
