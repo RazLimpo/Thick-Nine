@@ -1,12 +1,15 @@
+// app/jobs/page.tsx — public open jobs board
+import JobsBoardClient from "./client";
+import { BRAND } from "@/lib/constants";
 import "@/styles/pages/jobs.css";
-import JobsClient from "./client";
-import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Browse Projects | MyMarketplace",
-  description: "Browse thousands of available freelance projects and find your next opportunity.",
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: `Find Jobs | ${BRAND.pretty}`,
+  description: `Browse open client projects and apply on ${BRAND.pretty}`,
 };
 
 export default function JobsPage() {
-  return <JobsClient />;
+  return <JobsBoardClient />;
 }

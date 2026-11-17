@@ -1,10 +1,13 @@
-import "@/styles/pages/post-job.css";
+// app/jobs/create/page.tsx
 import PostJobClient from "./client";
-import type { Metadata } from "next";
+import { BRAND } from "@/lib/constants";
+import "@/styles/pages/post-job.css";
 
-export const metadata: Metadata = {
-  title: "Post a New Job | MyMarketplace",
-  description: "Tell us exactly what you need. Clear details attract the best freelancers.",
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: `Post a Job | ${BRAND.pretty}`,
+  description: `Describe your project and hire freelancers on ${BRAND.pretty}`,
 };
 
 export default function PostJobPage() {

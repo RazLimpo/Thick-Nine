@@ -22,16 +22,38 @@ function parseSkills(raw) {
     .slice(0, 30);
 }
 
+function normalizeBudgetType(v) {
+  const s = String(v || "fixed").toLowerCase();
+  if (s.includes("hour")) return "hourly";
+  return "fixed";
+}
+
 function buildPayload(body = {}) {
   const title = String(body.title || "").trim().slice(0, 100);
   const category = String(body.category || "").trim();
   const description = String(body.description || "").trim().slice(0, 2000);
   const deliverables = String(body.deliverables || "").trim().slice(0, 500);
-  const skills = parseSkills(body.skills);
-  const budgetType = body.budgetType === "hourly" ? "hourly" : "fixed";
-  const budgetMin = Math.max(0, Number(body.budgetMin) || 0);
-  const budgetMax = Math.max(budgetMin, Number(body.budgetMax) || budgetMin);
-  const timelineDays = Math.max(1, Math.min(365, Number(body.timelineDays) || 7));
+  const skills = parseSkills(body.skills || body.requiredSkills);
+
+  const budgetType = normalizeBudgetType(body.budgetType);
+  let budgetMin = Number(body.budgetMin);
+  let budgetMax = Number(body.budgetMax);
+  const single = Number(body.budget);
+  if ((!budgetMin || budgetMin <= 0) && single > 0) budgetMin = single;
+  if ((!budgetMax || budgetMax <= 0) && single > 0) budgetMax = single;
+  if (!Number.isFinite(budgetMin) || budgetMin < 0) budgetMin = 0;
+  if (!Number.isFinite(budgetMax) || budgetMax < budgetMin) budgetMax = budgetMin;
+
+  const timelineDays = Math.max(
+    1,
+    Math.min(
+      365,
+      Number(body.timelineDays) ||
+        parseInt(String(body.timeline || body.duration || "7").replace(/\D/g, ""), 10) ||
+        7
+    )
+  );
+
   const attachments = Array.isArray(body.attachments)
     ? body.attachments.filter((u) => typeof u === "string" && u.length > 0).slice(0, 10)
     : [];
@@ -45,7 +67,9 @@ function buildPayload(body = {}) {
     budgetType,
     budgetMin,
     budgetMax,
+    budget: single > 0 ? single : budgetMax || budgetMin || null,
     timelineDays,
+    duration: body.duration ? String(body.duration) : `${timelineDays} days`,
     attachments,
   };
 }
@@ -62,9 +86,6 @@ function validatePublish(p) {
   return null;
 }
 
-/**
- * GET /api/jobs — public open jobs (marketplace list for freelancers)
- */
 router.get("/", async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(String(req.query.limit || "24"), 10) || 24, 1), 100);
@@ -97,9 +118,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-/**
- * GET /api/jobs/mine — client's own jobs (all statuses)
- */
 router.get("/mine", auth, async (req, res) => {
   try {
     const userId = uid(req);
@@ -111,10 +129,6 @@ router.get("/mine", auth, async (req, res) => {
   }
 });
 
-/**
- * POST /api/jobs/draft — create or update draft
- * body may include jobId to update existing draft
- */
 router.post("/draft", auth, async (req, res) => {
   try {
     const userId = uid(req);
@@ -142,7 +156,7 @@ router.post("/draft", auth, async (req, res) => {
       if (job.status !== "draft") {
         return res.status(400).json({
           success: false,
-          message: "Only drafts can be updated this way. Edit open jobs from job management.",
+          message: "Only drafts can be updated this way.",
         });
       }
       Object.assign(job, payload, { status: "draft" });
@@ -167,9 +181,6 @@ router.post("/draft", auth, async (req, res) => {
   }
 });
 
-/**
- * POST /api/jobs — publish new job (or publish existing draft via jobId)
- */
 router.post("/", auth, async (req, res) => {
   try {
     const userId = uid(req);
@@ -216,9 +227,6 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-/**
- * GET /api/jobs/:id — public open job; owner may view draft
- */
 router.get("/:id", async (req, res) => {
   try {
     const job = await Job.findById(req.params.id)
@@ -229,7 +237,6 @@ router.get("/:id", async (req, res) => {
     }
 
     if (job.status !== "open") {
-      // Owner preview of draft
       try {
         const h = req.headers.authorization || "";
         const token = h.startsWith("Bearer ") ? h.slice(7) : null;

@@ -1,347 +1,527 @@
+// app/jobs/client.tsx — pastel card grid; filters in toolbar + sidebar budget
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
-// Job Listing Schema
-interface Job {
-  id: string;
-  title: string;
-  budgetMin: number;
-  budgetMax: number;
-  budgetType: "fixed" | "hourly";
-  snippet: string;
-  postedTime: string;
-  postedHoursAgo: number;
-  skills: string[];
-  category: string;
-}
+type JobRow = {
+  _id: string;
+  title?: string;
+  category?: string;
+  description?: string;
+  skills?: string[];
+  budgetMin?: number;
+  budgetMax?: number;
+  budget?: number;
+  budgetType?: string;
+  timelineDays?: number;
+  duration?: string;
+  publishedAt?: string;
+  createdAt?: string;
+  clientId?: {
+    _id?: string;
+    id?: string;
+    fullName?: string;
+    displayName?: string;
+    avatar?: string;
+    onlineStatus?: string;
+    location?: { city?: string; country?: string };
+  };
+};
 
-// Mock Jobs Data
-const INITIAL_JOBS: Job[] = [
-  {
-    id: "job-1",
-    title: "Build a Custom e-Commerce Platform with Django",
-    budgetMin: 5000,
-    budgetMax: 7000,
-    budgetType: "fixed",
-    snippet:
-      "We require an experienced Python/Django developer to build a scalable e-commerce site from scratch. Must integrate Stripe and handle complex product variants...",
-    postedTime: "1 hour ago",
-    postedHoursAgo: 1,
-    skills: ["Python", "Django", "Stripe API"],
-    category: "web development",
-  },
-  {
-    id: "job-2",
-    title: "Design 5 Social Media Graphics for a SaaS Startup",
-    budgetMin: 150,
-    budgetMax: 250,
-    budgetType: "fixed",
-    snippet:
-      "Need a graphic designer to create 5 eye-catching social media posts (LinkedIn, X) that align with our brand identity. Fast turnaround required...",
-    postedTime: "3 hours ago",
-    postedHoursAgo: 3,
-    skills: ["Figma", "Graphic Design", "Branding"],
-    category: "graphic design",
-  },
-  {
-    id: "job-3",
-    title: "SEO Content Strategy & Blog Article Writing",
-    budgetMin: 300,
-    budgetMax: 600,
-    budgetType: "fixed",
-    snippet:
-      "Looking for an SEO specialist to produce monthly articles and conduct high-intent keyword research for an online store...",
-    postedTime: "5 hours ago",
-    postedHoursAgo: 5,
-    skills: ["SEO", "Content Writing", "Copywriting"],
-    category: "writing & translation",
-  },
+/** Same set as components CategorySidebar (homepage) */
+const CATEGORIES = [
+  { value: "", label: "All Categories" },
+  { value: "ai-services", label: "AI Services" },
+  { value: "business-services", label: "Business Services" },
+  { value: "data-science", label: "Data Science" },
+  { value: "digital-marketing", label: "Digital Marketing" },
+  { value: "graphics-design", label: "Graphics & Design" },
+  { value: "music-audio", label: "Music and Audio" },
+  { value: "photography", label: "Photography" },
+  { value: "programming-tech", label: "Programming & Tech" },
+  { value: "travel-lifestyle", label: "Travel & Lifestyle" },
+  { value: "video-animation", label: "Video & Animation" },
+  { value: "writing-translation", label: "Writing & Translation" },
+  { value: "miscellaneous", label: "Miscellaneous (General)" },
+  // legacy keys from older post-job form (still match if stored)
+  { value: "design", label: "Graphics & Design (legacy)" },
+  { value: "webdev", label: "Web Development (legacy)" },
+  { value: "writing", label: "Writing (legacy)" },
+  { value: "marketing", label: "Marketing (legacy)" },
 ];
 
-interface ToastItem {
-  id: number;
-  message: string;
-  iconClass: string;
-  extraClass: string;
+const LOCATIONS = [
+  { value: "", label: "Any location" },
+  { value: "ghana", label: "Ghana" },
+  { value: "nigeria", label: "Nigeria" },
+  { value: "kenya", label: "Kenya" },
+  { value: "uganda", label: "Uganda" },
+  { value: "remote", label: "Remote / Anywhere" },
+];
+
+const TONE_COUNT = 6;
+
+function money(n?: number) {
+  if (n == null || Number.isNaN(Number(n))) return "—";
+  return `$${Number(n).toLocaleString()}`;
 }
 
-export default function JobsClient() {
-  // Filter States
-  const [maxBudget, setMaxBudget] = useState<number>(5000);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedBudgetType, setSelectedBudgetType] = useState<string>("fixed");
-  const [sortBy, setSortBy] = useState<string>("Newest First");
+function budgetLine(j: JobRow) {
+  const min = Number(j.budgetMin) || 0;
+  const max = Number(j.budgetMax) || Number(j.budget) || min;
+  if (!min && !max) return "Budget TBD";
+  if (min && max && min !== max) return `${money(min)}–${money(max)}`;
+  return money(max || min);
+}
 
-  // Bookmarking & Toast Notifications State
-  const [savedJobs, setSavedJobs] = useState<string[]>([]);
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(1);
+function formatDate(iso?: string) {
+  if (!iso) return "Recently";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "Recently";
+  }
+}
 
-  // Hydrate saved bookmarks from localStorage on initial render
+function clientName(j: JobRow) {
+  return j.clientId?.displayName || j.clientId?.fullName || "Client";
+}
+
+function clientLoc(j: JobRow) {
+  const city = j.clientId?.location?.city;
+  const country = j.clientId?.location?.country;
+  if (city && country) return `${city}, ${country}`;
+  return country || city || "Remote";
+}
+
+function presenceClass(raw?: string) {
+  const s = String(raw || "offline").toLowerCase();
+  if (s === "online" || s === "true" || s === "1") return "online";
+  if (s === "away") return "away";
+  return "offline";
+}
+
+function categoryLabel(value?: string) {
+  if (!value) return "";
+  const hit = CATEGORIES.find((c) => c.value === value);
+  return hit?.label || value;
+}
+
+function cardTags(j: JobRow): string[] {
+  const tags: string[] = ["Fixed price"];
+  if (j.category) tags.push(categoryLabel(j.category));
+  if (j.timelineDays) tags.push(`${j.timelineDays} days`);
+  else if (j.duration) tags.push(String(j.duration));
+  const skills = Array.isArray(j.skills) ? j.skills : [];
+  for (const s of skills.slice(0, 2)) {
+    if (s && !tags.includes(s)) tags.push(s);
+  }
+  return tags.slice(0, 4);
+}
+
+export default function JobsBoardClient() {
+  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [searchInput, setSearchInput] = useState("");
+  const [q, setQ] = useState("");
+  const [category, setCategory] = useState("");
+  const [location, setLocation] = useState("");
+  const [budgetMax, setBudgetMax] = useState(5000);
+  const [sort, setSort] = useState("newest");
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [presenceMap, setPresenceMap] = useState<Record<string, string>>({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (q.trim()) params.set("q", q.trim());
+      if (category) params.set("category", category);
+      params.set("limit", "48");
+      const res = await fetch(`/api/jobs?${params.toString()}`, {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message || "Failed to load jobs.");
+        setJobs([]);
+        return;
+      }
+      let list: JobRow[] = Array.isArray(data.jobs) ? data.jobs : [];
+
+      // Fixed-price board only
+      list = list.filter((j) => {
+        const t = String(j.budgetType || "fixed").toLowerCase();
+        return t !== "hourly" && !t.includes("hour");
+      });
+
+      list = list.filter((j) => {
+        const max =
+          Number(j.budgetMax) || Number(j.budget) || Number(j.budgetMin) || 0;
+        return max <= 0 || max <= budgetMax;
+      });
+
+      if (location && location !== "remote") {
+        const needle = location.toLowerCase();
+        list = list.filter((j) => {
+          const c = String(j.clientId?.location?.country || "").toLowerCase();
+          const city = String(j.clientId?.location?.city || "").toLowerCase();
+          return c.includes(needle) || city.includes(needle);
+        });
+      }
+
+      if (sort === "budget-high") {
+        list = [...list].sort(
+          (a, b) =>
+            (Number(b.budgetMax) || Number(b.budget) || 0) -
+            (Number(a.budgetMax) || Number(a.budget) || 0)
+        );
+      } else if (sort === "budget-low") {
+        list = [...list].sort(
+          (a, b) =>
+            (Number(a.budgetMin) || Number(a.budget) || 0) -
+            (Number(b.budgetMin) || Number(b.budget) || 0)
+        );
+      }
+
+      setJobs(list);
+
+      const ids = Array.from(
+        new Set(
+          list
+            .map((j) => String(j.clientId?._id || j.clientId?.id || ""))
+            .filter(Boolean)
+        )
+      );
+      if (ids.length) {
+        try {
+          const pr = await fetch("/api/presence", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ids }),
+            cache: "no-store",
+          });
+          const pd = await pr.json().catch(() => ({}));
+          if (pr.ok && pd && typeof pd === "object") {
+            const map: Record<string, string> = {};
+            const rows = Array.isArray(pd.users)
+              ? pd.users
+              : Array.isArray(pd.statuses)
+                ? pd.statuses
+                : [];
+            if (rows.length) {
+              rows.forEach(
+                (u: {
+                  id?: string;
+                  _id?: string;
+                  status?: string;
+                  onlineStatus?: string;
+                }) => {
+                  const id = String(u.id || u._id || "");
+                  if (id)
+                    map[id] = String(u.status || u.onlineStatus || "offline");
+                }
+              );
+            } else if (pd.byId && typeof pd.byId === "object") {
+              Object.assign(map, pd.byId);
+            }
+            setPresenceMap(map);
+          }
+        } catch {
+          /* optional */
+        }
+      }
+    } catch {
+      setError("Network error loading jobs.");
+      setJobs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [q, category, location, budgetMax, sort]);
+
   useEffect(() => {
-    const saved = localStorage.getItem("savedJobs");
-    if (saved) {
-      try {
-        setSavedJobs(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse saved jobs:", e);
-      }
-    }
-  }, []);
+    load();
+  }, [load]);
 
-  // Toast Notification Manager
-  const showToast = (message: string, iconClass: string, extraClass = "") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, iconClass, extraClass }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+  const applySearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setQ(searchInput.trim());
   };
 
-  // Toggle Bookmark Handler
-  const toggleBookmark = (title: string) => {
-    setSavedJobs((prev) => {
-      let updated: string[];
-      if (prev.includes(title)) {
-        updated = prev.filter((t) => t !== title);
-        showToast("Job removed from favorites", "fas fa-info-circle", "removed");
+  const clearFilters = () => {
+    setSearchInput("");
+    setQ("");
+    setCategory("");
+    setLocation("");
+    setBudgetMax(5000);
+    setSort("newest");
+  };
+
+  const toggleSave = async (jobId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return;
+    const isSaved = savedIds.has(jobId);
+    try {
+      if (isSaved) {
+        await fetch(`/api/bookmarks?itemType=Job&itemId=${jobId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
+        });
+        setSavedIds((prev) => {
+          const n = new Set(prev);
+          n.delete(jobId);
+          return n;
+        });
       } else {
-        updated = [...prev, title];
-        showToast("Job saved to favorites", "fas fa-check-circle");
+        await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ itemType: "Job", itemId: jobId }),
+        });
+        setSavedIds((prev) => new Set(prev).add(jobId));
       }
-      localStorage.setItem("savedJobs", JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  // Clear All Filters Handler
-  const handleResetFilters = () => {
-    setSelectedCategory("all");
-    setMaxBudget(5000);
-    setSelectedBudgetType("fixed");
-    setSortBy("Newest First");
-    showToast("Filters cleared", "fas fa-undo");
-  };
-
-  // Filter and Sort Engine
-  const filteredAndSortedJobs = useMemo(() => {
-    let result = INITIAL_JOBS.filter((job) => {
-      const matchesCategory =
-        selectedCategory === "all" ||
-        job.category.toLowerCase() === selectedCategory.toLowerCase();
-      const matchesType = job.budgetType.toLowerCase() === selectedBudgetType.toLowerCase();
-      const matchesPrice = job.budgetMin <= maxBudget;
-      return matchesCategory && matchesType && matchesPrice;
-    });
-
-    if (sortBy === "Highest Budget") {
-      result.sort((a, b) => b.budgetMax - a.budgetMax);
-    } else if (sortBy === "Newest First") {
-      result.sort((a, b) => a.postedHoursAgo - b.postedHoursAgo);
+    } catch {
+      /* ignore */
     }
+  };
 
-    return result;
-  }, [selectedCategory, selectedBudgetType, maxBudget, sortBy]);
+  const shownCount = useMemo(() => jobs.length, [jobs.length]);
 
-  // Dynamic calculation for dual-color CSS track on standard range input
-  const sliderProgress = ((maxBudget - 5) / (5000 - 5)) * 100;
+  /** Primary category options only (no legacy) for the main dropdown */
+  const categoryOptions = CATEGORIES.filter(
+    (c) => !c.label.includes("(legacy)")
+  );
 
   return (
-    <>
-      <main className="page-container job-browse-page">
-        {/* Header Title Section */}
-        <header className="page-title-header">
-          <h1>Projects for You</h1>
-          <p>1,245 projects found based on your skills and preferences.</p>
-        </header>
+    <main className="jb-page">
+      <div className="jb-layout">
+        {/* Sidebar: search + budget only */}
+        <aside className="jb-sidebar">
+          <form onSubmit={applySearch}>
+            <div className="jb-filter-block">
+              <h2>Keywords</h2>
+              <div className="jb-search-wrap">
+                <i className="fas fa-search" aria-hidden />
+                <input
+                  type="search"
+                  placeholder="Title, skill, keyword…"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+              </div>
+            </div>
 
-        <div className="job-browse-layout">
-          {/* Sidebar Filter Component */}
-          <aside className="job-filter-sidebar">
-            <div className="filter-group">
-              <h2>Budget Range</h2>
+            <div className="jb-filter-block">
+              <h2>Budget range</h2>
+              <p className="jb-hint">Fixed price only</p>
+              <div className="jb-range-labels">
+                <span>$10</span>
+                <span>Up to {money(budgetMax)}</span>
+              </div>
               <input
+                className="jb-range"
                 type="range"
-                min="5"
-                max="5000"
-                value={maxBudget}
-                className="budget-slider"
-                style={{ "--progress": `${sliderProgress}%` } as React.CSSProperties}
-                onChange={(e) => setMaxBudget(Number(e.target.value))}
+                min={50}
+                max={10000}
+                step={50}
+                value={budgetMax}
+                onChange={(e) => setBudgetMax(Number(e.target.value))}
+                aria-label="Maximum budget"
               />
+            </div>
+
+            <div className="jb-sidebar-actions">
+              <button type="submit" className="jb-btn-apply">
+                Apply
+              </button>
+              <button
+                type="button"
+                className="jb-btn-clear"
+                onClick={clearFilters}
+              >
+                Clear all
+              </button>
+            </div>
+          </form>
+        </aside>
+
+        {/* Main */}
+        <section className="jb-main">
+          <div className="jb-toolbar">
+            <div className="jb-toolbar-left">
+              <h1>Recommended jobs</h1>
+              <span className="jb-count">{loading ? "…" : shownCount}</span>
+            </div>
+            <Link href="/jobs/create" className="jb-post-link">
+              <i className="fas fa-plus" /> Post job
+            </Link>
+          </div>
+
+          {/* Top filters: category · location · sort */}
+          <div className="jb-top-filters">
+            <select
+              className="jb-top-select"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              aria-label="Category"
+            >
+              {categoryOptions.map((c) => (
+                <option key={c.value || "all"} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="jb-top-select"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              aria-label="Location"
+            >
+              {LOCATIONS.map((l) => (
+                <option key={l.value || "any"} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="jb-top-select"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              aria-label="Sort"
+            >
+              <option value="newest">Newest first</option>
+              <option value="budget-high">Budget: high → low</option>
+              <option value="budget-low">Budget: low → high</option>
+            </select>
+          </div>
+
+          {error && (
+            <div className="jb-error" role="alert">
+              {error}{" "}
+              <button type="button" onClick={load}>
+                Retry
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="jb-loading">
+              <i className="fas fa-spinner fa-spin" /> Loading jobs…
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="jb-empty">
+              <p>No fixed-price jobs match these filters.</p>
               <p>
-                Range: $<span id="min-budget">5</span> - $
-                <span id="max-budget">{maxBudget.toLocaleString()}</span>
+                <Link href="/jobs/create">Post a job</Link> or clear filters.
               </p>
             </div>
-
-            <div className="filter-group budget-type-row">
-              <h2>Budget Type</h2>
-              <div className="budget-controls">
-                <div className="job-type-pills">
-                  <label
-                    className={`job-type-pill ${
-                      selectedBudgetType === "fixed" ? "active" : ""
-                    }`}
-                    onClick={() => setSelectedBudgetType("fixed")}
+          ) : (
+            <div className="jb-grid">
+              {jobs.map((job, idx) => {
+                const cid = String(
+                  job.clientId?._id || job.clientId?.id || ""
+                );
+                const presence =
+                  presenceMap[cid] || job.clientId?.onlineStatus || "offline";
+                const avatar = job.clientId?.avatar || "/default-avatar.png";
+                const tags = cardTags(job);
+                const saved = savedIds.has(job._id);
+                return (
+                  <article
+                    key={job._id}
+                    className={`jb-card tone-${idx % TONE_COUNT}`}
                   >
-                    <input
-                      type="radio"
-                      name="job_type"
-                      value="fixed"
-                      checked={selectedBudgetType === "fixed"}
-                      onChange={() => setSelectedBudgetType("fixed")}
-                    />{" "}
-                    Fixed
-                  </label>
-                </div>
+                    <div className="jb-card-body">
+                      <div className="jb-card-top">
+                        <span className="jb-date">
+                          {formatDate(job.publishedAt || job.createdAt)}
+                        </span>
+                        <button
+                          type="button"
+                          className={`jb-bookmark${saved ? " is-saved" : ""}`}
+                          title={saved ? "Saved" : "Save job"}
+                          onClick={(e) => toggleSave(job._id, e)}
+                        >
+                          <i
+                            className={
+                              saved ? "fas fa-bookmark" : "far fa-bookmark"
+                            }
+                          />
+                        </button>
+                      </div>
 
-                <button
-                  id="reset-filters"
-                  className="icon-reset-btn"
-                  data-tooltip="Clear All Filters"
-                  onClick={handleResetFilters}
-                >
-                  <i className="fas fa-undo"></i>
-                </button>
-              </div>
-            </div>
-          </aside>
+                      <p className="jb-client">{clientName(job)}</p>
+                      <div className="jb-title-row">
+                        <h2 className="jb-title">
+                          {job.title || "Untitled job"}
+                        </h2>
+                        <div
+                          className="jb-avatar-wrap"
+                          title={clientName(job)}
+                        >
+                          <Image
+                            src={avatar}
+                            alt={clientName(job)}
+                            width={36}
+                            height={36}
+                            unoptimized
+                          />
+                          <span
+                            className={`jb-presence ${presenceClass(presence)}`}
+                            aria-label={presenceClass(presence)}
+                          />
+                        </div>
+                      </div>
 
-          {/* Main Job Listings Container */}
-          <section className="job-listings-main">
-            {/* Sort Bar Controls */}
-            <div className="sort-bar">
-              <div className="filter-controls">
-                <select
-                  id="category-filter"
-                  className="flex-select"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="all">All Categories</option>
-                  <option value="web development">Web Development</option>
-                  <option value="graphic design">Graphic Design</option>
-                  <option value="digital marketing">Digital Marketing</option>
-                  <option value="writing & translation">Writing & Translation</option>
-                </select>
-
-                <select
-                  id="sort-by"
-                  className="flex-select"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                >
-                  <option value="Newest First">Newest First</option>
-                  <option value="Highest Budget">Highest Budget</option>
-                  <option value="Most Recent Proposal">Most Recent Proposal</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Empty State Handler */}
-            {filteredAndSortedJobs.length === 0 && (
-              <div id="no-results-message">
-                <i className="fas fa-search"></i>
-                <p>No projects match your current filters. Try adjusting your budget or categories.</p>
-              </div>
-            )}
-
-            {/* Dynamic Job Cards Listing */}
-            {filteredAndSortedJobs.map((job) => {
-              const isSaved = savedJobs.includes(job.title);
-              return (
-                <article className="job-card" key={job.id}>
-                  <div className="job-card-header">
-                    <h2>{job.title}</h2>
-                    <span className="job-card-budget">
-                      ${job.budgetMin.toLocaleString()} -${job.budgetMax.toLocaleString()} (
-                      {job.budgetType === "fixed" ? "Fixed Price" : "Hourly"})
-                    </span>
-                  </div>
-
-                  <p className="job-card-snippet">{job.snippet}</p>
-
-                  <div className="job-card-footer">
-                    <div className="footer-meta">
-                      <span className="job-card-info">
-                        <i className="fas fa-clock"></i> Posted {job.postedTime}
-                      </span>
-                      <span className="job-card-info">
-                        <i className="fas fa-tools"></i> Skills: {job.skills.join(", ")}
-                      </span>
+                      <div className="jb-tags">
+                        {tags.map((t) => (
+                          <span key={t} className="jb-tag">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="footer-actions">
-                      <button
-                        className={`bookmark-btn ${isSaved ? "saved" : ""}`}
-                        title="Save Job"
-                        onClick={() => toggleBookmark(job.title)}
-                      >
-                        <i className={`${isSaved ? "fas" : "far"} fa-bookmark`}></i>
-                      </button>
-
-                      <Link
-                        href={`/jobs/${job.id}`}
-                        className="btn btn-secondary btn-small"
-                      >
-                        View Details & Propose
+                    <div className="jb-card-foot">
+                      <div>
+                        <div className="jb-pay">{budgetLine(job)}</div>
+                        <div className="jb-loc">
+                          <i className="fas fa-map-marker-alt" />{" "}
+                          {clientLoc(job)}
+                        </div>
+                      </div>
+                      <Link href={`/jobs/${job._id}`} className="jb-details">
+                        Details
                       </Link>
                     </div>
-                  </div>
-                </article>
-              );
-            })}
-
-            {/* Pagination Controls */}
-            {filteredAndSortedJobs.length > 0 && (
-              <div className="pagination">
-                <a
-                  className={`page-link ${currentPage === 1 ? "disabled" : ""}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage > 1) setCurrentPage(currentPage - 1);
-                  }}
-                >
-                  Previous
-                </a>
-                {[1, 2, 3].map((page) => (
-                  <a
-                    key={page}
-                    className={`page-link ${currentPage === page ? "active" : ""}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setCurrentPage(page);
-                    }}
-                  >
-                    {page}
-                  </a>
-                ))}
-                <a
-                  className="page-link"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setCurrentPage((prev) => prev + 1);
-                  }}
-                >
-                  Next
-                </a>
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
-
-      {/* Floating Toast Notification Container */}
-      <div id="toast-container">
-        {toasts.map((toast) => (
-          <div key={toast.id} className={`toast ${toast.extraClass}`}>
-            <i className={toast.iconClass}></i> {toast.message}
-          </div>
-        ))}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
-    </>
+    </main>
   );
 }

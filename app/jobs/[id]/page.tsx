@@ -1,18 +1,22 @@
-import "@/styles/pages/job-details.css";
+// app/jobs/[id]/page.tsx
 import JobDetailsClient from "./client";
-import type { Metadata } from "next";
+import { BRAND } from "@/lib/constants";
+import "@/styles/pages/job-details.css";
 
-export const metadata: Metadata = {
-  title: "Job Details: Build Custom E-commerce Platform | MyMarketPlace",
-  description: "View project requirements, client details, and submit a proposal.",
-};
+export const dynamic = "force-dynamic";
 
-interface JobDetailsPageProps {
-  params: {
-    id: string;
+type Props = { params: Promise<{ id: string }> | { id: string } };
+
+export async function generateMetadata({ params }: Props) {
+  const { id } = await Promise.resolve(params);
+  return {
+    title: `Job | ${BRAND.pretty}`,
+    description: `View job details and submit a proposal on ${BRAND.pretty}`,
+    // Client can refine title once loaded; this is a safe default
   };
 }
 
-export default function JobDetailsPage({ params }: JobDetailsPageProps) {
-  return <JobDetailsClient jobId={params.id} />;
+export default async function JobDetailsPage({ params }: Props) {
+  const { id } = await Promise.resolve(params);
+  return <JobDetailsClient jobId={id} />;
 }
