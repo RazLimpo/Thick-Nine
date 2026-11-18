@@ -342,15 +342,9 @@
     flex: 1 1 auto;
     position: relative;
     min-height: 148px;
+    /* single soft cool gray-blue for all cards */
+    background: #e8eef8;
   }
-  
-  /* rotating pastels */
-  .jb-card.tone-0 .jb-card-body { background: #ffe8d9; }
-  .jb-card.tone-1 .jb-card-body { background: #d8f5ea; }
-  .jb-card.tone-2 .jb-card-body { background: #e8dffc; }
-  .jb-card.tone-3 .jb-card-body { background: #dceeff; }
-  .jb-card.tone-4 .jb-card-body { background: #fce4f0; }
-  .jb-card.tone-5 .jb-card-body { background: #e8eef8; }
   
   .jb-card-top {
     display: flex;
@@ -410,11 +404,31 @@
     margin: 0;
     font-size: 1.02rem;
     font-weight: 800;
-    line-height: 1.25;
+    line-height: 1.3;
     letter-spacing: -0.02em;
     color: #0f172a;
     flex: 1 1 auto;
     min-width: 0;
+  }
+  
+  .jb-looking-for {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    color: #64748b;
+    margin: 0 0 2px;
+    line-height: 1.2;
+  }
+  
+  .jb-looking-role {
+    display: block;
+    font-size: 1.02rem;
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: #0f172a;
   }
   
   .jb-avatar-wrap {

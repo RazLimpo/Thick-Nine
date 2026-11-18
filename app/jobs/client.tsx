@@ -1,4 +1,4 @@
-// app/jobs/client.tsx — pastel card grid; filters in toolbar + sidebar budget
+// app/jobs/client.tsx — job cards (Looking for: + single cool gray-blue)
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -60,8 +60,6 @@ const LOCATIONS = [
   { value: "uganda", label: "Uganda" },
   { value: "remote", label: "Remote / Anywhere" },
 ];
-
-const TONE_COUNT = 6;
 
 function money(n?: number) {
   if (n == null || Number.isNaN(Number(n))) return "—";
@@ -438,7 +436,7 @@ export default function JobsBoardClient() {
             </div>
           ) : (
             <div className="jb-grid">
-              {jobs.map((job, idx) => {
+              {jobs.map((job) => {
                 const cid = String(
                   job.clientId?._id || job.clientId?.id || ""
                 );
@@ -450,7 +448,7 @@ export default function JobsBoardClient() {
                 return (
                   <article
                     key={job._id}
-                    className={`jb-card tone-${idx % TONE_COUNT}`}
+                    className="jb-card"
                   >
                     <div className="jb-card-body">
                       <div className="jb-card-top">
@@ -474,7 +472,10 @@ export default function JobsBoardClient() {
                       <p className="jb-client">{clientName(job)}</p>
                       <div className="jb-title-row">
                         <h2 className="jb-title">
-                          {job.title || "Untitled job"}
+                          <span className="jb-looking-for">Looking for:</span>
+                          <span className="jb-looking-role">
+                            {job.title || "a skilled freelancer"}
+                          </span>
                         </h2>
                         <div
                           className="jb-avatar-wrap"
