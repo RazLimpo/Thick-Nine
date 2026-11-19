@@ -89,9 +89,34 @@ const JobSchema = new mongoose.Schema(
         freelancerId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "User",
+          required: true,
         },
-        coverLetter: String,
-        bidAmount: Number,
+        coverLetter: { type: String, default: "" },
+        bidAmount: { type: Number, required: true },
+        deliveryNote: { type: String, default: "" },
+        cvUrl: { type: String, default: "" },
+        status: {
+          type: String,
+          enum: ["pending", "shortlisted", "accepted", "rejected", "withdrawn"],
+          default: "pending",
+        },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    /** Moderation reports from users */
+    reports: [
+      {
+        reporterId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        reason: {
+          type: String,
+          enum: ["spam", "payment", "inappropriate", "other"],
+          default: "spam",
+        },
+        note: { type: String, default: "" },
         createdAt: { type: Date, default: Date.now },
       },
     ],

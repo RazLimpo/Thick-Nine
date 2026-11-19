@@ -42,6 +42,20 @@ type OrderRow = {
   createdAt?: string;
 };
 
+type JobRow = {
+  _id: string;
+  title?: string;
+  category?: string;
+  budgetMin?: number;
+  budgetMax?: number;
+  budget?: number;
+  timelineDays?: number;
+  skills?: string[] | string;
+  publishedAt?: string;
+  createdAt?: string;
+  clientId?: { fullName?: string; displayName?: string };
+};
+
 type ActivityItem = {
   id: string;
   type: "success" | "rating" | "message" | "danger" | "info";
@@ -64,6 +78,25 @@ function formatMoney(n: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function jobBudgetLabel(j: JobRow): string {
+  const min = Number(j.budgetMin) || 0;
+  const max = Number(j.budgetMax) || Number(j.budget) || min;
+  if (!min && !max) return "Budget TBD";
+  if (min && max && min !== max) return `${formatMoney(min)} – ${formatMoney(max)}`;
+  return formatMoney(max || min);
+}
+
+function jobSkills(j: JobRow): string[] {
+  if (Array.isArray(j.skills)) return j.skills.filter(Boolean).slice(0, 4);
+  if (typeof j.skills === "string")
+    return j.skills
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  return [];
 }
 
 function relativeTime(iso?: string): string {
@@ -144,6 +177,9 @@ export default function FreelancerDashboardClient() {
   const [panel, setPanel] = useState<PanelId>("overview-panel");
   const [loading, setLoading] = useState(true);
   const [jobsTab, setJobsTab] = useState<"recommended" | "saved">("recommended");
+  const [openJobs, setOpenJobs] = useState<JobRow[]>([]);
+  const [savedJobs, setSavedJobs] = useState<JobRow[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
 
   const [displayName, setDisplayName] = useState("Freelancer");
   const [avatar, setAvatar] = useState("/default-avatar.png");
@@ -453,6 +489,80 @@ export default function FreelancerDashboardClient() {
     }
   }, []);
 
+
+  const loadOpenJobs = useCallback(async () => {
+    setJobsLoading(true);
+    try {
+      const res = await fetch("/api/jobs?limit=8", {
+        headers: getAuthHeaders(),
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const list = Array.isArray(data.jobs)
+          ? data.jobs
+          : Array.isArray(data)
+            ? data
+            : [];
+        setOpenJobs(
+          list.map((j: JobRow & { id?: string }) => ({
+            ...j,
+            _id: String(j._id || j.id || ""),
+          })).filter((j: JobRow) => j._id)
+        );
+      }
+    } catch {
+      /* keep empty */
+    } finally {
+      setJobsLoading(false);
+    }
+  }, []);
+
+  const loadSavedJobs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/bookmarks?itemType=Job", {
+        headers: getAuthHeaders(),
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSavedJobs([]);
+        return;
+      }
+      const rows = Array.isArray(data.bookmarks)
+        ? data.bookmarks
+        : Array.isArray(data.items)
+          ? data.items
+          : Array.isArray(data)
+            ? data
+            : [];
+      const jobs: JobRow[] = rows
+        .map((b: { item?: JobRow; job?: JobRow; itemId?: string; _id?: string }) => {
+          const j = b.item || b.job;
+          if (j && (j._id || (j as { id?: string }).id)) {
+            return {
+              ...j,
+              _id: String(j._id || (j as { id?: string }).id),
+            } as JobRow;
+          }
+          return null;
+        })
+        .filter(Boolean) as JobRow[];
+      setSavedJobs(jobs);
+    } catch {
+      setSavedJobs([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (panel !== "jobs-panel") return;
+    loadOpenJobs();
+    if (jobsTab === "saved") loadSavedJobs();
+  }, [panel, jobsTab, loadOpenJobs, loadSavedJobs]);
+
+
   useEffect(() => {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -683,7 +793,7 @@ export default function FreelancerDashboardClient() {
             <span className="icon">
               <i className="fas fa-handshake" />
             </span>
-            Marketing Partners
+            Marketing partners
           </Link>
           <Link href="/freelancer-settings" className="nav-item">
             <span className="icon">
@@ -828,9 +938,14 @@ export default function FreelancerDashboardClient() {
         {/* Jobs */}
         {panel === "jobs-panel" && (
           <section id="jobs-panel" className="content-panel active">
-            <h1>
-              <i className="fas fa-search" /> Jobs For You
-            </h1>
+            <div className="section-header-tabs" style={{ alignItems: "center" }}>
+              <h1 style={{ margin: 0 }}>
+                <i className="fas fa-search" /> Jobs For You
+              </h1>
+              <Link href="/jobs" className="btn-primary" style={{ textDecoration: "none" }}>
+                <i className="fas fa-external-link-alt" /> Browse all jobs
+              </Link>
+            </div>
             <div className="section-header-tabs">
               <div className="tab-controls">
                 <button
@@ -838,34 +953,138 @@ export default function FreelancerDashboardClient() {
                   className={`tab-btn${jobsTab === "recommended" ? " active" : ""}`}
                   onClick={() => setJobsTab("recommended")}
                 >
-                  Recommended Jobs
+                  Open jobs
                 </button>
                 <button
                   type="button"
                   className={`tab-btn${jobsTab === "saved" ? " active" : ""}`}
                   onClick={() => setJobsTab("saved")}
                 >
-                  Saved Jobs
+                  Saved jobs
                 </button>
               </div>
             </div>
             {jobsTab === "recommended" ? (
               <div className="recommended-jobs-section activity-section">
-                <h2>Recommended matches</h2>
+                <h2>Latest open jobs</h2>
                 <p className="section-subtitle">
-                  Job board matching is coming soon. Update skills in settings so
-                  recommendations can use your profile later.
+                  From the public board. Skill-based matching can refine this
+                  later — keep skills updated in{" "}
+                  <Link href="/freelancer-settings">Freelancer Settings</Link>.
                 </p>
-                <div className="content-card">
-                  <p>
-                    Tip: keep Skills &amp; Expertise current in{" "}
-                    <Link href="/freelancer-settings">Freelancer Settings</Link>.
-                  </p>
+                {jobsLoading ? (
+                  <div className="content-card">
+                    <p>
+                      <i className="fas fa-spinner fa-spin" /> Loading jobs…
+                    </p>
+                  </div>
+                ) : openJobs.length === 0 ? (
+                  <div className="content-card">
+                    <p className="no-jobs-msg">
+                      No open jobs right now.{" "}
+                      <Link href="/jobs">Check the jobs board</Link> later.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="fd-jobs-grid">
+                    {openJobs.map((job) => (
+                      <article key={job._id} className="job-match-card">
+                        <div className="job-card-header">
+                          <span className="job-looking-for">Looking for:</span>
+                          <Link
+                            href={`/jobs/${job._id}`}
+                            className="job-title-link"
+                          >
+                            {job.title || "Open role"}
+                          </Link>
+                          <span className="job-card-budget">
+                            {jobBudgetLabel(job)}
+                          </span>
+                        </div>
+                        <div className="job-card-info">
+                          <span>
+                            <i className="far fa-clock" />{" "}
+                            {job.timelineDays
+                              ? `${job.timelineDays} days`
+                              : "Flexible"}
+                          </span>
+                          <span>
+                            <i className="far fa-calendar" />{" "}
+                            {relativeTime(job.publishedAt || job.createdAt)}
+                          </span>
+                        </div>
+                        {jobSkills(job).length > 0 && (
+                          <div className="fd-job-skills">
+                            {jobSkills(job).map((s) => (
+                              <span key={s} className="fd-job-skill">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="job-card-footer">
+                          <span>
+                            {job.clientId?.displayName ||
+                              job.clientId?.fullName ||
+                              "Client"}
+                          </span>
+                          <Link
+                            href={`/jobs/${job._id}`}
+                            className="btn-secondary"
+                          >
+                            Details
+                          </Link>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginTop: 16 }}>
+                  <Link href="/jobs" className="btn-primary">
+                    View full jobs board →
+                  </Link>
                 </div>
               </div>
             ) : (
-              <div className="content-card">
-                <p className="no-jobs-msg">You have not saved any jobs yet.</p>
+              <div className="recommended-jobs-section activity-section">
+                <h2>Saved jobs</h2>
+                {savedJobs.length === 0 ? (
+                  <div className="content-card">
+                    <p className="no-jobs-msg">
+                      You have not saved any jobs yet. Open the{" "}
+                      <Link href="/jobs">jobs board</Link> and use Save on a job
+                      detail page.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="fd-jobs-grid">
+                    {savedJobs.map((job) => (
+                      <article key={job._id} className="job-match-card">
+                        <div className="job-card-header">
+                          <span className="job-looking-for">Looking for:</span>
+                          <Link
+                            href={`/jobs/${job._id}`}
+                            className="job-title-link"
+                          >
+                            {job.title || "Saved job"}
+                          </Link>
+                          <span className="job-card-budget">
+                            {jobBudgetLabel(job)}
+                          </span>
+                        </div>
+                        <div className="job-card-footer">
+                          <span>Saved</span>
+                          <Link
+                            href={`/jobs/${job._id}`}
+                            className="btn-secondary"
+                          >
+                            Details
+                          </Link>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -881,7 +1100,7 @@ export default function FreelancerDashboardClient() {
               View and manage orders that still need your attention.
             </p>
             <div className="activity-section">
-              <h2>Current Orders</h2>
+              <h2>Current orders</h2>
               <div className="responsive-table-container">
                 <table className="dashboard-table">
                   <thead>
@@ -1069,7 +1288,7 @@ export default function FreelancerDashboardClient() {
               <i className="fas fa-wallet" /> Earnings &amp; Payments
             </h1>
             <div className="content-card earnings-overview">
-              <h2>Earnings Overview</h2>
+              <h2>Earnings overview</h2>
               <div className="kpi-row earnings-kpi-row">
                 <div className="kpi-card available">
                   <div className="kpi-label">Available balance</div>
@@ -1101,12 +1320,12 @@ export default function FreelancerDashboardClient() {
                 </div>
               </div>
               <Link href="/freelancer-withdrawals" className="btn btn-primary mt-15 fd-withdraw-btn">
-                <i className="fas fa-arrow-circle-up" /> Withdraw Funds
+                <i className="fas fa-arrow-circle-up" /> Withdraw funds
               </Link>
             </div>
 
             <div className="content-card financial-insights">
-              <h2>Earnings Breakdown &amp; Insights</h2>
+              <h2>Earnings breakdown &amp; insights</h2>
               <div className="chart-controls">
                 <span className="text-muted">Showing last 6 months of completed earnings</span>
               </div>
@@ -1148,7 +1367,7 @@ export default function FreelancerDashboardClient() {
             </div>
 
             <div className="activity-section">
-              <h2>Recent Transactions</h2>
+              <h2>Recent transactions</h2>
               <div className="transaction-controls">
                 <select
                   id="transaction-filter"
@@ -1220,7 +1439,7 @@ export default function FreelancerDashboardClient() {
             <div className="content-card financial-sidebar-card">
               <div className="financial-section">
                 <h3>
-                  <i className="fas fa-sliders-h" /> Fees &amp; Settings
+                  <i className="fas fa-sliders-h" /> Fees &amp; settings
                 </h3>
                 <ul className="info-list">
                   <li>
@@ -1274,7 +1493,7 @@ export default function FreelancerDashboardClient() {
                   <h2>
                     {levelProgress.next ? (
                       <>
-                        Next Milestone:{" "}
+                        Next milestone:{" "}
                         <span className="highlight">{levelProgress.next}</span>
                       </>
                     ) : (
@@ -1500,7 +1719,7 @@ export default function FreelancerDashboardClient() {
                   </div>
 
                   <div className="content-card">
-                    <h2>Key Performance Indicators (KPIs)</h2>
+                    <h2>Key performance indicators (KPIs)</h2>
                     <div className="stat-kpi-grid">
                       <div className="stat-card">
                         <p className="stat-value">{successScore}%</p>
@@ -1548,7 +1767,7 @@ export default function FreelancerDashboardClient() {
 
                   <div className="insights-row">
                     <div className="content-card chart-area">
-                      <h2>Success Metric Trend</h2>
+                      <h2>Success metric trend</h2>
                       <div className="chart-controls">
                         <span className="text-muted">
                           Completed earnings · last 6 months
@@ -1582,7 +1801,7 @@ export default function FreelancerDashboardClient() {
                     </div>
 
                     <div className="content-card insights-breakdown">
-                      <h3>Top Earning Breakdown</h3>
+                      <h3>Top earning breakdown</h3>
                       <ul className="insight-list">
                         {serviceRows.length === 0 ? (
                           <li>
@@ -1603,7 +1822,7 @@ export default function FreelancerDashboardClient() {
                         )}
                       </ul>
 
-                      <h3 className="mt-20">Client Quality Summary</h3>
+                      <h3 className="mt-20">Client quality summary</h3>
                       <ul className="insight-list">
                         <li>
                           <span className="icon-label">
@@ -1635,7 +1854,7 @@ export default function FreelancerDashboardClient() {
 
                   <div className="content-card">
                     <h2>
-                      <i className="fas fa-chart-line" /> Performance Deep Dive
+                      <i className="fas fa-chart-line" /> Performance deep dive
                     </h2>
                     <p>
                       Access historical data, traffic sources, and goals on the
@@ -1668,7 +1887,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-plus-circle" />
                 </div>
                 <div className="card-info">
-                  <h3>Create Service</h3>
+                  <h3>Create service</h3>
                   <p>Launch a new listing</p>
                 </div>
               </Link>
@@ -1690,7 +1909,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-cash-register" />
                 </div>
                 <div className="card-info">
-                  <h3>Request Payout</h3>
+                  <h3>Request payout</h3>
                   <p>Withdraw earnings</p>
                 </div>
               </Link>
@@ -1699,7 +1918,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-upload" />
                 </div>
                 <div className="card-info">
-                  <h3>Active Orders</h3>
+                  <h3>Active orders</h3>
                   <p>{activeOrders.length} open</p>
                 </div>
               </Link>
@@ -1708,7 +1927,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-user-circle" />
                 </div>
                 <div className="card-info">
-                  <h3>View Profile</h3>
+                  <h3>View profile</h3>
                   <p>Public storefront</p>
                 </div>
               </Link>
@@ -1717,7 +1936,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-history" />
                 </div>
                 <div className="card-info">
-                  <h3>Order History</h3>
+                  <h3>Order history</h3>
                   <p>Past transactions</p>
                 </div>
               </Link>
@@ -1726,7 +1945,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-images" />
                 </div>
                 <div className="card-info">
-                  <h3>Portfolio & Media</h3>
+                  <h3>Portfolio & media</h3>
                   <p>In settings</p>
                 </div>
               </Link>
@@ -1735,7 +1954,7 @@ export default function FreelancerDashboardClient() {
                   <i className="fas fa-user-cog" />
                 </div>
                 <div className="card-info">
-                  <h3>Account Settings</h3>
+                  <h3>Account settings</h3>
                   <p>Security & payout</p>
                 </div>
               </Link>

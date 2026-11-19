@@ -106,7 +106,7 @@ router.get("/", async (req, res) => {
         .sort({ publishedAt: -1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
-        .populate("clientId", "fullName displayName avatar location")
+        .populate("clientId", "fullName displayName avatar location onlineStatus createdAt memberSince")
         .lean(),
       Job.countDocuments(filter),
     ]);
@@ -227,10 +227,178 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
+
+/* ---------- POST /api/jobs/:id/proposals — freelancer applies ---------- */
+router.post("/:id/proposals", auth, async (req, res) => {
+  try {
+    const userId = uid(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const user = await User.findById(userId).select("role isActive fullName displayName");
+    if (!user) return res.status(401).json({ success: false, message: "Unauthorized." });
+    if (user.isActive === false) {
+      return res.status(403).json({ success: false, message: "Account deactivated." });
+    }
+
+    const job = await Job.findById(req.params.id);
+    if (!job || job.status !== "open") {
+      return res.status(404).json({ success: false, message: "Open job not found." });
+    }
+
+    if (String(job.clientId) === String(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot propose on your own job.",
+      });
+    }
+
+    const already = (job.proposals || []).some(
+      (p) => String(p.freelancerId) === String(userId)
+    );
+    if (already) {
+      return res.status(400).json({
+        success: false,
+        message: "You already submitted a proposal for this job.",
+      });
+    }
+
+    const coverLetter = String(req.body?.coverLetter || "").trim();
+    const bidAmount = Number(req.body?.bidAmount);
+    const deliveryNote = String(req.body?.deliveryNote || "").trim().slice(0, 200);
+    const cvUrl = String(req.body?.cvUrl || "").trim().slice(0, 500);
+
+    if (coverLetter.length < 20) {
+      return res.status(400).json({
+        success: false,
+        message: "Cover letter must be at least 20 characters.",
+      });
+    }
+    if (!Number.isFinite(bidAmount) || bidAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid bid amount.",
+      });
+    }
+
+    job.proposals.push({
+      freelancerId: userId,
+      coverLetter: coverLetter.slice(0, 4000),
+      bidAmount,
+      deliveryNote,
+      cvUrl,
+      status: "pending",
+      createdAt: new Date(),
+    });
+    await job.save();
+
+    // Notify client (best-effort)
+    try {
+      const Notification = require("../models/Notification");
+      if (Notification) {
+        await Notification.create({
+          user: job.clientId,
+          type: "job_proposal",
+          title: "New proposal on your job",
+          message: `${user.displayName || user.fullName || "A freelancer"} proposed on "${job.title}".`,
+          link: `/jobs/${job._id}`,
+          meta: { jobId: job._id, freelancerId: userId },
+        });
+      }
+    } catch (err) {
+      console.warn("proposal notification skipped:", err.message);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Proposal submitted.",
+      proposalCount: job.proposals.length,
+    });
+  } catch (e) {
+    console.error("POST /api/jobs/:id/proposals:", e);
+    return res.status(500).json({ success: false, message: "Failed to submit proposal." });
+  }
+});
+
+/* ---------- POST /api/jobs/:id/report — flag for admins ---------- */
+router.post("/:id/report", auth, async (req, res) => {
+  try {
+    const userId = uid(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const job = await Job.findById(req.params.id).select("title clientId status reports");
+    if (!job) {
+      return res.status(404).json({ success: false, message: "Job not found." });
+    }
+
+    const allowed = ["spam", "payment", "inappropriate", "other"];
+    let reason = String(req.body?.reason || "spam").toLowerCase();
+    if (!allowed.includes(reason)) reason = "other";
+    const note = String(req.body?.note || "").trim().slice(0, 500);
+
+    const recent = (job.reports || []).find(
+      (r) =>
+        String(r.reporterId) === String(userId) &&
+        Date.now() - new Date(r.createdAt).getTime() < 24 * 60 * 60 * 1000
+    );
+    if (recent) {
+      return res.status(429).json({
+        success: false,
+        message: "You already reported this job recently.",
+      });
+    }
+
+    job.reports = job.reports || [];
+    job.reports.push({
+      reporterId: userId,
+      reason,
+      note,
+      createdAt: new Date(),
+    });
+    await job.save();
+
+    // Notify all admins (best-effort)
+    try {
+      const Notification = require("../models/Notification");
+      const admins = await User.find({
+        role: { $in: ["admin", "superadmin", "moderator"] },
+      })
+        .select("_id")
+        .limit(20)
+        .lean();
+      if (Notification && admins.length) {
+        await Notification.insertMany(
+          admins.map((a) => ({
+            user: a._id,
+            type: "job_report",
+            title: "Job reported",
+            message: `Job "${job.title}" reported (${reason}).`,
+            link: `/admin/jobs/${job._id}`,
+            meta: { jobId: job._id, reason, reporterId: userId },
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn("report notification skipped:", err.message);
+    }
+
+    return res.json({
+      success: true,
+      message: "Report submitted for moderation.",
+    });
+  } catch (e) {
+    console.error("POST /api/jobs/:id/report:", e);
+    return res.status(500).json({ success: false, message: "Failed to submit report." });
+  }
+});
+
 router.get("/:id", async (req, res) => {
   try {
     const job = await Job.findById(req.params.id)
-      .populate("clientId", "fullName displayName avatar location")
+      .populate("clientId", "fullName displayName avatar location onlineStatus createdAt memberSince")
       .lean();
     if (!job) {
       return res.status(404).json({ success: false, message: "Job not found." });
