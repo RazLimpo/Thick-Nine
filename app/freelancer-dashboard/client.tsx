@@ -114,6 +114,20 @@ function relativeTime(iso?: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+  
+  function getClientInitials(name?: string): string { 
+    if (!name) return "CL"; 
+    return name 
+    .trim() 
+    .split(/\s+/) 
+    .slice(0, 2) 
+    .map((part) => part[0]?.toUpperCase() || "") 
+    .join("") || "CL"; 
+  }
+
+
+  
+  
 function dueLabel(dueAt?: string | null): string {
   if (!dueAt) return "—";
   const due = new Date(dueAt).getTime();
@@ -171,6 +185,9 @@ const NAV: { id: PanelId; label: string; icon: string }[] = [
   { id: "quick-actions-panel", label: "Quick Actions", icon: "fa-bolt" },
   { id: "messages-panel", label: "Messages", icon: "fa-envelope" },
 ];
+  
+  
+  
 
 export default function FreelancerDashboardClient() {
   const router = useRouter();
@@ -180,6 +197,52 @@ export default function FreelancerDashboardClient() {
   const [openJobs, setOpenJobs] = useState<JobRow[]>([]);
   const [savedJobs, setSavedJobs] = useState<JobRow[]>([]);
   const [jobsLoading, setJobsLoading] = useState(false);
+    
+    
+    
+    
+  const savedJobIds = useMemo( 
+    () => new Set(savedJobs.map((j) => j._id)), 
+    [savedJobs] 
+    );
+
+const handleToggleSaveJob = async (job: JobRow) => { 
+  const alreadySaved = savedJobIds.has(job._id); 
+  // Optimistic UI update 
+  if (alreadySaved) { 
+    setSavedJobs((prev) => prev.filter((item) => item._id !== job._id)); 
+    showToast("Removed from saved jobs", "info"); 
+  } else { 
+    setSavedJobs((prev) => [job, ...prev]); 
+    showToast("Job saved to your favorites!", "success"); 
+  }
+
+try { 
+  await fetch("/api/bookmarks", { 
+    method: alreadySaved ? "DELETE" : "POST", 
+    headers: { ...getAuthHeaders(), "Content-Type": "application/json" }, 
+    credentials: "include", 
+    body: JSON.stringify({ itemType: "Job", itemId: job._id }), 
+    
+  }); 
+} catch { 
+  /* keep optimistic state or reload on next tab switch */ } 
+};
+
+const handleShareJob = async (job: JobRow) => { 
+  const shareUrl = `${window.location.origin}/jobs/${job._id}`; 
+  try { 
+    await navigator.clipboard.writeText(shareUrl); 
+    showToast("Job link copied to clipboard!", "success"); 
+  } catch { 
+    showToast("Could not copy link", "error"); 
+  } 
+};
+
+
+    
+    
+    
 
   const [displayName, setDisplayName] = useState("Freelancer");
   const [avatar, setAvatar] = useState("/default-avatar.png");
@@ -559,8 +622,8 @@ export default function FreelancerDashboardClient() {
   useEffect(() => {
     if (panel !== "jobs-panel") return;
     loadOpenJobs();
-    if (jobsTab === "saved") loadSavedJobs();
-  }, [panel, jobsTab, loadOpenJobs, loadSavedJobs]);
+    loadSavedJobs();
+  }, [panel, loadOpenJobs, loadSavedJobs]);
 
 
   useEffect(() => {
@@ -793,7 +856,7 @@ export default function FreelancerDashboardClient() {
             <span className="icon">
               <i className="fas fa-handshake" />
             </span>
-            Marketing partners
+            Marketing Partners
           </Link>
           <Link href="/freelancer-settings" className="nav-item">
             <span className="icon">
@@ -953,20 +1016,20 @@ export default function FreelancerDashboardClient() {
                   className={`tab-btn${jobsTab === "recommended" ? " active" : ""}`}
                   onClick={() => setJobsTab("recommended")}
                 >
-                  Open jobs
+                  Open Jobs
                 </button>
                 <button
                   type="button"
                   className={`tab-btn${jobsTab === "saved" ? " active" : ""}`}
                   onClick={() => setJobsTab("saved")}
                 >
-                  Saved jobs
+                  Saved Jobs
                 </button>
               </div>
             </div>
             {jobsTab === "recommended" ? (
               <div className="recommended-jobs-section activity-section">
-                <h2>Latest open jobs</h2>
+                <h2>Latest Open Jobs</h2>
                 <p className="section-subtitle">
                   From the public board. Skill-based matching can refine this
                   later — keep skills updated in{" "}
@@ -987,56 +1050,103 @@ export default function FreelancerDashboardClient() {
                   </div>
                 ) : (
                   <div className="fd-jobs-grid">
-                    {openJobs.map((job) => (
-                      <article key={job._id} className="job-match-card">
-                        <div className="job-card-header">
-                          <span className="job-looking-for">Looking for:</span>
-                          <Link
-                            href={`/jobs/${job._id}`}
-                            className="job-title-link"
-                          >
-                            {job.title || "Open role"}
-                          </Link>
-                          <span className="job-card-budget">
-                            {jobBudgetLabel(job)}
-                          </span>
-                        </div>
-                        <div className="job-card-info">
-                          <span>
-                            <i className="far fa-clock" />{" "}
-                            {job.timelineDays
-                              ? `${job.timelineDays} days`
-                              : "Flexible"}
-                          </span>
-                          <span>
-                            <i className="far fa-calendar" />{" "}
-                            {relativeTime(job.publishedAt || job.createdAt)}
-                          </span>
-                        </div>
-                        {jobSkills(job).length > 0 && (
-                          <div className="fd-job-skills">
-                            {jobSkills(job).map((s) => (
-                              <span key={s} className="fd-job-skill">
-                                {s}
-                              </span>
-                            ))}
+                    {openJobs.map((job) => {
+                      const clientName =
+                        job.clientId?.displayName ||
+                        job.clientId?.fullName ||
+                        "Client";
+                      const isSaved = savedJobIds.has(job._id);
+                      const timelineStr = job.timelineDays
+                        ? `${job.timelineDays} days`
+                        : "Flexible";
+                      const postedStr = relativeTime(
+                        job.publishedAt || job.createdAt
+                      );
+
+                      return (
+                        <article key={job._id} className="job-card-c">
+                          {/* Left Client Column */}
+                          <div className="job-card-c-left">
+                            <div className="jc-avatar-wrap jc-role-ring">
+                              <div className="jc-avatar-fallback">
+                                {getClientInitials(clientName)}
+                              </div>
+                              <span className="jc-presence" title="Online" />
+                            </div>
+                            <div className="jc-client-meta">
+                              <div className="jc-client-name">{clientName}</div>
+                              <div className="jc-online-status">● Online</div>
+                            </div>
                           </div>
-                        )}
-                        <div className="job-card-footer">
-                          <span>
-                            {job.clientId?.displayName ||
-                              job.clientId?.fullName ||
-                              "Client"}
-                          </span>
-                          <Link
-                            href={`/jobs/${job._id}`}
-                            className="btn-secondary"
-                          >
-                            Details
-                          </Link>
-                        </div>
-                      </article>
-                    ))}
+
+                          {/* Right Job Details Column */}
+                          <div className="job-card-c-right">
+                            {/* Top Row: Label + Save & Share Buttons */}
+                            <div className="jc-top-bar">
+                              <span className="jc-looking">Looking for:</span>
+                              <div className="jc-actions">
+                                <button
+                                  type="button"
+                                  className={`jc-icon-btn${isSaved ? " saved" : ""}`}
+                                  data-tooltip={isSaved ? "Saved" : "Save job"}
+                                  aria-label={isSaved ? "Saved" : "Save job"}
+                                  onClick={() => handleToggleSaveJob(job)}
+                                >
+                                  <i
+                                    className={`${isSaved ? "fas" : "far"} fa-heart`}
+                                  />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="jc-icon-btn"
+                                  data-tooltip="Share job"
+                                  aria-label="Share job"
+                                  onClick={() => handleShareJob(job)}
+                                >
+                                  <i className="fas fa-share-nodes" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Job Title */}
+                            <Link
+                              href={`/jobs/${job._id}`}
+                              className="jc-title"
+                            >
+                              {job.title || "Open role"}
+                            </Link>
+
+                            {/* Price (Left) & Days/Posted (Far Right) on the same line */}
+                            <div className="jc-price-meta-row">
+                              <span className="jc-budget">
+                                {jobBudgetLabel(job)}
+                              </span>
+                              <span className="jc-meta">
+                                {timelineStr}
+                                {postedStr ? ` · ${postedStr}` : ""}
+                              </span>
+                            </div>
+
+                            {/* Footer Row: Skills (Left) & Details Button (Right) */}
+                            <div className="jc-right-foot">
+                              <div className="jc-skills">
+                                {jobSkills(job).map((skill) => (
+                                  <span key={skill} className="jc-skill">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                              <Link
+                                href={`/jobs/${job._id}`}
+                                className="jc-btn-details"
+                              >
+                                Details <i className="fas fa-chevron-right" />
+                              </Link>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
                 <div style={{ marginTop: 16 }}>
@@ -1058,31 +1168,103 @@ export default function FreelancerDashboardClient() {
                   </div>
                 ) : (
                   <div className="fd-jobs-grid">
-                    {savedJobs.map((job) => (
-                      <article key={job._id} className="job-match-card">
-                        <div className="job-card-header">
-                          <span className="job-looking-for">Looking for:</span>
-                          <Link
-                            href={`/jobs/${job._id}`}
-                            className="job-title-link"
-                          >
-                            {job.title || "Saved job"}
-                          </Link>
-                          <span className="job-card-budget">
-                            {jobBudgetLabel(job)}
-                          </span>
-                        </div>
-                        <div className="job-card-footer">
-                          <span>Saved</span>
-                          <Link
-                            href={`/jobs/${job._id}`}
-                            className="btn-secondary"
-                          >
-                            Details
-                          </Link>
-                        </div>
-                      </article>
-                    ))}
+                    {savedJobs.map((job) => {
+                      const clientName =
+                        job.clientId?.displayName ||
+                        job.clientId?.fullName ||
+                        "Client";
+                      const isSaved = savedJobIds.has(job._id);
+                      const timelineStr = job.timelineDays
+                        ? `${job.timelineDays} days`
+                        : "Flexible";
+                      const postedStr = relativeTime(
+                        job.publishedAt || job.createdAt
+                      );
+
+                      return (
+                        <article key={job._id} className="job-card-c">
+                          {/* Left Client Column */}
+                          <div className="job-card-c-left">
+                            <div className="jc-avatar-wrap jc-role-ring">
+                              <div className="jc-avatar-fallback">
+                                {getClientInitials(clientName)}
+                              </div>
+                              <span className="jc-presence" title="Online" />
+                            </div>
+                            <div className="jc-client-meta">
+                              <div className="jc-client-name">{clientName}</div>
+                              <div className="jc-online-status">● Online</div>
+                            </div>
+                          </div>
+
+                          {/* Right Job Details Column */}
+                          <div className="job-card-c-right">
+                            {/* Top Row: Label + Save & Share Buttons */}
+                            <div className="jc-top-bar">
+                              <span className="jc-looking">Looking for:</span>
+                              <div className="jc-actions">
+                                <button
+                                  type="button"
+                                  className={`jc-icon-btn${isSaved ? " saved" : ""}`}
+                                  data-tooltip={isSaved ? "Saved" : "Save job"}
+                                  aria-label={isSaved ? "Saved" : "Save job"}
+                                  onClick={() => handleToggleSaveJob(job)}
+                                >
+                                  <i
+                                    className={`${isSaved ? "fas" : "far"} fa-heart`}
+                                  />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="jc-icon-btn"
+                                  data-tooltip="Share job"
+                                  aria-label="Share job"
+                                  onClick={() => handleShareJob(job)}
+                                >
+                                  <i className="fas fa-share-nodes" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Job Title */}
+                            <Link
+                              href={`/jobs/${job._id}`}
+                              className="jc-title"
+                            >
+                              {job.title || "Saved job"}
+                            </Link>
+
+                            {/* Price (Left) & Days/Posted (Far Right) on the same line */}
+                            <div className="jc-price-meta-row">
+                              <span className="jc-budget">
+                                {jobBudgetLabel(job)}
+                              </span>
+                              <span className="jc-meta">
+                                {timelineStr}
+                                {postedStr ? ` · ${postedStr}` : ""}
+                              </span>
+                            </div>
+
+                            {/* Footer Row: Skills (Left) & Details Button (Right) */}
+                            <div className="jc-right-foot">
+                              <div className="jc-skills">
+                                {jobSkills(job).map((skill) => (
+                                  <span key={skill} className="jc-skill">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                              <Link
+                                href={`/jobs/${job._id}`}
+                                className="jc-btn-details"
+                              >
+                                Details <i className="fas fa-chevron-right" />
+                              </Link>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
               </div>
