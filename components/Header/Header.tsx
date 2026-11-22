@@ -740,7 +740,7 @@ if (isAdminRole(userRole)) {
         <li key="f-orders"><Link href="/freelancer-orders" onClick={closeAllUI}><i className="fas fa-spinner"></i> Order Management</Link></li>,
         <li key="f-withdraw"><Link href="/freelancer-withdrawals" onClick={closeAllUI}><i className="fas fa-wallet"></i> Withdrawal</Link></li>,
         <li key="f-stats"><Link href="/freelancer-analytics" onClick={closeAllUI}><i className="fas fa-chart-line"></i> Stats</Link></li>,
-        <li key="f-clients"><Link href="/freelancer-client-management" onClick={closeAllUI}><i className="fas fa-users"></i> Clients</Link></li>,
+        <li key="f-clients"><Link href="/freelancer-clients" onClick={closeAllUI}><i className="fas fa-users"></i> Clients</Link></li>,
         <li key="f-settings"><Link href="/freelancer-settings" onClick={closeAllUI}><i className="fas fa-cog"></i> Settings</Link></li>
       );
     } else if (userRole === 'client') {
@@ -1100,7 +1100,7 @@ try {
               <>
                 <li><Link href="/freelancer-dashboard" className={`nav-link ${currentPath === '/freelancer-dashboard' ? 'active' : ''}`}>Dashboard</Link></li>
                 <li><Link href="/freelancer-orders-history" className={`nav-link ${currentPath === '/freelancer-orders-history' ? 'active' : ''}`}>Orders</Link></li>
-                <li><Link href="/freelancer-client-management" className={`nav-link ${currentPath === '/freelancer-client-management' ? 'active' : ''}`}>Clients</Link></li>
+                <li><Link href="/freelancer-clients" className={`nav-link ${currentPath === '/freelancer-clients' ? 'active' : ''}`}>Clients</Link></li>
                 <li><Link href="/service-management" className={`nav-link ${currentPath === '/service-management' ? 'active' : ''}`}>Services</Link></li>
               </>
             )}
