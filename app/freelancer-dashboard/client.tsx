@@ -525,7 +525,7 @@ export default function FreelancerDashboardClient() {
 
         // Batch presence for client avatars
         const ids = mapped
-          .map((j) => String(j.clientId?._id || j.clientId?.id || ""))
+          .map((j: JobRow) => String(j.clientId?._id || j.clientId?.id || ""))
           .filter(Boolean);
         if (ids.length) {
           try {
