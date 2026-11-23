@@ -16,6 +16,22 @@ type ClientPublic = {
   avatar?: string;
   location?: string;
   onlineStatus?: string;
+  tagline?: string;
+  bio?: string;
+  preferredSkills?: string[] | string;
+  projectTypes?: string[];
+  preferredProjectType?: string;
+  projectScale?: string;
+  keyRequirements?: string;
+  contactPref?: string;
+  minBudget?: number | null;
+  maxBudget?: number | null;
+  escrowPref?: string;
+  twoFactorEnabled?: boolean;
+  isVerified?: boolean;
+  memberSince?: string;
+  timezone?: string;
+  languages?: string[] | string;
 };
 
 type ClientRow = {
@@ -131,6 +147,33 @@ function presenceClass(status?: string): string {
 function displayName(c: ClientPublic | null | undefined): string {
   return c?.displayName || c?.fullName || "Client";
 }
+
+function skillList(v?: string[] | string): string[] {
+  if (Array.isArray(v)) return v.filter(Boolean).slice(0, 8);
+  if (typeof v === "string")
+    return v
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+  return [];
+}
+
+const SCALE_LABEL: Record<string, string> = {
+  small: "Small (< $500)",
+  medium: "Medium ($500 – $5k)",
+  large: "Large ($5k+)",
+};
+const CONTACT_LABEL: Record<string, string> = {
+  messaging: "Platform messaging",
+  email: "Email",
+  both: "Messaging & email",
+};
+const ESCROW_LABEL: Record<string, string> = {
+  always: "Always use escrow",
+  sometimes: "Sometimes",
+  never: "Rarely",
+};
 
 export default function FreelancerClientsClient() {
   const router = useRouter();
@@ -272,8 +315,53 @@ export default function FreelancerClientsClient() {
         setModalOpen(false);
         return;
       }
-      setDetail(data as DetailPayload);
-      setNotesDraft(data.relation?.notes || "");
+      let payload = data as DetailPayload;
+      // Align modal with public client profile (same fields as client-settings / client-profile)
+      try {
+        const pr = await fetch(`/api/users/${clientId}/public`, {
+          headers: getAuthHeaders(),
+          cache: "no-store",
+        });
+        const pd = await pr.json().catch(() => ({}));
+        if (pr.ok && (pd.user || pd._id)) {
+          const u = pd.user || pd;
+          payload = {
+            ...payload,
+            client: {
+              ...(payload.client || {}),
+              _id: String(u._id || clientId),
+              fullName: u.fullName || payload.client?.fullName,
+              displayName: u.displayName || u.fullName || payload.client?.displayName,
+              avatar: u.avatar || payload.client?.avatar,
+              location:
+                typeof u.location === "string"
+                  ? u.location
+                  : payload.client?.location,
+              onlineStatus: u.onlineStatus || payload.client?.onlineStatus,
+              tagline: u.tagline,
+              bio: u.bio,
+              preferredSkills: u.preferredSkills,
+              projectTypes: u.projectTypes,
+              preferredProjectType: u.preferredProjectType,
+              projectScale: u.projectScale,
+              keyRequirements: u.keyRequirements,
+              contactPref: u.contactPref,
+              minBudget: u.minBudget,
+              maxBudget: u.maxBudget,
+              escrowPref: u.escrowPref,
+              twoFactorEnabled: u.twoFactorEnabled,
+              isVerified: u.isVerified,
+              memberSince: u.memberSince,
+              timezone: u.timezone,
+              languages: u.languages,
+            },
+          };
+        }
+      } catch {
+        /* optional enrichment */
+      }
+      setDetail(payload);
+      setNotesDraft(payload.relation?.notes || "");
     } catch {
       showToast("Network error.", "error");
       setModalOpen(false);
@@ -690,6 +778,9 @@ export default function FreelancerClientsClient() {
                       <div className="fcm-detail-name">
                         {displayName(detail.client)}
                       </div>
+                      {detail.client?.tagline ? (
+                        <p className="fcm-tagline">{detail.client.tagline}</p>
+                      ) : null}
                       {detail.client?.location ? (
                         <p>
                           <i className="fas fa-map-marker-alt" />{" "}
@@ -699,7 +790,20 @@ export default function FreelancerClientsClient() {
                         <p className="fcm-muted">Location not shared</p>
                       )}
                       <p className="fcm-muted">
-                        Member since {formatDate(detail.metrics.memberSince)}
+                        Member since{" "}
+                        {formatDate(
+                          detail.client?.memberSince ||
+                            detail.metrics.memberSince
+                        )}
+                      </p>
+                      <p>
+                        <Link
+                          href={`/client-profile/${detail.client?._id || ""}`}
+                          className="fcm-full-profile-link"
+                        >
+                          <i className="fas fa-external-link-alt" /> Open full
+                          public profile
+                        </Link>
                       </p>
                       <div className="fcm-detail-actions">
                         <button
@@ -821,6 +925,85 @@ export default function FreelancerClientsClient() {
                       </button>
                     </div>
                   </div>
+
+                  {(detail.client?.bio ||
+                    skillList(detail.client?.preferredSkills).length > 0 ||
+                    detail.client?.projectScale ||
+                    detail.client?.keyRequirements) && (
+                    <div className="fcm-pref-block">
+                      <h4 className="fcm-section-title">
+                        <i className="fas fa-briefcase" /> Public profile prefs
+                      </h4>
+                      {detail.client?.bio ? (
+                        <p className="fcm-bio">{detail.client.bio}</p>
+                      ) : null}
+                      {skillList(detail.client?.preferredSkills).length > 0 ? (
+                        <div className="fcm-tags">
+                          {skillList(detail.client?.preferredSkills).map((s) => (
+                            <span key={s} className="fcm-tag">
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <dl className="fcm-dl fcm-dl-compact">
+                        {detail.client?.preferredProjectType ? (
+                          <>
+                            <dt>Project type</dt>
+                            <dd>
+                              {detail.client.preferredProjectType === "fixed"
+                                ? "Fixed price"
+                                : detail.client.preferredProjectType}
+                            </dd>
+                          </>
+                        ) : null}
+                        {detail.client?.projectScale ? (
+                          <>
+                            <dt>Scale</dt>
+                            <dd>
+                              {SCALE_LABEL[detail.client.projectScale] ||
+                                detail.client.projectScale}
+                            </dd>
+                          </>
+                        ) : null}
+                        {detail.client?.contactPref ? (
+                          <>
+                            <dt>Contact</dt>
+                            <dd>
+                              {CONTACT_LABEL[detail.client.contactPref] ||
+                                detail.client.contactPref}
+                            </dd>
+                          </>
+                        ) : null}
+                        {detail.client?.escrowPref ? (
+                          <>
+                            <dt>Escrow</dt>
+                            <dd>
+                              {ESCROW_LABEL[detail.client.escrowPref] ||
+                                detail.client.escrowPref}
+                            </dd>
+                          </>
+                        ) : null}
+                        {(detail.client?.minBudget != null ||
+                          detail.client?.maxBudget != null) && (
+                          <>
+                            <dt>Typical budget</dt>
+                            <dd>
+                              {formatMoney(Number(detail.client?.minBudget) || 0)}{" "}
+                              –{" "}
+                              {formatMoney(Number(detail.client?.maxBudget) || 0)}
+                            </dd>
+                          </>
+                        )}
+                        {detail.client?.keyRequirements ? (
+                          <>
+                            <dt>Key requirements</dt>
+                            <dd>{detail.client.keyRequirements}</dd>
+                          </>
+                        ) : null}
+                      </dl>
+                    </div>
+                  )}
 
                   <h4 className="fcm-section-title">
                     <i className="fas fa-list-ul" /> Order history

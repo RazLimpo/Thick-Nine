@@ -3,8 +3,8 @@
   position: relative;
   overflow: hidden;
   width: 100%;
-  height: 480px; 
-  background-color: #000;
+  height: clamp(300px, 28.125vw, 420px);
+  background-color: #ffdf00;
 }
 
 /* --- 1. Hero Image & Text Slider (12s interval) --- */
@@ -18,8 +18,9 @@
 .hero-slide {
   flex: 1;
   height: 100%;
-  background-size: cover;
-  background-position: center ;
+  min-width: 0;
+  background-size: 100% 100%;
+  background-position: center center;
   background-repeat: no-repeat;
   position: relative;
   display: flex;
@@ -206,7 +207,7 @@
 /* --- 7. Mobile View Fixes --- */
 @media (max-width: 768px) {
   .hero-section {
-      height: 480px;
+      height: 300px;
   }
 
   .hero-overlay {

@@ -1,0 +1,772 @@
+// app/client-profile/[id]/client.tsx
+"use client";
+
+import React, { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import "@/styles/pages/client-profile.css";
+
+type PublicUser = {
+  _id: string;
+  fullName?: string;
+  displayName?: string;
+  tagline?: string;
+  bio?: string;
+  avatar?: string;
+  coverImage?: string;
+  location?: string;
+  timezone?: string;
+  languages?: string[] | string;
+  preferredSkills?: string[] | string;
+  projectTypes?: string[];
+  preferredProjectType?: string;
+  projectScale?: string;
+  keyRequirements?: string;
+  contactPref?: string;
+  minBudget?: number | null;
+  maxBudget?: number | null;
+  escrowPref?: string;
+  twoFactorEnabled?: boolean;
+  isVerified?: boolean;
+  onlineStatus?: string;
+  memberSince?: string;
+};
+
+const TZ: Record<string, string> = {
+  est: "EST (UTC-5)",
+  pst: "PST (UTC-8)",
+  gmt: "GMT (UTC+0)",
+};
+
+const SCALE: Record<string, string> = {
+  small: "Small (Quick tasks, < $500)",
+  medium: "Medium ($500 – $5k)",
+  large: "Large (Enterprise / Long-term, $5k+)",
+};
+
+const CONTACT: Record<string, string> = {
+  messaging: "Platform messaging",
+  email: "Email",
+  both: "Messaging & email",
+};
+
+const ESCROW: Record<string, string> = {
+  always: "Always used",
+  sometimes: "Sometimes used",
+  never: "Rarely used",
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  "web-app-dev": "Web App Development",
+  "cloud-infra": "Cloud Infrastructure",
+  "ux-design": "UX/UI Design",
+  seo: "SEO & Marketing",
+  "tech-writing": "Technical Writing",
+};
+
+function showToast(message: string, type: "success" | "info" | "removed" = "success") {
+  if (typeof document === "undefined") return;
+  let root = document.getElementById("toast-container");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "toast-container";
+    document.body.appendChild(root);
+  }
+  const el = document.createElement("div");
+  el.className = `toast${type === "info" ? " info" : type === "removed" ? " removed" : ""}`;
+  const icon =
+    type === "removed"
+      ? "fa-exclamation-triangle"
+      : type === "info"
+        ? "fa-info-circle"
+        : "fa-check-circle";
+  el.innerHTML = `<i class="fas ${icon}"></i><span></span>`;
+  const span = el.querySelector("span");
+  if (span) span.textContent = message;
+  root.appendChild(el);
+  window.setTimeout(() => el.remove(), 3200);
+}
+
+function asList(v?: string[] | string): string[] {
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (typeof v === "string")
+    return v
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  return [];
+}
+
+function presenceClass(s?: string) {
+  const x = String(s || "offline").toLowerCase();
+  if (x === "online" || x === "true") return "status-online";
+  if (x === "away") return "status-away";
+  return "status-offline";
+}
+
+function formatMoney(n: number) {
+  return `$${Number(n || 0).toLocaleString()}`;
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const h: Record<string, string> = { Accept: "application/json" };
+  if (typeof window !== "undefined") {
+    const t = localStorage.getItem("token");
+    if (t) h.Authorization = `Bearer ${t}`;
+  }
+  return h;
+}
+
+export default function ClientProfileClient({
+  params,
+}: {
+  params: { id: string } | Promise<{ id: string }>;
+}) {
+  const router = useRouter();
+  const [userId, setUserId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<PublicUser | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [msgText, setMsgText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [fav, setFav] = useState(false);
+
+  useEffect(() => {
+    Promise.resolve(params).then((p) => setUserId(p.id));
+  }, [params]);
+
+  const load = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/users/${userId}/public`, {
+        headers: getAuthHeaders(),
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message || "Profile not found.");
+        setUser(null);
+        return;
+      }
+      const u = (data.user || data) as PublicUser;
+      setUser({ ...u, _id: String(u._id || userId) });
+    } catch {
+      setError("Network error loading profile.");
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Presence refresh
+  useEffect(() => {
+    if (!userId) return;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/presence", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [userId] }),
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+        let status = "";
+        if (data.byId?.[userId]) status = String(data.byId[userId]);
+        const rows = data.users || data.statuses || [];
+        const hit = rows.find(
+          (r: { _id?: string; id?: string }) =>
+            String(r._id || r.id) === userId
+        );
+        if (hit)
+          status = String(
+            (hit as { status?: string; onlineStatus?: string }).status ||
+              (hit as { onlineStatus?: string }).onlineStatus ||
+              status
+          );
+        if (status) {
+          setUser((prev) =>
+            prev ? { ...prev, onlineStatus: status } : prev
+          );
+        }
+      } catch {
+        /* optional */
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 30000);
+    return () => window.clearInterval(id);
+  }, [userId]);
+
+  const sendMessage = async () => {
+    if (!msgText.trim() || !userId) return;
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      router.push("/?auth=login");
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch("/api/messages/conversations", {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          recipientId: userId,
+          initialMessage: msgText.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.message || "Could not send message.", "removed");
+        return;
+      }
+      setMsgOpen(false);
+      setMsgText("");
+      showToast("Message sent.");
+      const cid = data.conversationId || data._id;
+      if (cid) router.push(`/messages?c=${cid}`);
+    } catch {
+      showToast("Network error.", "removed");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const toggleFav = async () => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      router.push("/?auth=login");
+      return;
+    }
+    try {
+      if (fav) {
+        await fetch(`/api/bookmarks?itemType=User&itemId=${userId}`, {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+          credentials: "include",
+        });
+        setFav(false);
+        showToast("Removed from favorites", "removed");
+      } else {
+        const res = await fetch("/api/bookmarks", {
+          method: "POST",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ itemType: "User", itemId: userId }),
+        });
+        if (!res.ok && res.status !== 409) {
+          const d = await res.json().catch(() => ({}));
+          showToast(d.message || "Could not save.", "removed");
+          return;
+        }
+        setFav(true);
+        showToast("Saved to favorites");
+      }
+    } catch {
+      showToast("Network error.", "removed");
+    }
+  };
+
+  const submitReport = () => {
+    if (!reportReason || !reportDetails.trim()) {
+      showToast("Choose a reason and add details.", "removed");
+      return;
+    }
+    setReportOpen(false);
+    setReportReason("");
+    setReportDetails("");
+    showToast("Report submitted. Our team will review.");
+  };
+
+  if (loading) {
+    return (
+      <div className="cp-layout" style={{ padding: 40 }}>
+        <p style={{ color: "#64748b" }}>
+          <i className="fas fa-spinner fa-spin" /> Loading profile…
+        </p>
+      </div>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <div className="cp-layout" style={{ padding: 40 }}>
+        <p style={{ color: "#b91c1c" }}>{error || "Profile not found."}</p>
+        <Link href="/">Back home</Link>
+      </div>
+    );
+  }
+
+  const name = user.displayName || user.fullName || "Client";
+  const skills = asList(user.preferredSkills);
+  const langs = asList(user.languages);
+  const types = user.projectTypes || [];
+  const status = presenceClass(user.onlineStatus);
+  const statusLabel =
+    status === "status-online"
+      ? "Online"
+      : status === "status-away"
+        ? "Away"
+        : "Offline";
+
+  const budget =
+    user.minBudget != null || user.maxBudget != null
+      ? `${formatMoney(Number(user.minBudget) || 0)} – ${formatMoney(
+          Number(user.maxBudget) || 0
+        )}`
+      : "—";
+
+  const memberSince = user.memberSince
+    ? new Date(user.memberSince).toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
+
+  return (
+    <>
+      <section className="cp-hero" id="cp-hero">
+        <div className="cp-hero-cover">
+          {user.coverImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.coverImage} alt="" id="cover-img" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1600&q=80"
+              alt=""
+              id="cover-img"
+            />
+          )}
+          <div className="cp-hero-overlay" />
+          <div className="cp-hero-grain" />
+        </div>
+
+        <div className="cp-hero-topbar">
+          <div className="cp-badge">
+            <i className="fas fa-award" />
+            <span>Client</span>
+          </div>
+          <div className="cp-online-pill">
+            <span className={`cp-status-dot ${status}`} id="hero-status" />
+            <span id="hero-status-text">{statusLabel}</span>
+          </div>
+        </div>
+
+        <div className="cp-hero-body">
+          <div className="cp-avatar-block">
+            <div className="cp-avatar-ring">
+              <Image
+                src={user.avatar || "/default-avatar.png"}
+                alt={name}
+                width={112}
+                height={112}
+                id="avatar-img"
+                unoptimized
+              />
+              <span className={`cp-avatar-status ${status}`} />
+            </div>
+          </div>
+
+          <div className="cp-identity">
+            <h1 className="cp-display-name" id="display-name">
+              {name}
+            </h1>
+            <p className="cp-tagline" id="tagline">
+              {user.tagline || "Client on Thick 9"}
+            </p>
+            <div className="cp-meta-row">
+              {user.location ? (
+                <span className="cp-meta-chip">
+                  <i className="fas fa-map-marker-alt" />{" "}
+                  <span id="location-text">{user.location}</span>
+                </span>
+              ) : null}
+              {user.timezone ? (
+                <span className="cp-meta-chip">
+                  <i className="fas fa-clock" />{" "}
+                  <span id="timezone-text">
+                    {TZ[user.timezone] || user.timezone}
+                  </span>
+                </span>
+              ) : null}
+              {langs.length > 0 ? (
+                <span className="cp-meta-chip">
+                  <i className="fas fa-globe" />{" "}
+                  <span id="languages-text">{langs.join(", ")}</span>
+                </span>
+              ) : null}
+              {user.isVerified ? (
+                <span className="cp-meta-chip verified">
+                  <i className="fas fa-shield-halved" /> Verified
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="cp-hero-actions">
+            <button
+              type="button"
+              className="cp-btn-glass primary"
+              onClick={() => setMsgOpen(true)}
+            >
+              <i className="fas fa-envelope" /> Message
+            </button>
+            <button
+              type="button"
+              className="cp-btn-icon"
+              title="Video call"
+              onClick={() => showToast("Video call coming soon", "info")}
+            >
+              <i className="fas fa-video" />
+            </button>
+            <button
+              type="button"
+              className={`cp-btn-icon${fav ? " is-active" : ""}`}
+              title={fav ? "Saved" : "Save to favorites"}
+              onClick={toggleFav}
+            >
+              <i className="fas fa-heart" />
+            </button>
+          </div>
+        </div>
+
+        <div className="cp-hero-bottom">
+          <div className="cp-stat-pill">
+            <span className="cp-stat-val">—</span>
+            <span className="cp-stat-lbl">Avg. Response</span>
+          </div>
+          <div className="cp-stat-pill">
+            <span className="cp-stat-val">—</span>
+            <span className="cp-stat-lbl">Orders</span>
+          </div>
+          <div className="cp-stat-pill">
+            <span className="cp-stat-val">—</span>
+            <span className="cp-stat-lbl">Reliability</span>
+          </div>
+          <div className="cp-stat-pill">
+            <span className="cp-stat-val">
+              {user.maxBudget != null ? formatMoney(Number(user.maxBudget)) : "—"}
+            </span>
+            <span className="cp-stat-lbl">Typical max</span>
+          </div>
+        </div>
+      </section>
+
+      <div className="cp-layout">
+        <main className="cp-main">
+          <article className="glass-card">
+            <header className="glass-card-head">
+              <h2>
+                <i className="fas fa-building" /> About
+              </h2>
+            </header>
+            <div className="glass-card-body">
+              <p className="cp-bio" id="bio-text">
+                {user.bio || "No bio added yet."}
+              </p>
+            </div>
+          </article>
+
+          <article className="glass-card">
+            <header className="glass-card-head">
+              <h2>
+                <i className="fas fa-briefcase" /> Project Preferences
+              </h2>
+            </header>
+            <div className="glass-card-body">
+              <div className="cp-pref-grid">
+                <div className="cp-pref-item">
+                  <span className="cp-pref-label">Preferred skills</span>
+                  <div className="cp-tags" id="skills-tags">
+                    {skills.length === 0 ? (
+                      <span className="cp-tag soft">Not specified</span>
+                    ) : (
+                      skills.map((s) => (
+                        <span key={s} className="cp-tag">
+                          {s}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="cp-pref-item">
+                  <span className="cp-pref-label">Typical project types</span>
+                  <div className="cp-tags" id="project-types">
+                    {types.length === 0 ? (
+                      <span className="cp-tag soft">Not specified</span>
+                    ) : (
+                      types.map((t) => (
+                        <span key={t} className="cp-tag soft">
+                          {TYPE_LABELS[t] || t}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="cp-pref-row">
+                  <div className="cp-pref-item">
+                    <span className="cp-pref-label">Preferred type</span>
+                    <span className="cp-pref-value" id="project-type">
+                      {user.preferredProjectType === "fixed"
+                        ? "Fixed Price"
+                        : user.preferredProjectType || "Fixed Price"}
+                    </span>
+                  </div>
+                  <div className="cp-pref-item">
+                    <span className="cp-pref-label">Average scale</span>
+                    <span className="cp-pref-value" id="project-scale">
+                      {SCALE[user.projectScale || ""] ||
+                        user.projectScale ||
+                        "—"}
+                    </span>
+                  </div>
+                </div>
+                <div className="cp-pref-item">
+                  <span className="cp-pref-label">Key requirements</span>
+                  <p className="cp-pref-value muted" id="key-requirements">
+                    {user.keyRequirements || "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </main>
+
+        <aside className="cp-sidebar">
+          <section className="glass-widget">
+            <h3 className="glass-widget-title">
+              <i className="fas fa-comment-dots" /> Communication
+            </h3>
+            <div className="cp-info-list">
+              <div className="cp-info-row">
+                <span>Contact preference</span>
+                <strong id="contact-pref">
+                  {CONTACT[user.contactPref || ""] ||
+                    user.contactPref ||
+                    "Platform messaging"}
+                </strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="glass-widget">
+            <h3 className="glass-widget-title">
+              <i className="fas fa-money-bill-wave" /> Budget &amp; Payment
+            </h3>
+            <div className="cp-info-list">
+              <div className="cp-info-row">
+                <span>Typical range</span>
+                <strong id="budget-range">{budget}</strong>
+              </div>
+              <div className="cp-info-row">
+                <span>Escrow</span>
+                <strong className="good" id="escrow-pref">
+                  {ESCROW[user.escrowPref || ""] || user.escrowPref || "—"}
+                </strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="glass-widget">
+            <h3 className="glass-widget-title">
+              <i className="fas fa-user-shield" /> Trust &amp; Security
+            </h3>
+            <div className="cp-info-list">
+              <div className="cp-info-row">
+                <span>Identity</span>
+                <strong className={user.isVerified ? "good" : ""}>
+                  {user.isVerified ? "Verified" : "—"}
+                </strong>
+              </div>
+              <div className="cp-info-row">
+                <span>2FA</span>
+                <strong className={user.twoFactorEnabled ? "good" : ""}>
+                  {user.twoFactorEnabled ? "Enabled" : "Not enabled"}
+                </strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="glass-widget">
+            <h3 className="glass-widget-title">
+              <i className="fas fa-chart-line" /> Account
+            </h3>
+            <div className="cp-info-list">
+              <div className="cp-info-row">
+                <span>Member since</span>
+                <strong>{memberSince}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="glass-widget report-widget">
+            <h3 className="glass-widget-title">
+              <i className="fas fa-flag" /> Help
+            </h3>
+            <p className="cp-muted-sm">Issue with this profile?</p>
+            <button
+              type="button"
+              className="cp-btn-danger full"
+              onClick={() => setReportOpen(true)}
+            >
+              <i className="fas fa-flag" /> Report client
+            </button>
+          </section>
+        </aside>
+      </div>
+
+      {/* Message modal */}
+      {msgOpen && (
+        <div
+          className="cp-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setMsgOpen(false);
+          }}
+        >
+          <div className="cp-modal" role="dialog">
+            <div className="cp-modal-head">
+              <div className="cp-modal-avatar">
+                <Image
+                  src={user.avatar || "/default-avatar.png"}
+                  alt=""
+                  width={48}
+                  height={48}
+                  unoptimized
+                />
+                <span className={`cp-avatar-status ${status}`} />
+              </div>
+              <h3>Message {name}</h3>
+              <button
+                type="button"
+                className="cp-modal-close"
+                onClick={() => setMsgOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="cp-modal-body">
+              <label htmlFor="msg-text">Your message</label>
+              <textarea
+                id="msg-text"
+                rows={5}
+                maxLength={1000}
+                value={msgText}
+                onChange={(e) => setMsgText(e.target.value)}
+                placeholder="Describe your inquiry…"
+              />
+              <div className="cp-modal-row">
+                <span className="cp-char-count">{msgText.length}/1000</span>
+              </div>
+            </div>
+            <div className="cp-modal-foot">
+              <button
+                type="button"
+                className="cp-btn-ghost"
+                onClick={() => setMsgOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="cp-btn-glass primary"
+                disabled={sending}
+                onClick={sendMessage}
+              >
+                {sending ? "Sending…" : "Send message"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reportOpen && (
+        <div
+          className="cp-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setReportOpen(false);
+          }}
+        >
+          <div className="cp-modal" role="dialog">
+            <div className="cp-modal-head">
+              <h3>Report client</h3>
+              <button
+                type="button"
+                className="cp-modal-close"
+                onClick={() => setReportOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="cp-modal-body">
+              <label htmlFor="report-reason">Reason</label>
+              <select
+                id="report-reason"
+                className="cp-select"
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+              >
+                <option value="">Select a reason…</option>
+                <option value="spam">Spam or scams</option>
+                <option value="inappropriate">Inappropriate content</option>
+                <option value="fake">Fake profile / misrepresentation</option>
+                <option value="other">Other</option>
+              </select>
+              <label htmlFor="report-details" style={{ marginTop: "1rem" }}>
+                Additional details
+              </label>
+              <textarea
+                id="report-details"
+                rows={4}
+                maxLength={500}
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+              />
+            </div>
+            <div className="cp-modal-foot">
+              <button
+                type="button"
+                className="cp-btn-ghost"
+                onClick={() => setReportOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="cp-btn-glass primary"
+                onClick={submitReport}
+              >
+                Submit report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div id="toast-container" />
+    </>
+  );
+}
