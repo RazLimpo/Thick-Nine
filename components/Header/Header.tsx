@@ -383,6 +383,7 @@ const handleAccountSwitching = async () => {
   '/about', 
   '/terms-and-privacy', 
   '/services/details',   // dynamic route prefix
+  '/client-profile',     // public client profile /client-profile/[id]
   '/freelancer-profile', 
   '/verify-email', 
   '/mandatory',
@@ -671,14 +672,23 @@ useEffect(() => {
     }
 
     // Assign profile paths depending on active authorization states
-let profilePath = "/client-profile";
-if (isAdminRole(userRole)) {
-  profilePath = "/admin/profile";
-} else if (userRole === "freelancer") {
-  profilePath = "/freelancer-profile";
-} else if (userRole === "affiliate") {
-  profilePath = "/affiliate-profile";
-}
+    // Client public profile is dynamic: /client-profile/[id]
+    const myUserId =
+      (typeof window !== "undefined" &&
+        (localStorage.getItem("userId") ||
+          localStorage.getItem("id") ||
+          "")) ||
+      "";
+    let profilePath = myUserId
+      ? `/client-profile/${myUserId}`
+      : "/client-settings"; // fallback if id missing
+    if (isAdminRole(userRole)) {
+      profilePath = "/admin/profile";
+    } else if (userRole === "freelancer") {
+      profilePath = "/freelancer-profile";
+    } else if (userRole === "affiliate") {
+      profilePath = "/affiliate-profile";
+    }
 
     // Build common links shared across authorized profiles
     items.push(
