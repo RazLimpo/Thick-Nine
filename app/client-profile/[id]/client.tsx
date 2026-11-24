@@ -31,6 +31,35 @@ type PublicUser = {
   isVerified?: boolean;
   onlineStatus?: string;
   memberSince?: string;
+  orderVisibility?: boolean;
+};
+
+type ProfileStats = {
+  totalOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  activeOrders: number;
+  totalSpent: number;
+  reliability: number | null;
+  avgBuyerRating: number | null;
+  avgResponseHours: number | null;
+};
+
+type ActiveOrder = {
+  _id: string;
+  orderNumber?: string;
+  status?: string;
+  title?: string;
+  amount?: number;
+  createdAt?: string;
+};
+
+type ReviewGiven = {
+  rating?: number;
+  review?: string;
+  ratedAt?: string | null;
+  serviceTitle?: string;
+  sellerName?: string;
 };
 
 const TZ: Record<string, string> = {
@@ -128,6 +157,19 @@ export default function ClientProfileClient({
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<PublicUser | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<ProfileStats>({
+    totalOrders: 0,
+    completedOrders: 0,
+    cancelledOrders: 0,
+    activeOrders: 0,
+    totalSpent: 0,
+    reliability: null,
+    avgBuyerRating: null,
+    avgResponseHours: null,
+  });
+  const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
+  const [reviewsGiven, setReviewsGiven] = useState<ReviewGiven[]>([]);
+  const [reporting, setReporting] = useState(false);
 
   const [msgOpen, setMsgOpen] = useState(false);
   const [msgText, setMsgText] = useState("");
@@ -158,6 +200,51 @@ export default function ClientProfileClient({
       }
       const u = (data.user || data) as PublicUser;
       setUser({ ...u, _id: String(u._id || userId) });
+      if (data.stats) {
+        setStats({
+          totalOrders: Number(data.stats.totalOrders) || 0,
+          completedOrders: Number(data.stats.completedOrders) || 0,
+          cancelledOrders: Number(data.stats.cancelledOrders) || 0,
+          activeOrders: Number(data.stats.activeOrders) || 0,
+          totalSpent: Number(data.stats.totalSpent) || 0,
+          reliability:
+            data.stats.reliability == null
+              ? null
+              : Number(data.stats.reliability),
+          avgBuyerRating:
+            data.stats.avgBuyerRating == null
+              ? null
+              : Number(data.stats.avgBuyerRating),
+          avgResponseHours:
+            data.stats.avgResponseHours == null
+              ? null
+              : Number(data.stats.avgResponseHours),
+        });
+      }
+      setActiveOrders(Array.isArray(data.activeOrders) ? data.activeOrders : []);
+      setReviewsGiven(Array.isArray(data.reviewsGiven) ? data.reviewsGiven : []);
+
+      // Bookmark check on load (logged-in viewers)
+      try {
+        const token =
+          typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        if (token) {
+          const br = await fetch(
+            `/api/bookmarks/check?itemType=User&itemId=${encodeURIComponent(userId)}`,
+            {
+              headers: getAuthHeaders(),
+              credentials: "include",
+              cache: "no-store",
+            }
+          );
+          const bd = await br.json().catch(() => ({}));
+          if (br.ok) {
+            setFav(Boolean(bd.bookmarked || bd.exists || bd.isBookmarked));
+          }
+        }
+      } catch {
+        /* optional */
+      }
     } catch {
       setError("Network error loading profile.");
     } finally {
@@ -290,15 +377,45 @@ export default function ClientProfileClient({
     }
   };
 
-  const submitReport = () => {
+  const submitReport = async () => {
     if (!reportReason || !reportDetails.trim()) {
       showToast("Choose a reason and add details.", "removed");
       return;
     }
-    setReportOpen(false);
-    setReportReason("");
-    setReportDetails("");
-    showToast("Report submitted. Our team will review.");
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      router.push("/?auth=login");
+      return;
+    }
+    setReporting(true);
+    try {
+      const res = await fetch(`/api/users/${userId}/report`, {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          reason: reportReason,
+          details: reportDetails.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.message || "Could not submit report.", "removed");
+        return;
+      }
+      setReportOpen(false);
+      setReportReason("");
+      setReportDetails("");
+      showToast(data.message || "Report submitted. Our team will review.");
+    } catch {
+      showToast("Network error submitting report.", "removed");
+    } finally {
+      setReporting(false);
+    }
   };
 
   if (loading) {
@@ -456,22 +573,34 @@ export default function ClientProfileClient({
 
         <div className="cp-hero-bottom">
           <div className="cp-stat-pill">
-            <span className="cp-stat-val">—</span>
+            <span className="cp-stat-val">
+              {stats.avgResponseHours != null
+                ? `${stats.avgResponseHours}h`
+                : "—"}
+            </span>
             <span className="cp-stat-lbl">Avg. Response</span>
           </div>
           <div className="cp-stat-pill">
-            <span className="cp-stat-val">—</span>
+            <span className="cp-stat-val">{stats.totalOrders}</span>
             <span className="cp-stat-lbl">Orders</span>
           </div>
           <div className="cp-stat-pill">
-            <span className="cp-stat-val">—</span>
+            <span className="cp-stat-val">
+              {stats.reliability != null ? `${stats.reliability}%` : "—"}
+            </span>
             <span className="cp-stat-lbl">Reliability</span>
           </div>
           <div className="cp-stat-pill">
             <span className="cp-stat-val">
-              {user.maxBudget != null ? formatMoney(Number(user.maxBudget)) : "—"}
+              {stats.totalSpent > 0
+                ? formatMoney(stats.totalSpent)
+                : user.maxBudget != null
+                  ? formatMoney(Number(user.maxBudget))
+                  : "—"}
             </span>
-            <span className="cp-stat-lbl">Typical max</span>
+            <span className="cp-stat-lbl">
+              {stats.totalSpent > 0 ? "Invested" : "Typical max"}
+            </span>
           </div>
         </div>
       </section>
@@ -554,6 +683,91 @@ export default function ClientProfileClient({
               </div>
             </div>
           </article>
+
+          {/* Active orders — always shown */}
+          <article className="glass-card">
+            <header className="glass-card-head">
+              <h2>
+                <i className="fas fa-clipboard-list" /> Active Orders{" "}
+                <small>
+                  {stats.activeOrders} ongoing
+                </small>
+              </h2>
+            </header>
+            <div className="glass-card-body">
+              {activeOrders.length === 0 ? (
+                <p className="cp-muted-sm" style={{ margin: 0 }}>
+                  No active orders right now.
+                </p>
+              ) : (
+                <ul className="cp-order-list">
+                  {activeOrders.map((o) => (
+                    <li key={o._id} className="cp-order">
+                      <div className="cp-order-info">
+                        <strong>{o.title || "Service order"}</strong>
+                        <span className="cp-order-meta">
+                          #{o.orderNumber}
+                          {o.amount != null ? ` · ${formatMoney(o.amount)}` : ""}
+                        </span>
+                      </div>
+                      <span
+                        className={`cp-status ${
+                          o.status === "in_escrow" || o.status === "revision_requested"
+                            ? "in-progress"
+                            : "pending"
+                        }`}
+                      >
+                        {String(o.status || "")
+                          .replace(/_/g, " ")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </article>
+
+          {/* Reviews given */}
+          <article className="glass-card">
+            <header className="glass-card-head">
+              <h2>
+                <i className="fas fa-star" /> Reviews Given{" "}
+                <small>
+                  {stats.avgBuyerRating != null
+                    ? `avg ${stats.avgBuyerRating}`
+                    : `${reviewsGiven.length}`}
+                </small>
+              </h2>
+            </header>
+            <div className="glass-card-body">
+              {reviewsGiven.length === 0 ? (
+                <p className="cp-muted-sm" style={{ margin: 0 }}>
+                  No public reviews yet.
+                </p>
+              ) : (
+                reviewsGiven.map((r, i) => (
+                  <div key={i} className="cp-review">
+                    <div className="cp-review-top">
+                      <span className="cp-stars">
+                        <i className="fas fa-star" /> {r.rating ?? "—"}
+                      </span>
+                      <span className="cp-review-to">
+                        to {r.sellerName} · {r.serviceTitle}
+                      </span>
+                    </div>
+                    {r.review ? (
+                      <p className="cp-review-text">“{r.review}”</p>
+                    ) : null}
+                    {r.ratedAt ? (
+                      <time className="cp-review-date">
+                        {new Date(r.ratedAt).toLocaleDateString()}
+                      </time>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </article>
         </main>
 
         <aside className="cp-sidebar">
@@ -619,6 +833,18 @@ export default function ClientProfileClient({
               <div className="cp-info-row">
                 <span>Member since</span>
                 <strong>{memberSince}</strong>
+              </div>
+              <div className="cp-info-row">
+                <span>Total orders</span>
+                <strong>{stats.totalOrders}</strong>
+              </div>
+              <div className="cp-info-row">
+                <span>Completed</span>
+                <strong>{stats.completedOrders}</strong>
+              </div>
+              <div className="cp-info-row">
+                <span>Active</span>
+                <strong>{stats.activeOrders}</strong>
               </div>
             </div>
           </section>
@@ -757,9 +983,10 @@ export default function ClientProfileClient({
               <button
                 type="button"
                 className="cp-btn-glass primary"
+                disabled={reporting}
                 onClick={submitReport}
               >
-                Submit report
+                {reporting ? "Submitting…" : "Submit report"}
               </button>
             </div>
           </div>
