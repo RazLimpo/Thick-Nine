@@ -9,6 +9,7 @@ const auth = require("../middleware/auth");
 const User = require("../models/User");
 const Order = require("../models/Order");
 const ProfileReport = require("../models/ProfileReport");
+const jwt = require("jsonwebtoken");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -169,7 +170,12 @@ router.get("/:id/public", async (req, res) => {
           "onlineStatus",
           "memberSince",
           "createdAt",
+          "updatedAt",
+          "lastActiveAt",
           "role",
+          "paymentMethods",
+          "metrics",
+          "responseTime",
         ].join(" ")
       )
       .lean();
@@ -303,6 +309,66 @@ router.get("/:id/public", async (req, res) => {
         "Freelancer",
     }));
 
+    // Recent freelancers this client worked with (for mutual / collaborators UI)
+    const collabOrders = await Order.find({ clientId: clientOid })
+      .sort({ updatedAt: -1 })
+      .limit(40)
+      .populate("sellerId", "fullName displayName avatar profilePicture")
+      .select("sellerId")
+      .lean();
+
+    const seen = new Set();
+    const collaborators = [];
+    for (const o of collabOrders) {
+      const s = o.sellerId;
+      if (!s || !s._id) continue;
+      const sid = String(s._id);
+      if (seen.has(sid)) continue;
+      seen.add(sid);
+      collaborators.push({
+        _id: s._id,
+        displayName: s.displayName || s.fullName || "Freelancer",
+        avatar: s.avatar || s.profilePicture || "/default-avatar.png",
+      });
+      if (collaborators.length >= 8) break;
+    }
+
+    // Mutual: freelancers viewer and this client both connected to (optional JWT)
+    let mutual = [];
+    try {
+      let viewerId = null;
+      const h = req.headers.authorization || "";
+      const token = h.startsWith("Bearer ") ? h.slice(7) : null;
+      if (token && process.env.JWT_SECRET) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          viewerId = decoded.id || decoded._id || decoded.userId || null;
+        } catch {
+          viewerId = null;
+        }
+      }
+      if (viewerId && String(viewerId) !== String(clientOid)) {
+        const viewerOid = oid(viewerId);
+        if (viewerOid) {
+          // Sellers the viewer hired as a client
+          const hiredAsClient = await Order.distinct("sellerId", {
+            clientId: viewerOid,
+          });
+          // Sellers who also worked with the viewer as peer on same clients is hard;
+          // also include freelancers the viewer worked alongside: sellers on orders where viewer was seller on same client — skip
+          // Practical mutual: sellers this client used that the viewer also hired
+          const mutualSet = new Set(hiredAsClient.map((id) => String(id)));
+          mutual = collaborators.filter(
+            (c) =>
+              mutualSet.has(String(c._id)) &&
+              String(c._id) !== String(viewerId)
+          );
+        }
+      }
+    } catch {
+      mutual = [];
+    }
+
     return res.json({
       success: true,
       user: {
@@ -327,10 +393,27 @@ router.get("/:id/public", async (req, res) => {
         escrowPref: user.escrowPref || "always",
         twoFactorEnabled: !!user.twoFactorEnabled,
         isVerified: !!(user.isVerified || user.emailVerified),
+        emailVerified: !!user.emailVerified,
         onlineStatus: user.onlineStatus || "offline",
         memberSince: user.memberSince || user.createdAt,
+        lastActiveAt: user.lastActiveAt || user.updatedAt || null,
         role: user.role,
         orderVisibility: user.orderVisibility !== false,
+        responseRate:
+          user.metrics && user.metrics.responseRate != null
+            ? Number(user.metrics.responseRate)
+            : null,
+        responseTimeMinutes:
+          user.responseTime != null ? Number(user.responseTime) : null,
+        paymentMethodLabels: Array.from(
+          new Set(
+            (user.paymentMethods || [])
+              .map((pm) =>
+                String(pm.label || pm.brand || "").trim()
+              )
+              .filter(Boolean)
+          )
+        ).slice(0, 6),
       },
       stats: {
         totalOrders,
@@ -345,6 +428,8 @@ router.get("/:id/public", async (req, res) => {
       },
       activeOrders,
       reviewsGiven,
+      collaborators,
+      mutual,
     });
   } catch (e) {
     console.error("GET /api/users/:id/public", e);

@@ -1,7 +1,7 @@
 // app/client-profile/[id]/client.tsx
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,9 +29,14 @@ type PublicUser = {
   escrowPref?: string;
   twoFactorEnabled?: boolean;
   isVerified?: boolean;
+  emailVerified?: boolean;
   onlineStatus?: string;
   memberSince?: string;
+  lastActiveAt?: string | null;
   orderVisibility?: boolean;
+  responseRate?: number | null;
+  responseTimeMinutes?: number | null;
+  paymentMethodLabels?: string[];
 };
 
 type ProfileStats = {
@@ -60,6 +65,12 @@ type ReviewGiven = {
   ratedAt?: string | null;
   serviceTitle?: string;
   sellerName?: string;
+};
+
+type Collaborator = {
+  _id: string;
+  displayName?: string;
+  avatar?: string;
 };
 
 const TZ: Record<string, string> = {
@@ -94,7 +105,10 @@ const TYPE_LABELS: Record<string, string> = {
   "tech-writing": "Technical Writing",
 };
 
-function showToast(message: string, type: "success" | "info" | "removed" = "success") {
+function showToast(
+  message: string,
+  type: "success" | "info" | "removed" = "success"
+) {
   if (typeof document === "undefined") return;
   let root = document.getElementById("toast-container");
   if (!root) {
@@ -138,6 +152,21 @@ function formatMoney(n: number) {
   return `$${Number(n || 0).toLocaleString()}`;
 }
 
+function relativeTime(iso?: string | null) {
+  if (!iso) return "—";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "—";
+  const diff = Date.now() - t;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h} hour${h === 1 ? "" : "s"} ago`;
+  const d = Math.floor(h / 24);
+  if (d < 14) return `${d} day${d === 1 ? "" : "s"} ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
 function getAuthHeaders(): Record<string, string> {
   const h: Record<string, string> = { Accept: "application/json" };
   if (typeof window !== "undefined") {
@@ -147,6 +176,15 @@ function getAuthHeaders(): Record<string, string> {
   return h;
 }
 
+function getMyUserId(): string {
+  if (typeof window === "undefined") return "";
+  return (
+    localStorage.getItem("userId") ||
+    localStorage.getItem("id") ||
+    ""
+  ).trim();
+}
+
 export default function ClientProfileClient({
   params,
 }: {
@@ -154,6 +192,7 @@ export default function ClientProfileClient({
 }) {
   const router = useRouter();
   const [userId, setUserId] = useState("");
+  const [myId, setMyId] = useState("");
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<PublicUser | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -169,6 +208,8 @@ export default function ClientProfileClient({
   });
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([]);
   const [reviewsGiven, setReviewsGiven] = useState<ReviewGiven[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [mutual, setMutual] = useState<Collaborator[]>([]);
   const [reporting, setReporting] = useState(false);
 
   const [msgOpen, setMsgOpen] = useState(false);
@@ -178,10 +219,17 @@ export default function ClientProfileClient({
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
   const [fav, setFav] = useState(false);
+  const [mutualOpen, setMutualOpen] = useState(false);
 
   useEffect(() => {
     Promise.resolve(params).then((p) => setUserId(p.id));
+    setMyId(getMyUserId());
   }, [params]);
+
+  const isOwner = useMemo(() => {
+    if (!userId || !myId) return false;
+    return String(userId) === String(myId);
+  }, [userId, myId]);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -223,12 +271,15 @@ export default function ClientProfileClient({
       }
       setActiveOrders(Array.isArray(data.activeOrders) ? data.activeOrders : []);
       setReviewsGiven(Array.isArray(data.reviewsGiven) ? data.reviewsGiven : []);
+      setCollaborators(
+        Array.isArray(data.collaborators) ? data.collaborators : []
+      );
+      setMutual(Array.isArray(data.mutual) ? data.mutual : []);
 
-      // Bookmark check on load (logged-in viewers)
       try {
         const token =
           typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        if (token) {
+        if (token && String(userId) !== getMyUserId()) {
           const br = await fetch(
             `/api/bookmarks/check?itemType=User&itemId=${encodeURIComponent(userId)}`,
             {
@@ -256,7 +307,6 @@ export default function ClientProfileClient({
     load();
   }, [load]);
 
-  // Presence refresh
   useEffect(() => {
     if (!userId) return;
     const tick = async () => {
@@ -279,12 +329,13 @@ export default function ClientProfileClient({
           (r: { _id?: string; id?: string }) =>
             String(r._id || r.id) === userId
         );
-        if (hit)
+        if (hit) {
           status = String(
             (hit as { status?: string; onlineStatus?: string }).status ||
               (hit as { onlineStatus?: string }).onlineStatus ||
               status
           );
+        }
         if (status) {
           setUser((prev) =>
             prev ? { ...prev, onlineStatus: status } : prev
@@ -463,6 +514,22 @@ export default function ClientProfileClient({
       })
     : "—";
 
+  const paymentLabels =
+    user.paymentMethodLabels && user.paymentMethodLabels.length
+      ? user.paymentMethodLabels.join(", ")
+      : "—";
+
+  const responseRateLabel =
+    user.responseRate != null ? `${Math.round(Number(user.responseRate))}%` : "—";
+
+  const lastActiveLabel =
+    status === "status-online"
+      ? "Online now"
+      : relativeTime(user.lastActiveAt);
+
+  const stackPeople = mutual.length > 0 ? mutual : collaborators;
+  const stackExtra = Math.max(0, stackPeople.length - 3);
+
   return (
     <>
       <section className="cp-hero" id="cp-hero">
@@ -485,7 +552,7 @@ export default function ClientProfileClient({
         <div className="cp-hero-topbar">
           <div className="cp-badge">
             <i className="fas fa-award" />
-            <span>Client</span>
+            <span>{isOwner ? "Your public profile" : "Client"}</span>
           </div>
           <div className="cp-online-pill">
             <span className={`cp-status-dot ${status}`} id="hero-status" />
@@ -545,29 +612,56 @@ export default function ClientProfileClient({
           </div>
 
           <div className="cp-hero-actions">
-            <button
-              type="button"
-              className="cp-btn-glass primary"
-              onClick={() => setMsgOpen(true)}
-            >
-              <i className="fas fa-envelope" /> Message
-            </button>
-            <button
-              type="button"
-              className="cp-btn-icon"
-              title="Video call"
-              onClick={() => showToast("Video call coming soon", "info")}
-            >
-              <i className="fas fa-video" />
-            </button>
-            <button
-              type="button"
-              className={`cp-btn-icon${fav ? " is-active" : ""}`}
-              title={fav ? "Saved" : "Save to favorites"}
-              onClick={toggleFav}
-            >
-              <i className="fas fa-heart" />
-            </button>
+            {isOwner ? (
+              <>
+                <Link
+                  href="/client-settings#account-panel"
+                  className="cp-btn-glass primary"
+                >
+                  <i className="fas fa-pen" /> Edit profile
+                </Link>
+                <Link
+                  href="/client-settings#privacy-panel"
+                  className="cp-btn-icon"
+                  title="Privacy settings"
+                >
+                  <i className="fas fa-lock" />
+                </Link>
+                <Link
+                  href="/client-orders-history"
+                  className="cp-btn-icon"
+                  title="My orders"
+                >
+                  <i className="fas fa-clipboard-list" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="cp-btn-glass primary"
+                  onClick={() => setMsgOpen(true)}
+                >
+                  <i className="fas fa-envelope" /> Message
+                </button>
+                <button
+                  type="button"
+                  className="cp-btn-icon"
+                  title="Video call"
+                  onClick={() => showToast("Video call coming soon", "info")}
+                >
+                  <i className="fas fa-video" />
+                </button>
+                <button
+                  type="button"
+                  className={`cp-btn-icon${fav ? " is-active" : ""}`}
+                  title={fav ? "Saved" : "Save to favorites"}
+                  onClick={toggleFav}
+                >
+                  <i className="fas fa-heart" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -576,7 +670,9 @@ export default function ClientProfileClient({
             <span className="cp-stat-val">
               {stats.avgResponseHours != null
                 ? `${stats.avgResponseHours}h`
-                : "—"}
+                : user.responseTimeMinutes != null
+                  ? `${user.responseTimeMinutes}m`
+                  : "—"}
             </span>
             <span className="cp-stat-lbl">Avg. Response</span>
           </div>
@@ -607,6 +703,20 @@ export default function ClientProfileClient({
 
       <div className="cp-layout">
         <main className="cp-main">
+          {isOwner && (
+            <div className="cp-owner-banner glass-card">
+              <div className="glass-card-body" style={{ padding: "14px 18px" }}>
+                <p style={{ margin: 0, fontSize: "0.92rem", color: "#334155" }}>
+                  <i className="fas fa-eye" style={{ color: "#c45c5c", marginRight: 8 }} />
+                  This is how freelancers see your public profile.{" "}
+                  <Link href="/client-settings#account-panel">
+                    Update public details
+                  </Link>
+                </p>
+              </div>
+            </div>
+          )}
+
           <article className="glass-card">
             <header className="glass-card-head">
               <h2>
@@ -684,14 +794,11 @@ export default function ClientProfileClient({
             </div>
           </article>
 
-          {/* Active orders — always shown */}
           <article className="glass-card">
             <header className="glass-card-head">
               <h2>
                 <i className="fas fa-clipboard-list" /> Active Orders{" "}
-                <small>
-                  {stats.activeOrders} ongoing
-                </small>
+                <small>{stats.activeOrders} ongoing</small>
               </h2>
             </header>
             <div className="glass-card-body">
@@ -707,18 +814,20 @@ export default function ClientProfileClient({
                         <strong>{o.title || "Service order"}</strong>
                         <span className="cp-order-meta">
                           #{o.orderNumber}
-                          {o.amount != null ? ` · ${formatMoney(o.amount)}` : ""}
+                          {o.amount != null
+                            ? ` · ${formatMoney(o.amount)}`
+                            : ""}
                         </span>
                       </div>
                       <span
                         className={`cp-status ${
-                          o.status === "in_escrow" || o.status === "revision_requested"
+                          o.status === "in_escrow" ||
+                          o.status === "revision_requested"
                             ? "in-progress"
                             : "pending"
                         }`}
                       >
-                        {String(o.status || "")
-                          .replace(/_/g, " ")}
+                        {String(o.status || "").replace(/_/g, " ")}
                       </span>
                     </li>
                   ))}
@@ -727,7 +836,6 @@ export default function ClientProfileClient({
             </div>
           </article>
 
-          {/* Reviews given */}
           <article className="glass-card">
             <header className="glass-card-head">
               <h2>
@@ -771,6 +879,7 @@ export default function ClientProfileClient({
         </main>
 
         <aside className="cp-sidebar">
+          {/* Communication — prototype match */}
           <section className="glass-widget">
             <h3 className="glass-widget-title">
               <i className="fas fa-comment-dots" /> Communication
@@ -784,9 +893,20 @@ export default function ClientProfileClient({
                     "Platform messaging"}
                 </strong>
               </div>
+              <div className="cp-info-row">
+                <span>Response rate</span>
+                <strong className={user.responseRate != null ? "good" : ""}>
+                  {responseRateLabel}
+                </strong>
+              </div>
+              <div className="cp-info-row">
+                <span>Last active</span>
+                <strong>{lastActiveLabel}</strong>
+              </div>
             </div>
           </section>
 
+          {/* Budget & Payment — prototype match */}
           <section className="glass-widget">
             <h3 className="glass-widget-title">
               <i className="fas fa-money-bill-wave" /> Budget &amp; Payment
@@ -802,9 +922,14 @@ export default function ClientProfileClient({
                   {ESCROW[user.escrowPref || ""] || user.escrowPref || "—"}
                 </strong>
               </div>
+              <div className="cp-info-row">
+                <span>Payment methods</span>
+                <strong>{paymentLabels}</strong>
+              </div>
             </div>
           </section>
 
+          {/* Trust & Security — prototype match */}
           <section className="glass-widget">
             <h3 className="glass-widget-title">
               <i className="fas fa-user-shield" /> Trust &amp; Security
@@ -820,6 +945,12 @@ export default function ClientProfileClient({
                 <span>2FA</span>
                 <strong className={user.twoFactorEnabled ? "good" : ""}>
                   {user.twoFactorEnabled ? "Enabled" : "Not enabled"}
+                </strong>
+              </div>
+              <div className="cp-info-row">
+                <span>Email</span>
+                <strong className={user.emailVerified ? "good" : ""}>
+                  {user.emailVerified ? "Verified" : "—"}
                 </strong>
               </div>
             </div>
@@ -849,24 +980,92 @@ export default function ClientProfileClient({
             </div>
           </section>
 
-          <section className="glass-widget report-widget">
+          {/* Mutual / collaborators */}
+          <section className="glass-widget" id="mutual-widget">
             <h3 className="glass-widget-title">
-              <i className="fas fa-flag" /> Help
+              <i className="fas fa-users" />{" "}
+              {mutual.length > 0 ? "Mutual connections" : "Collaborators"}
             </h3>
-            <p className="cp-muted-sm">Issue with this profile?</p>
-            <button
-              type="button"
-              className="cp-btn-danger full"
-              onClick={() => setReportOpen(true)}
-            >
-              <i className="fas fa-flag" /> Report client
-            </button>
+            {stackPeople.length === 0 ? (
+              <p className="cp-muted-sm">
+                {isOwner
+                  ? "Freelancers you hire will appear here for visitors."
+                  : "No shared connections yet."}
+              </p>
+            ) : (
+              <>
+                <div
+                  className="cp-avatar-stack"
+                  onClick={() => setMutualOpen(true)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") setMutualOpen(true);
+                  }}
+                >
+                  {stackPeople.slice(0, 3).map((p) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={p._id}
+                      src={p.avatar || "/default-avatar.png"}
+                      alt={p.displayName || ""}
+                    />
+                  ))}
+                  {stackExtra > 0 ? (
+                    <span className="cp-stack-more">+{stackExtra}</span>
+                  ) : null}
+                </div>
+                <p className="cp-muted-sm">
+                  {mutual.length > 0
+                    ? "See which of your connections know this client."
+                    : "Freelancers this client has worked with."}
+                </p>
+              </>
+            )}
           </section>
+
+          {/* Report — visitors only */}
+          {!isOwner && (
+            <section className="glass-widget report-widget">
+              <h3 className="glass-widget-title">
+                <i className="fas fa-flag" /> Help
+              </h3>
+              <p className="cp-muted-sm">Issue with this profile?</p>
+              <button
+                type="button"
+                className="cp-btn-danger full"
+                onClick={() => setReportOpen(true)}
+              >
+                <i className="fas fa-flag" /> Report client
+              </button>
+            </section>
+          )}
+
+          {isOwner && (
+            <section className="glass-widget">
+              <h3 className="glass-widget-title">
+                <i className="fas fa-cog" /> Manage
+              </h3>
+              <Link
+                href="/client-settings"
+                className="cp-btn-ghost full"
+                style={{ marginBottom: 8 }}
+              >
+                <i className="fas fa-sliders-h" /> Account settings
+              </Link>
+              <Link
+                href="/client-orders-history"
+                className="cp-btn-ghost full"
+              >
+                <i className="fas fa-history" /> Order history
+              </Link>
+            </section>
+          )}
         </aside>
       </div>
 
-      {/* Message modal */}
-      {msgOpen && (
+      {/* Message modal — visitors */}
+      {msgOpen && !isOwner && (
         <div
           className="cp-modal-overlay"
           onClick={(e) => {
@@ -929,7 +1128,54 @@ export default function ClientProfileClient({
         </div>
       )}
 
-      {reportOpen && (
+      {/* Mutual / collaborators modal */}
+      {mutualOpen && (
+        <div
+          className="cp-modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setMutualOpen(false);
+          }}
+        >
+          <div className="cp-modal cp-modal-sm" role="dialog">
+            <div className="cp-modal-head">
+              <h3>
+                {mutual.length > 0 ? "Mutual connections" : "Collaborators"}
+              </h3>
+              <button
+                type="button"
+                className="cp-modal-close"
+                onClick={() => setMutualOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="cp-modal-body cp-mutual-list">
+              {stackPeople.map((p) => (
+                <div key={p._id} className="cp-mutual-item">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.avatar || "/default-avatar.png"}
+                    alt=""
+                  />
+                  <div>
+                    <strong>{p.displayName || "Freelancer"}</strong>
+                    <span>Freelancer</span>
+                  </div>
+                  <Link
+                    href={`/freelancer-profile?id=${p._id}`}
+                    className="cp-link"
+                    onClick={() => setMutualOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reportOpen && !isOwner && (
         <div
           className="cp-modal-overlay"
           onClick={(e) => {
