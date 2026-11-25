@@ -1,5 +1,5 @@
 /* service-details.css */
-/* Unique modern aesthetic: deep indigo accents, soft shadows, generous spacing — nothing like Fiverr */
+/* Unique modern aesthetic: deep indigo accents, soft shadows, generous spacing */
 
 :root {
   --primary: #d96464;     /* Indigo */
@@ -135,10 +135,12 @@
   background: #e2e8f0;
   position: relative;
 }
+
 .main-image {
-  object-fit: cover !important;
-  object-position: center !important;
+  object-fit: contain !important;
+  object-position: center center !important;
 }
+
 .main-image-wrapper > span,
 .main-image-wrapper > img,
 .main-image-wrapper img {
