@@ -123,36 +123,56 @@
 .gallery-section {
   margin-bottom: 60px;
 }
+
+/* styles/pages/service-details.css */
+
+/* Main gallery frame */
 .main-image-wrapper {
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
   margin-bottom: 16px;
-  /* Fixed frame — stops layout jump when rotating images */
   width: 100%;
   height: 420px;
   max-height: 55vh;
   background: #e2e8f0;
   position: relative;
+  isolation: isolate;
 }
 
+/* Blurred background fills the unused space */
+.main-image-blur {
+  object-fit: cover !important;
+  object-position: center center !important;
+  filter: blur(22px);
+  transform: scale(1.12);
+  opacity: 0.55;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Original image: always show the complete image */
 .main-image {
   object-fit: contain !important;
   object-position: center center !important;
+  z-index: 1;
 }
 
+/* Maintain Next.js image dimensions */
 .main-image-wrapper > span,
 .main-image-wrapper > img,
 .main-image-wrapper img {
   width: 100% !important;
   height: 100% !important;
 }
+
 @media (max-width: 768px) {
   .main-image-wrapper {
       height: 260px;
       max-height: 40vh;
   }
 }
+
 .thumbnail-strip {
   display: flex;
   gap: 12px;

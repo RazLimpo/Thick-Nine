@@ -752,17 +752,31 @@ export default function ServiceDetailsClient({
               onMouseEnter={() => setGalleryPaused(true)}
               onMouseLeave={() => setGalleryPaused(false)}
             >
-              <div className="main-image-wrapper">
-                <Image
-                  id="main-image"
-                  src={images[activeImageIndex]}
-                  alt={service.title}
-                  fill
-                  className="main-image"
-                  sizes="(max-width: 1024px) 100vw, 720px"
-                  priority
-                />
-              </div>
+              
+              
+<div className="main-image-wrapper">
+  {/* Blurred background fills the gallery frame */}
+  <Image
+    src={images[activeImageIndex]}
+    alt=""
+    fill
+    aria-hidden="true"
+    className="main-image-blur"
+    sizes="(max-width: 1024px) 100vw, 720px"
+  />
+
+  {/* Original image remains fully visible and uncropped */}
+  <Image
+    id="main-image"
+    src={images[activeImageIndex]}
+    alt={service.title}
+    fill
+    className="main-image"
+    sizes="(max-width: 1024px) 100vw, 720px"
+    priority
+  />
+</div>
+              
               {images.length > 1 && (
                 <div className="thumbnail-strip">
                   {images.map((src, idx) => (
