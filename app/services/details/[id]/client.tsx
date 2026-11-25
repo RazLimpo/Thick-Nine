@@ -779,13 +779,20 @@ export default function ServiceDetailsClient({
                         background: "none",
                       }}
                     >
-                      <Image
-                        src={src}
-                        alt={`Preview ${idx + 1}`}
-                        width={120}
-                        height={80}
-                        style={{ objectFit: "cover", borderRadius: 10 }}
-                      />
+                      
+<Image
+  src={src}
+  alt={`Preview ${idx + 1}`}
+  width={120}
+  height={80}
+  style={{
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    borderRadius: 6,
+    display: "block",
+  }}
+/>
                     </button>
                   ))}
                 </div>
