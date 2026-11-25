@@ -10,6 +10,10 @@ const User = require("../models/User");
 const Order = require("../models/Order");
 const ProfileReport = require("../models/ProfileReport");
 const jwt = require("jsonwebtoken");
+const {
+  resolveLastSeen,
+  getCommunicationMetrics,
+} = require("../utils/profileMetrics");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -172,6 +176,7 @@ router.get("/:id/public", async (req, res) => {
           "createdAt",
           "updatedAt",
           "lastActiveAt",
+          "lastSeen",
           "role",
           "paymentMethods",
           "metrics",
@@ -191,6 +196,19 @@ router.get("/:id/public", async (req, res) => {
         success: false,
         message: "This profile is not public.",
       });
+    }
+
+    // Shared metrics (client / freelancer / affiliate profiles)
+    const lastSeenAt = resolveLastSeen(user);
+    let comm = {
+      responseRate: null,
+      avgResponseHours: null,
+      sampleSize: 0,
+    };
+    try {
+      comm = await getCommunicationMetrics(clientOid);
+    } catch (e) {
+      console.warn("getCommunicationMetrics", e.message);
     }
 
     const loc = user.location;
@@ -396,15 +414,24 @@ router.get("/:id/public", async (req, res) => {
         emailVerified: !!user.emailVerified,
         onlineStatus: user.onlineStatus || "offline",
         memberSince: user.memberSince || user.createdAt,
-        lastActiveAt: user.lastActiveAt || user.updatedAt || null,
+        lastActiveAt: lastSeenAt,
+        lastSeen: lastSeenAt,
         role: user.role,
         orderVisibility: user.orderVisibility !== false,
+        // Live from DM history when sample exists; else stored metrics; else null
         responseRate:
-          user.metrics && user.metrics.responseRate != null
-            ? Number(user.metrics.responseRate)
-            : null,
+          comm.sampleSize > 0
+            ? comm.responseRate
+            : user.metrics && user.metrics.responseRate != null
+              ? Number(user.metrics.responseRate)
+              : null,
         responseTimeMinutes:
-          user.responseTime != null ? Number(user.responseTime) : null,
+          comm.avgResponseHours != null
+            ? Math.round(comm.avgResponseHours * 60)
+            : user.responseTime != null
+              ? Number(user.responseTime)
+              : null,
+        responseSampleSize: comm.sampleSize,
         paymentMethodLabels: Array.from(
           new Set(
             (user.paymentMethods || [])
@@ -423,8 +450,11 @@ router.get("/:id/public", async (req, res) => {
         totalSpent,
         reliability,
         avgBuyerRating,
-        // Avg response needs messaging timestamps — not available yet
-        avgResponseHours: null,
+        avgResponseHours:
+          comm.avgResponseHours != null
+            ? comm.avgResponseHours
+            : null,
+        responseSampleSize: comm.sampleSize,
       },
       activeOrders,
       reviewsGiven,

@@ -670,9 +670,7 @@ export default function ClientProfileClient({
             <span className="cp-stat-val">
               {stats.avgResponseHours != null
                 ? `${stats.avgResponseHours}h`
-                : user.responseTimeMinutes != null
-                  ? `${user.responseTimeMinutes}m`
-                  : "—"}
+                : "—"}
             </span>
             <span className="cp-stat-lbl">Avg. Response</span>
           </div>
