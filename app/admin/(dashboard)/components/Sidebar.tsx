@@ -107,10 +107,10 @@ export default function AdminSidebar({ user }: SidebarProps) {
             messages: Number(c.messages) || 0,
             orders: Number(c.orders) || 0,
             withdrawals: Number(c.withdrawals) || 0,
-            // Prefer dedicated field; fall back to pending affiliate if API adds it later
             affiliatePayouts:
               Number(c.affiliatePayouts ?? c.affiliate_payouts ?? 0) || 0,
             clients: Number(c.clients) || 0,
+            profileReports: Number(c.profileReports ?? 0) || 0,
           });
         }
       } catch (err) {
@@ -141,6 +141,21 @@ export default function AdminSidebar({ user }: SidebarProps) {
         if (!cancelled && res3.ok && data3.success) {
           const n = Number(data3.summary?.pendingCount) || 0;
           setCounts((prev) => ({ ...prev, withdrawals: n }));
+        }
+      } catch {
+        /* optional */
+      }
+
+      // Pending profile reports
+      try {
+        const res4 = await fetch(
+          '/api/admin/profile-reports?status=pending',
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data4 = await res4.json().catch(() => ({}));
+        if (!cancelled && res4.ok && data4.success) {
+          const n = Number(data4.summary?.pendingCount) || 0;
+          setCounts((prev) => ({ ...prev, profileReports: n }));
         }
       } catch {
         /* optional */
@@ -184,7 +199,9 @@ export default function AdminSidebar({ user }: SidebarProps) {
                     ? counts.affiliatePayouts
                     : item.badgeKey === 'clients'
                       ? counts.clients
-                      : 0;
+                      : item.badgeKey === 'profileReports'
+                        ? counts.profileReports
+                        : 0;
 
           return (
             <Link
