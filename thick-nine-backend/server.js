@@ -44,6 +44,7 @@ const freelancerAnalyticsRoutes = require("./routes/freelancerAnalyticsRoutes");
 const affiliateTeamRoutes = require("./routes/affiliateTeamRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const freelancerClientsRoutes = require("./routes/freelancerClientsRoutes");
+const friendRoutes = require("./routes/friendRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -160,6 +161,7 @@ app.use("/api/freelancer", require("./routes/freelancerAnalyticsRoutes"));
 app.use("/api/affiliate/teams", affiliateTeamRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/freelancer/clients", freelancerClientsRoutes);
+app.use("/api/friends", require("./routes/friendRoutes"));
 
 app.get("/", (req, res) => {
   res.send(

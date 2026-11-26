@@ -3,6 +3,16 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
+
+
+function oid(id) {
+  try {
+    return new mongoose.Types.ObjectId(String(id));
+  } catch {
+    return null;
+  }
+}
+
 const bcrypt = require('bcryptjs');
 
 const auth = require('../middleware/auth');
@@ -20,6 +30,7 @@ const Transaction = require("../models/Transaction");
 const Admin = require('../models/Admin');
 const AuditLog = require('../models/AuditLog');
 const AffiliatePayoutRequest = require('../models/AffiliatePayoutRequest');
+const ProfileReport = require('../models/ProfileReport');
 
 // ==================================================================
 // ADMIN ROUTE SECURITY
@@ -333,6 +344,7 @@ router.get(
         disputes: 0,
         withdrawals: 0,
         clients: 0,
+        profileReports: 0,
       };
 
       if (adminCan(req, 'messages:read')) {
@@ -364,6 +376,14 @@ router.get(
       { isEmailVerified: false },
     ],
   });
+
+  try {
+    counts.profileReports = await ProfileReport.countDocuments({
+      status: "pending",
+    });
+  } catch (_) {
+    counts.profileReports = 0;
+  }
 }
 
       return res.status(200).json({
@@ -2182,6 +2202,148 @@ router.patch(
     }
   }
 );
+
+
+
+// ==================================================================
+// PROFILE REPORTS QUEUE (client / freelancer profile reports)
+// ==================================================================
+
+/**
+ * GET /api/admin/profile-reports?status=pending|reviewed|dismissed|actioned|all
+ */
+router.get(
+  "/profile-reports",
+  auth,
+  adminContext,
+  requirePermission("users:read"),
+  async (req, res) => {
+    try {
+      const status = String(req.query.status || "pending");
+      const filter =
+        status === "all" ? {} : { status: status || "pending" };
+
+      const reports = await ProfileReport.find(filter)
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .populate(
+          "reporterId",
+          "fullName displayName email avatar profilePicture role"
+        )
+        .populate(
+          "targetUserId",
+          "fullName displayName email avatar profilePicture role isActive"
+        )
+        .populate("reviewedBy", "fullName displayName")
+        .lean();
+
+      const pendingCount = await ProfileReport.countDocuments({
+        status: "pending",
+      });
+
+      return res.json({
+        success: true,
+        reports,
+        summary: { pendingCount },
+      });
+    } catch (e) {
+      console.error("GET /api/admin/profile-reports", e);
+      return res.status(500).json({
+        success: false,
+        message: e.message || "Failed to load reports.",
+      });
+    }
+  }
+);
+
+/**
+ * PATCH /api/admin/profile-reports/:id
+ * body: { status: reviewed|dismissed|actioned|pending, adminNote? }
+ */
+router.patch(
+  "/profile-reports/:id",
+  auth,
+  adminContext,
+  requirePermission("users:write"),
+  async (req, res) => {
+    try {
+      const id = oid(req.params.id);
+      if (!id) {
+        return res.status(400).json({ success: false, message: "Invalid id." });
+      }
+
+      const nextStatus = String(req.body?.status || "").trim();
+      const allowed = ["reviewed", "dismissed", "actioned", "pending"];
+      if (!allowed.includes(nextStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status.",
+        });
+      }
+
+      const adminId = req.admin?.id || req.admin?._id || req.user?.id || req.user?._id;
+      const report = await ProfileReport.findById(id);
+      if (!report) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Report not found." });
+      }
+
+      report.status = nextStatus;
+      if (req.body?.adminNote != null) {
+        report.adminNote = String(req.body.adminNote).slice(0, 2000);
+      }
+      if (nextStatus !== "pending") {
+        report.reviewedAt = new Date();
+        report.reviewedBy = adminId || null;
+      }
+      await report.save();
+
+      // Actioned does not auto-ban — use /clients/:id/status or /warn
+
+      const populated = await ProfileReport.findById(report._id)
+        .populate(
+          "reporterId",
+          "fullName displayName email avatar role"
+        )
+        .populate(
+          "targetUserId",
+          "fullName displayName email avatar role isActive"
+        )
+        .lean();
+
+      try {
+        await AuditLog.create({
+          actor: {
+            id: req.admin?.id || req.user?.id,
+            name: req.admin?.name || "",
+            email: req.admin?.email || "",
+            role: req.admin?.role || "admin",
+          },
+          target: {
+            id: report._id,
+            name: `Profile report ${nextStatus}`,
+            email: "",
+            role: "report",
+          },
+          action: `profile_report_${nextStatus}`,
+          oldPermissions: [],
+          newPermissions: [],
+          details: `Report ${report._id} → ${nextStatus}. ${report.adminNote || ""}`.trim(),
+        });
+      } catch (_) {}
+
+      return res.json({ success: true, report: populated });
+    } catch (e) {
+      console.error("PATCH /api/admin/profile-reports/:id", e);
+      return res.status(500).json({
+        success: false,
+        message: e.message || "Failed to update report.",
+      });
+    }
+  }
+);
+
 
 
 module.exports = router;

@@ -220,6 +220,11 @@ export default function ClientProfileClient({
   const [reportDetails, setReportDetails] = useState("");
   const [fav, setFav] = useState(false);
   const [mutualOpen, setMutualOpen] = useState(false);
+  const [friendRelation, setFriendRelation] = useState<
+    "self" | "friends" | "pending_outgoing" | "pending_incoming" | "none"
+  >("none");
+  const [friendRequestId, setFriendRequestId] = useState<string | null>(null);
+  const [friendBusy, setFriendBusy] = useState(false);
 
   useEffect(() => {
     Promise.resolve(params).then((p) => setUserId(p.id));
@@ -292,6 +297,19 @@ export default function ClientProfileClient({
           if (br.ok) {
             setFav(Boolean(bd.bookmarked || bd.exists || bd.isBookmarked));
           }
+
+          const fr = await fetch(`/api/friends/status/${userId}`, {
+            headers: getAuthHeaders(),
+            credentials: "include",
+            cache: "no-store",
+          });
+          const fd = await fr.json().catch(() => ({}));
+          if (fr.ok && fd.relation) {
+            setFriendRelation(fd.relation);
+            setFriendRequestId(fd.requestId ? String(fd.requestId) : null);
+          }
+        } else if (String(userId) === getMyUserId()) {
+          setFriendRelation("self");
         }
       } catch {
         /* optional */
@@ -425,6 +443,70 @@ export default function ClientProfileClient({
       }
     } catch {
       showToast("Network error.", "removed");
+    }
+  };
+
+
+  const friendAction = async (
+    kind: "request" | "accept" | "reject" | "cancel" | "unfriend"
+  ) => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      router.push("/?auth=login");
+      return;
+    }
+    setFriendBusy(true);
+    try {
+      let res: Response;
+      if (kind === "request") {
+        res = await fetch("/api/friends/request", {
+          method: "POST",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ toUserId: userId }),
+        });
+      } else if (kind === "unfriend") {
+        res = await fetch(`/api/friends/${userId}`, {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+          credentials: "include",
+        });
+      } else {
+        if (!friendRequestId) {
+          showToast("No pending request.", "removed");
+          return;
+        }
+        res = await fetch(`/api/friends/${friendRequestId}/${kind}`, {
+          method: "POST",
+          headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: "{}",
+        });
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showToast(data.message || "Could not update connection.", "removed");
+        return;
+      }
+      if (data.relation) setFriendRelation(data.relation);
+      if (data.requestId) setFriendRequestId(String(data.requestId));
+      if (data.relation === "none") setFriendRequestId(null);
+      if (kind === "request") showToast("Friend request sent");
+      else if (kind === "accept") showToast("You are now connected");
+      else if (kind === "reject") showToast("Request declined", "info");
+      else if (kind === "cancel") showToast("Request cancelled", "info");
+      else if (kind === "unfriend") showToast("Connection removed", "removed");
+    } catch {
+      showToast("Network error.", "removed");
+    } finally {
+      setFriendBusy(false);
     }
   };
 
@@ -660,6 +742,47 @@ export default function ClientProfileClient({
                 >
                   <i className="fas fa-heart" />
                 </button>
+                {friendRelation === "friends" ? (
+                  <button
+                    type="button"
+                    className="cp-btn-icon is-active"
+                    title="Connected — click to remove"
+                    disabled={friendBusy}
+                    onClick={() => friendAction("unfriend")}
+                  >
+                    <i className="fas fa-user-check" />
+                  </button>
+                ) : friendRelation === "pending_outgoing" ? (
+                  <button
+                    type="button"
+                    className="cp-btn-icon is-active"
+                    title="Request sent — cancel"
+                    disabled={friendBusy}
+                    onClick={() => friendAction("cancel")}
+                  >
+                    <i className="fas fa-user-clock" />
+                  </button>
+                ) : friendRelation === "pending_incoming" ? (
+                  <button
+                    type="button"
+                    className="cp-btn-icon"
+                    title="Accept friend request"
+                    disabled={friendBusy}
+                    onClick={() => friendAction("accept")}
+                  >
+                    <i className="fas fa-user-plus" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="cp-btn-icon"
+                    title="Add as friend"
+                    disabled={friendBusy}
+                    onClick={() => friendAction("request")}
+                  >
+                    <i className="fas fa-user-plus" />
+                  </button>
+                )}
               </>
             )}
           </div>

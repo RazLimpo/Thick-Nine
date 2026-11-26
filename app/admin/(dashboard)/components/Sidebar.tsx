@@ -15,7 +15,7 @@ interface NavItem {
   path: string;
   icon: string;
   permission?: string;
-  badgeKey?: 'messages' | 'orders' | 'withdrawals' | 'affiliatePayouts' | 'clients';
+  badgeKey?: 'messages' | 'orders' | 'withdrawals' | 'affiliatePayouts' | 'clients' | 'profileReports';
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -55,6 +55,13 @@ const NAV_ITEMS: NavItem[] = [
     permission: 'messages:read',
     badgeKey: 'messages',
   },
+  {
+    name: 'Profile reports',
+    path: '/admin/profile-reports',
+    icon: 'fa-flag',
+    permission: 'users:read',
+    badgeKey: 'profileReports',
+  },
   { name: 'Profile', path: '/admin/profile', icon: 'fa-user-cog' },
 ];
 
@@ -66,6 +73,7 @@ export default function AdminSidebar({ user }: SidebarProps) {
     withdrawals: 0,
     affiliatePayouts: 0,
     clients: 0,
+    profileReports: 0,
   });
 
   useEffect(() => {
