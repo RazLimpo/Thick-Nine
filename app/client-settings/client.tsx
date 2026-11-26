@@ -358,6 +358,8 @@ export default function ClientSettingsClient() {
         displayName: displayName.trim(),
         tagline: tagline.trim(),
         bio: bio.trim(),
+        avatar: avatar || undefined,
+        coverImage: coverImage || undefined,
         preferredSkills: fromList(preferredSkills),
         projectTypes,
         preferredProjectType: projectType,
