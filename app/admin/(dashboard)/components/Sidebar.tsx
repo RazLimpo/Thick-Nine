@@ -84,6 +84,7 @@ export default function AdminSidebar({ user }: SidebarProps) {
         withdrawals: 0,
         affiliatePayouts: 0,
         clients: 0,
+        profileReports: 0,
       });
       return;
     }
